@@ -1,6 +1,7 @@
 // The one path for bringing outside transactions in, used by CSV import, the
 // bank connector and the MCP: rows carry the source's own id, a row whose id
-// the account already has is skipped, and the rules name and categorise the rest.
+// the account already has is skipped, and the rules name and categorise the
+// rest and make moves between the person's own accounts transfers.
 import { createHash } from "node:crypto"
 import { and, eq, inArray } from "drizzle-orm"
 import { db, schema } from "../db"
@@ -8,7 +9,7 @@ import { getAccount } from "./accounts"
 import { logChange, money } from "./changes"
 import { payeeCategory, payeeIdForName } from "./payees"
 import { getCategory } from "./categories"
-import { loadRules, runRules } from "./rules"
+import { loadRules, runRules, transfersOnArrival } from "./rules"
 import { minorDigits } from "./fx"
 import {
   checkAmount,
@@ -19,7 +20,14 @@ import {
   NotFound,
 } from "./validate"
 import type { Database } from "../db"
-import type { Actor, CsvMapping, ImportResult, ImportRow } from "@/shared/types"
+import type { CompiledRule } from "./rules"
+import type {
+  Account,
+  Actor,
+  CsvMapping,
+  ImportResult,
+  ImportRow,
+} from "@/shared/types"
 import type { CsvPreview } from "@/shared/import"
 
 const { transactions } = schema
@@ -31,9 +39,11 @@ const { transactions } = schema
  * nothing the second time. Each new row goes through the rules, which may set
  * its payee and category; a category given with the row wins over theirs,
  * and the payee's default category is the fallback. A row in an off-budget
- * account gets only a category given with it: categories mean nothing there. Each added row is logged
- * on its own, all in one Activity entry, so a transaction's history starts
- * with who brought it in.
+ * account gets only a category given with it: categories mean nothing there.
+ * A row a rule makes a transfer becomes one (see transfersOnArrival), and
+ * rows elsewhere waiting for theirs in this account are linked. Each added
+ * row is logged on its own, all in one Activity entry, so a transaction's
+ * history starts with who brought it in.
  */
 export function importTransactions(
   actor: Actor,
@@ -45,33 +55,21 @@ export function importTransactions(
   return db().transaction((tx) => {
     const existing = existingIds(tx, accountId, prepared)
     const rules = loadRules(tx)
-    let added = 0
+    const arrived: Parameters<typeof transfersOnArrival>[3] = []
     let change: number | undefined
     for (const row of prepared) {
       if (existing.has(row.importedId)) continue
       existing.add(row.importedId)
-      // Only the final name becomes a payee: a bank name a rule always
-      // replaces never does.
-      const ruled = runRules(rules, {
-        bankText: row.payee || null,
-        notes: row.notes ?? "",
-        payee: row.payee ? cleanPayee(row.payee) : null,
-      })
+      const ruled = ruleRow(tx, rules, account, row)
       const payee = ruled.payee
-      const payeeId = payee ? payeeIdForName(payee, tx) : null
       const { id } = tx
         .insert(transactions)
         .values({
           accountId,
           date: row.date,
           amount: row.amount,
-          payeeId,
-          // No category given: the rules', else the payee's default.
-          categoryId:
-            row.categoryId ??
-            (account.onBudget
-              ? (ruled.categoryId ?? payeeCategory(payeeId, tx))
-              : null),
+          payeeId: ruled.payeeId,
+          categoryId: ruled.categoryId,
           notes: row.notes ?? "",
           status: row.status ?? "cleared",
           importedId: row.importedId,
@@ -87,10 +85,52 @@ export function importTransactions(
         summary: `Added ${money(row.amount, account.currency)} ${payee ? `at ${payee} ` : ""}in ${account.name} on ${row.date}`,
         detail: "Added",
       })
-      added++
+      arrived.push({
+        id,
+        date: row.date,
+        transferAccountId: ruled.transferAccountId,
+      })
     }
+    transfersOnArrival(tx, actor, accountId, arrived, rules)
+    const added = arrived.length
     return { added, skipped: prepared.length - added, change }
   })
+}
+
+/**
+ * What the rules give a new row: its payee (only the final name becomes a
+ * payee: a bank name a rule always replaces never does), its category (one
+ * given with the row, else the rules', else the payee's default; none off
+ * budget unless given) and the account it is a transfer to.
+ */
+export function ruleRow(
+  tx: Parameters<typeof payeeIdForName>[1],
+  rules: CompiledRule[],
+  account: Pick<Account, "id" | "onBudget">,
+  row: Pick<ImportRow, "payee" | "notes" | "categoryId">
+): {
+  payee: string | null
+  payeeId: number | null
+  categoryId: number | null
+  transferAccountId: number | null
+} {
+  const ruled = runRules(rules, {
+    bankText: row.payee || null,
+    notes: row.notes ?? "",
+    payee: row.payee ? cleanPayee(row.payee) : null,
+    accountId: account.id,
+  })
+  const payeeId = ruled.payee ? payeeIdForName(ruled.payee, tx) : null
+  return {
+    payee: ruled.payee,
+    payeeId,
+    categoryId:
+      row.categoryId ??
+      (account.onBudget
+        ? (ruled.categoryId ?? payeeCategory(payeeId, tx))
+        : null),
+    transferAccountId: ruled.transferAccountId,
+  }
 }
 
 type PreparedRow = ImportRow & { importedId: string; payee: string }

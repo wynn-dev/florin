@@ -167,6 +167,9 @@ export type Rule = {
   payee: string | null
   categoryId: number | null
   categoryName: string | null
+  /** The person's own account a matching row is a transfer to. */
+  transferAccountId: number | null
+  transferAccountName: string | null
 }
 
 /** A rule to create (no id) or change (id; only the fields given change). */
@@ -177,6 +180,8 @@ export type RuleInput = {
   payee?: string | null
   /** null clears it. */
   categoryId?: number | null
+  /** null clears it. */
+  transferAccountId?: number | null
   /** Its place in the list, from 1; new rules without one go last. */
   position?: number
 }
@@ -200,6 +205,8 @@ export type RuleChange = {
   bankText: string | null
   payee?: { from: string | null; to: string }
   category?: { from: string | null; to: string }
+  /** Made a transfer to this account: linked to the row there, or its leg created. */
+  transfer?: { account: string; linkedId?: number }
 }
 
 export type ApplyRulesResult = {
@@ -210,6 +217,10 @@ export type ApplyRulesResult = {
   changed: number
   payeesSet: number
   categoriesSet: number
+  /** Linked to the mirroring row in a transfer rule's account. */
+  transfersLinked: number
+  /** Made transfers to a hand-kept account, its leg created. */
+  transfersCreated: number
   /** Payees left with no transactions and no default category, removed. */
   payeesRemoved: number
   /** A few of the changes, for a dry run. */
@@ -267,6 +278,8 @@ export type Transaction = {
    * the transfer and the other leg goes with this one, and for non-transfers.
    */
   transferKept: boolean
+  /** An account's opening balance, which can't be a transfer. */
+  startingBalance: boolean
   /** The account's balance after this transaction; only when listing one account. */
   balance?: number
 }

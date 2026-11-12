@@ -329,7 +329,11 @@ function checkAccountIds(ids: unknown): number[] {
   return ids as number[]
 }
 
-/** The earliest transaction or account value, in the given accounts (all when none). */
+/**
+ * The earliest transaction or account value, in the given accounts (all when
+ * none). A run of zero values before an account first holds anything (the
+ * broker reports a value for every day of the period asked) is no data.
+ */
 function firstDate(
   accountIds: number[],
   options: { onBudget?: boolean; values?: boolean } = {}
@@ -349,9 +353,12 @@ function firstDate(
     .select({ date: sql<string | null>`min(${accountValues.date})` })
     .from(accountValues)
     .where(
-      accountIds.length
-        ? inArray(accountValues.accountId, accountIds)
-        : undefined
+      and(
+        sql`${accountValues.value} <> 0`,
+        accountIds.length
+          ? inArray(accountValues.accountId, accountIds)
+          : undefined
+      )
     )
     .get()?.date
   if (!fromTransactions || !fromValues)

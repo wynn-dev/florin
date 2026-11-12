@@ -44,6 +44,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { api, queries } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -90,6 +97,7 @@ export function RulesSettings() {
                 pattern: rule.pattern,
                 payee: rule.payee,
                 categoryId: rule.categoryId,
+                transferAccountId: rule.transferAccountId,
                 position: rule.position,
               },
             ]),
@@ -176,9 +184,17 @@ function plural(n: number, one: string, many: string): string {
   return `${n.toLocaleString()} ${n === 1 ? one : many}`
 }
 
-/** What a rule sets: "Albert Heijn · Groceries". */
-function ruleResult(rule: Pick<Rule, "payee" | "categoryName">): string {
-  return [rule.payee, rule.categoryName].filter(Boolean).join(" · ")
+/** What a rule sets: "Albert Heijn · Groceries", "Investments · transfer to Broker". */
+function ruleResult(
+  rule: Pick<Rule, "payee" | "categoryName" | "transferAccountName">
+): string {
+  return [
+    rule.payee,
+    rule.categoryName,
+    rule.transferAccountName && `transfer to ${rule.transferAccountName}`,
+  ]
+    .filter(Boolean)
+    .join(" · ")
 }
 
 function RuleRow({
@@ -263,11 +279,15 @@ function RuleForm({
   const [pattern, setPattern] = useState(rule?.pattern ?? "")
   const [payee, setPayee] = useState(rule?.payee ?? "")
   const [categoryId, setCategoryId] = useState(rule?.categoryId ?? null)
+  const [transferAccountId, setTransferAccountId] = useState(
+    rule?.transferAccountId ?? null
+  )
+  const accounts = useQuery(queries.accounts()).data ?? []
   const [tried, setTried] = useState(false)
   const problem = !pattern
     ? "Enter a pattern."
-    : !payee.trim() && categoryId === null
-      ? "Set a payee, a category or both."
+    : !payee.trim() && categoryId === null && transferAccountId === null
+      ? "Set a payee, a category or a transfer."
       : null
 
   return (
@@ -281,6 +301,7 @@ function RuleForm({
           pattern,
           payee: payee.trim() || null,
           categoryId,
+          transferAccountId,
         })
       }}
     >
@@ -337,6 +358,40 @@ function RuleForm({
                 className="text-muted-foreground"
                 onClick={() => setCategoryId(null)}
                 aria-label="Clear category"
+              >
+                <XIcon />
+              </Button>
+            )}
+          </div>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="rule-transfer">Transfer to</FieldLabel>
+          <div className="flex gap-1">
+            <Select
+              value={transferAccountId?.toString() ?? ""}
+              onValueChange={(v) => setTransferAccountId(Number(v))}
+            >
+              <SelectTrigger id="rule-transfer" className="h-9! min-w-0 flex-1">
+                <SelectValue placeholder="Not a transfer" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts
+                  .filter((a) => !a.closed || a.id === transferAccountId)
+                  .map((a) => (
+                    <SelectItem key={a.id} value={a.id.toString()}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            {transferAccountId !== null && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground"
+                onClick={() => setTransferAccountId(null)}
+                aria-label="Clear transfer"
               >
                 <XIcon />
               </Button>
@@ -420,6 +475,31 @@ function PatternMatches({
   )
 }
 
+/**
+ * "Changes 12 transactions: sets 4 payees and 9 categories, links 2 as
+ * transfers and removes 1 payee left without transactions".
+ */
+function applySummary(result: ApplyRulesResult): string {
+  const sets = [
+    result.payeesSet && plural(result.payeesSet, "payee", "payees"),
+    result.categoriesSet &&
+      plural(result.categoriesSet, "category", "categories"),
+  ].filter(Boolean)
+  const parts = [
+    sets.length > 0 && `sets ${sets.join(" and ")}`,
+    result.transfersLinked > 0 &&
+      `links ${result.transfersLinked.toLocaleString()} as transfers`,
+    result.transfersCreated > 0 &&
+      `makes ${plural(result.transfersCreated, "transfer", "transfers")} to accounts kept by hand`,
+    result.payeesRemoved > 0 &&
+      `removes ${plural(result.payeesRemoved, "payee", "payees")} left without transactions`,
+  ].filter(Boolean)
+  const last = parts.pop()
+  return `Changes ${plural(result.changed, "transaction", "transactions")}: ${
+    parts.length ? `${parts.join(", ")} and ${last}` : last
+  }`
+}
+
 /** Applies the rules to existing transactions, once a dry run has said how many would change. */
 function ApplyDialog({
   open,
@@ -466,20 +546,7 @@ function ApplyDialog({
                 : "Checking…"
               : changes === 0
                 ? "Nothing would change."
-                : `Sets ${[
-                    result.payeesSet &&
-                      plural(result.payeesSet, "payee", "payees"),
-                    result.categoriesSet &&
-                      plural(result.categoriesSet, "category", "categories"),
-                  ]
-                    .filter(Boolean)
-                    .join(
-                      " and "
-                    )} on ${plural(changes, "transaction", "transactions")}${
-                    result.payeesRemoved
-                      ? ` and removes ${plural(result.payeesRemoved, "payee", "payees")} left without transactions`
-                      : ""
-                  }. Edits made by hand stay.`}
+                : `${applySummary(result)}. Edits made by hand stay.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
