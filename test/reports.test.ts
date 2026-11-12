@@ -225,7 +225,9 @@ describe("the demo", () => {
         .groups.flatMap((g) => g.categories)
         .find((c) => c.name === "Shopping")!
     expect(shopping(last).available).toBe(-6_490)
-    expect(shopping(today().slice(0, 7)).available).toBeGreaterThanOrEqual(0)
+    // Nothing of last month's overspending carries into this one.
+    const now = shopping(today().slice(0, 7))
+    expect(now.available).toBe(now.budgeted + now.activity)
     expect(
       data.getBudgetMonth(today().slice(0, 7)).lastMonthOverspent
     ).toBeGreaterThanOrEqual(6_490)
