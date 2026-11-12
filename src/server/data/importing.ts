@@ -5,7 +5,7 @@ import { createHash } from "node:crypto"
 import { and, eq, inArray } from "drizzle-orm"
 import { db, schema } from "../db"
 import { getAccount } from "./accounts"
-import { logChange } from "./changes"
+import { logChange, money } from "./changes"
 import { payeeIdForName } from "./payees"
 import { getCategory } from "./categories"
 import { minorDigits } from "./fx"
@@ -17,7 +17,9 @@ import {
   InvalidInput,
   NotFound,
 } from "./validate"
+import type { Database } from "../db"
 import type { Actor, CsvMapping, ImportResult, ImportRow } from "@/shared/types"
+import type { CsvPreview } from "@/shared/import"
 
 const { transactions } = schema
 
@@ -25,7 +27,8 @@ const { transactions } = schema
  * Adds rows to an account, skipping any whose importedId is already there.
  * Rows without an importedId get one derived from date, amount and payee
  * (with a counter for identical rows), so importing the same file twice adds
- * nothing the second time.
+ * nothing the second time. Each added row is logged on its own, all in one
+ * Activity entry, so a transaction's history starts with who brought it in.
  */
 export function importTransactions(
   actor: Actor,
@@ -33,8 +36,49 @@ export function importTransactions(
   rows: ImportRow[]
 ): ImportResult {
   const account = getAccount(accountId)
+  const prepared = prepareRows(rows)
+  return db().transaction((tx) => {
+    const existing = existingIds(tx, accountId, prepared)
+    let added = 0
+    let change: number | undefined
+    for (const row of prepared) {
+      if (existing.has(row.importedId)) continue
+      existing.add(row.importedId)
+      const payee = row.payee ? cleanPayee(row.payee) : null
+      const { id } = tx
+        .insert(transactions)
+        .values({
+          accountId,
+          date: row.date,
+          amount: row.amount,
+          payeeId: payee ? payeeIdForName(payee, tx) : null,
+          categoryId: row.categoryId ?? null,
+          notes: row.notes ?? "",
+          status: row.status ?? "cleared",
+          importedId: row.importedId,
+          importedPayee: row.payee || null,
+          bookedDate: row.bookedDate ?? null,
+        })
+        .returning({ id: transactions.id })
+        .get()
+      change = logChange(tx, actor, {
+        action: "create",
+        entity: "transaction",
+        entityId: id,
+        summary: `Added ${money(row.amount, account.currency)} ${payee ? `at ${payee} ` : ""}in ${account.name} on ${row.date}`,
+        detail: "Added",
+      })
+      added++
+    }
+    return { added, skipped: prepared.length - added, change }
+  })
+}
+
+type PreparedRow = ImportRow & { importedId: string; payee: string }
+
+function prepareRows(rows: ImportRow[]): PreparedRow[] {
   const seen = new Map<string, number>()
-  const prepared = checkList(rows, "rows").map((row, i) => {
+  return checkList(rows, "rows").map((row, i) => {
     checkObject(row, `row ${i + 1}`)
     if (row.categoryId !== undefined && row.categoryId !== null)
       checkImportCategory(row.categoryId, i)
@@ -52,54 +96,29 @@ export function importTransactions(
     }
     return { ...row, date, amount, payee, importedId }
   })
+}
 
-  return db().transaction((tx) => {
-    const ids = prepared.map((r) => r.importedId)
-    const existing = new Set<string>()
-    for (let i = 0; i < ids.length; i += 500) {
-      tx.select({ id: transactions.importedId })
-        .from(transactions)
-        .where(
-          and(
-            eq(transactions.accountId, accountId),
-            inArray(transactions.importedId, ids.slice(i, i + 500))
-          )
+/** The importedIds among `rows` that the account already has. */
+function existingIds(
+  tx: Pick<Database, "select">,
+  accountId: number,
+  rows: PreparedRow[]
+): Set<string> {
+  const ids = rows.map((r) => r.importedId)
+  const existing = new Set<string>()
+  for (let i = 0; i < ids.length; i += 500) {
+    tx.select({ id: transactions.importedId })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.accountId, accountId),
+          inArray(transactions.importedId, ids.slice(i, i + 500))
         )
-        .all()
-        .forEach((r) => existing.add(r.id!))
-    }
-    let added = 0
-    for (const row of prepared) {
-      if (existing.has(row.importedId)) continue
-      existing.add(row.importedId)
-      tx.insert(transactions)
-        .values({
-          accountId,
-          date: row.date,
-          amount: row.amount,
-          payeeId: row.payee ? payeeIdForName(cleanPayee(row.payee), tx) : null,
-          categoryId: row.categoryId ?? null,
-          notes: row.notes ?? "",
-          status: row.status ?? "cleared",
-          importedId: row.importedId,
-          importedPayee: row.payee || null,
-          bookedDate: row.bookedDate ?? null,
-        })
-        .run()
-      added++
-    }
-    const skipped = prepared.length - added
-    if (added) {
-      logChange(tx, actor, {
-        action: "create",
-        entity: "transaction",
-        summary:
-          `Imported ${added} transactions into ${account.name}` +
-          (skipped ? ` (${skipped} already there)` : ""),
-      })
-    }
-    return { added, skipped }
-  })
+      )
+      .all()
+      .forEach((r) => existing.add(r.id!))
+  }
+  return existing
 }
 
 function checkImportCategory(categoryId: number, i: number) {
@@ -150,7 +169,8 @@ function parseDate(
   value: string,
   format: CsvMapping["dateFormat"] = "YYYY-MM-DD"
 ): string {
-  const parts = value.trim().split(/[-/.]/)
+  // A time after the date ("2026-11-10 14:22", "…T14:22:01") is dropped.
+  const parts = value.trim().split(/[\sT]/)[0].split(/[-/.]/)
   if (parts.length !== 3) throw new InvalidInput(`cannot read date "${value}"`)
   const [y, m, d] =
     format === "YYYY-MM-DD"
@@ -182,19 +202,18 @@ function parseMoney(
   return negative ? -minor : minor
 }
 
-/** Imports a CSV file into an account, mapping columns by their header names. */
-export function importCsv(
-  actor: Actor,
+/** Reads a CSV file's rows with a mapping of its columns, by header name. */
+function csvRows(
   accountId: number,
   csv: string,
   mapping: CsvMapping
-): ImportResult {
+): { header: string[]; lines: string[][]; rows: ImportRow[] } {
   checkObject(mapping, "mapping")
   const digits = minorDigits(getAccount(accountId).currency)
   const [header, ...lines] = parseCsv(csv)
   if (!header) throw new InvalidInput("the file is empty")
   const col = (name: string | undefined) => {
-    if (name === undefined) return -1
+    if (name === undefined || name === "") return -1
     const i = header.findIndex(
       (h) => h.trim().toLowerCase() === name.trim().toLowerCase()
     )
@@ -207,17 +226,142 @@ export function importCsv(
   const amount = col(mapping.amount)
   const inflow = col(mapping.inflow)
   const outflow = col(mapping.outflow)
+  if (date < 0) throw new InvalidInput("map the date column")
   if (amount < 0 && inflow < 0 && outflow < 0)
     throw new InvalidInput("map an amount column, or inflow and outflow")
-  const rows: ImportRow[] = lines.map((cells) => ({
-    date: parseDate(cells[date] ?? "", mapping.dateFormat),
-    amount:
-      amount >= 0
-        ? parseMoney(cells[amount] ?? "", digits, mapping.decimal)
-        : parseMoney(cells[inflow] ?? "", digits, mapping.decimal) -
-          Math.abs(parseMoney(cells[outflow] ?? "", digits, mapping.decimal)),
-    payee: cells[payee] ?? "",
-    notes: notes >= 0 ? (cells[notes] ?? "").trim() : undefined,
-  }))
-  return importTransactions(actor, accountId, rows)
+  const rows: ImportRow[] = lines.map((cells, i) => {
+    try {
+      return {
+        date: parseDate(cells[date] ?? "", mapping.dateFormat),
+        amount:
+          amount >= 0
+            ? parseMoney(cells[amount] ?? "", digits, mapping.decimal)
+            : parseMoney(cells[inflow] ?? "", digits, mapping.decimal) -
+              Math.abs(
+                parseMoney(cells[outflow] ?? "", digits, mapping.decimal)
+              ),
+        payee: payee >= 0 ? (cells[payee] ?? "") : "",
+        notes: notes >= 0 ? (cells[notes] ?? "").trim() : undefined,
+      }
+    } catch (error) {
+      if (error instanceof InvalidInput)
+        error.message = `row ${i + 2}: ${error.message}`
+      throw error
+    }
+  })
+  return { header, lines, rows }
+}
+
+/** Imports a CSV file into an account, mapping columns by their header names. */
+export function importCsv(
+  actor: Actor,
+  accountId: number,
+  csv: string,
+  mapping: CsvMapping
+): ImportResult {
+  return importTransactions(
+    actor,
+    accountId,
+    csvRows(accountId, csv, mapping).rows
+  )
+}
+
+/**
+ * Reads a CSV file without importing it: its headers, the first rows, the
+ * mapping (the one given, or a guess from the headers and values) and how
+ * many rows would be added and how many the account already has.
+ */
+export function previewCsv(
+  accountId: number,
+  csv: string,
+  mapping?: CsvMapping
+): CsvPreview {
+  getAccount(accountId)
+  if (typeof csv !== "string") throw new InvalidInput("csv must be text")
+  const [header, ...lines] = parseCsv(csv)
+  if (!header) throw new InvalidInput("the file is empty")
+  const used = mapping ?? guessMapping(header, lines)
+  const preview: CsvPreview = {
+    headers: header,
+    sample: lines.slice(0, 5),
+    mapping: used,
+    rows: lines.length,
+    added: null,
+    skipped: null,
+    error: null,
+  }
+  try {
+    const prepared = prepareRows(csvRows(accountId, csv, used).rows)
+    const existing = existingIds(db(), accountId, prepared)
+    const skipped = prepared.filter((r) => existing.has(r.importedId)).length
+    return { ...preview, added: prepared.length - skipped, skipped }
+  } catch (error) {
+    if (error instanceof InvalidInput)
+      return { ...preview, error: error.message }
+    throw error
+  }
+}
+
+const GUESSES: Record<
+  "date" | "amount" | "inflow" | "outflow" | "payee" | "notes",
+  RegExp[]
+> = {
+  date: [/^(transaction |booking |posted |value )?date$/, /date|datum|fecha/],
+  amount: [/^amount/, /amount|betrag|bedrag|montant|importe|value|sum/],
+  inflow: [/^(in|inflow|credit|paid in|money in|deposits?)\b/],
+  outflow: [/^(out|outflow|debit|paid out|money out|withdrawals?)\b/],
+  payee: [
+    /^payee|^merchant|^counterparty|^name/,
+    /payee|merchant|counterparty|description|beschreibung|omschrijving|name/,
+  ],
+  notes: [/memo|note|reference|remittance|purpose|details/],
+}
+
+/** Guesses which column is which from the headers, and the date and number formats from the values. */
+export function guessMapping(header: string[], lines: string[][]): CsvMapping {
+  const taken = new Set<string>()
+  const find = (field: keyof typeof GUESSES) => {
+    for (const pattern of GUESSES[field]) {
+      const hit = header.find(
+        (h) => !taken.has(h) && pattern.test(h.trim().toLowerCase())
+      )
+      if (hit) {
+        taken.add(hit)
+        return hit
+      }
+    }
+    return undefined
+  }
+  const date = find("date") ?? header[0]
+  taken.add(date)
+  const amount = find("amount")
+  const inflow = amount ? undefined : find("inflow")
+  const outflow = amount ? undefined : find("outflow")
+  const payee = find("payee") ?? ""
+  const notes = find("notes")
+  const column = (name: string | undefined) =>
+    name === undefined
+      ? []
+      : lines
+          .slice(0, 50)
+          .map((cells) => (cells[header.indexOf(name)] ?? "").trim())
+          .filter(Boolean)
+
+  const dates = column(date).map((v) => v.split(/[\sT]/)[0])
+  let dateFormat: CsvMapping["dateFormat"] = "YYYY-MM-DD"
+  if (!dates.every((d) => /^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(d))) {
+    const parts = dates.map((d) => d.split(/[-/.]/).map(Number))
+    dateFormat = dates.some((d) => d.includes("."))
+      ? "DD.MM.YYYY"
+      : parts.some((p) => p[1] > 12)
+        ? "MM/DD/YYYY"
+        : "DD/MM/YYYY"
+  }
+  const amounts = [amount, inflow, outflow].flatMap(column)
+  const decimal: "." | "," =
+    amounts.some((v) => /\d,\d{1,2}\)?$/.test(v)) &&
+    !amounts.some((v) => /\d\.\d{1,2}\)?$/.test(v))
+      ? ","
+      : "."
+  return { date, amount, inflow, outflow, payee, notes, dateFormat, decimal }
 }

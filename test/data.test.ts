@@ -178,7 +178,7 @@ describe("import", () => {
         status: "pending" as const,
       },
     ]
-    expect(data.importTransactions("person", acct.id, rows)).toEqual({
+    expect(data.importTransactions("person", acct.id, rows)).toMatchObject({
       added: 2,
       skipped: 0,
     })
@@ -210,7 +210,7 @@ describe("import", () => {
       dateFormat: "DD.MM.YYYY" as const,
       decimal: "," as const,
     }
-    expect(data.importCsv("person", acct.id, csv, mapping)).toEqual({
+    expect(data.importCsv("person", acct.id, csv, mapping)).toMatchObject({
       added: 3,
       skipped: 0,
     })
@@ -462,8 +462,8 @@ describe("bulk writes and the change log", () => {
     expect(mcp.items.map((c) => c.summary)).toEqual([
       "Deleted −€20.00 at B in Bulk on 2024-05-02",
       "Deleted −€10.00 at A in Bulk on 2024-05-01",
-      "Changed categoryId of −€20.00 at B in Bulk on 2024-05-02",
-      "Changed categoryId of −€10.00 at A in Bulk on 2024-05-01",
+      "Categorised −€20.00 at B in Bulk on 2024-05-02 as Groceries",
+      "Categorised −€10.00 at A in Bulk on 2024-05-01 as Groceries",
       "Added −€20.00 at B in Bulk on 2024-05-02",
       "Added −€10.00 at A in Bulk on 2024-05-01",
       "Added checking account Bulk",

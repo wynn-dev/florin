@@ -23,13 +23,22 @@ function ids(value: unknown): number[] {
 export const Route = createFileRoute("/api/transactions/")({
   server: {
     handlers: {
-      /** Filters: accountId, categoryId, payeeId, uncategorized=1, status, from, to, search, limit, offset. */
+      /**
+       * Filters: accountId, categoryId, categoryIds (comma-separated),
+       * payeeId, uncategorized=1, status, from, to, search, change (an
+       * Activity entry's id), limit, offset.
+       */
       GET: ({ request }) =>
         respond(() => {
           const q = query(request)
           return listTransactions({
             accountId: optionalInt(q.accountId),
             categoryId: optionalInt(q.categoryId),
+            categoryIds: q.categoryIds
+              ?.split(",")
+              .map((v) => optionalInt(v))
+              .filter((v) => v !== undefined),
+            change: optionalInt(q.change),
             payeeId: optionalInt(q.payeeId),
             uncategorized:
               q.uncategorized === "1" || q.uncategorized === "true",

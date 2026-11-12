@@ -329,3 +329,16 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
   if (Math.abs(days) <= 7) return format.format(days, "day")
   return formatDate(isoDate(then), now)
 }
+
+/** A day and time for a label: "12 Nov 09:30" (the year too when not this year). */
+export function formatDayTime(iso: string, now: Date = new Date()): string {
+  const then = new Date(iso)
+  return `${formatDate(isoDate(then), now)} ${formatTime(iso)}`
+}
+
+/** The time of day alone: "09:30". */
+export function formatTime(iso: string): string {
+  return dateFormat("time", { hour: "2-digit", minute: "2-digit" }).format(
+    new Date(iso)
+  )
+}

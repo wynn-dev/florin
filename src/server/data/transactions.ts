@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm"
+import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/sqlite-core"
 import { db, schema } from "../db"
 import { getAccount } from "./accounts"
@@ -24,13 +24,16 @@ import type {
   TransactionPatch,
 } from "@/shared/types"
 
-const { transactions, accounts, payees, categories } = schema
+const { transactions, accounts, payees, categories, changes } = schema
 const transferLeg = alias(transactions, "transfer_leg")
 const transferAccount = alias(accounts, "transfer_account")
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0]
 
-function selectTransactions(tx: Pick<Database, "select"> = db()) {
+function selectTransactions(
+  tx: Pick<Database, "select"> = db(),
+  withBalance = false
+) {
   return tx
     .select({
       id: transactions.id,
@@ -50,6 +53,13 @@ function selectTransactions(tx: Pick<Database, "select"> = db()) {
       importedId: transactions.importedId,
       importedPayee: transactions.importedPayee,
       bookedDate: transactions.bookedDate,
+      transferAmount: transferLeg.amount,
+      ...(withBalance
+        ? {
+            // The account's balance after this row, in the list's own order (date, then id).
+            balance: sql<number>`(select sum(b.amount) from ${transactions} b where b.account_id = ${transactions.accountId} and (b.date < ${transactions.date} or (b.date = ${transactions.date} and b.id <= ${transactions.id})))`,
+          }
+        : {}),
     })
     .from(transactions)
     .innerJoin(accounts, eq(transactions.accountId, accounts.id))
@@ -65,6 +75,20 @@ function filterConditions(f: TransactionFilter): SQL | undefined {
     where.push(eq(transactions.accountId, f.accountId))
   if (f.categoryId !== undefined)
     where.push(eq(transactions.categoryId, f.categoryId))
+  if (f.categoryIds?.length)
+    where.push(inArray(transactions.categoryId, f.categoryIds))
+  if (f.change !== undefined)
+    where.push(
+      inArray(
+        transactions.id,
+        db()
+          .select({ id: changes.entityId })
+          .from(changes)
+          .where(
+            and(eq(changes.batch, f.change), eq(changes.entity, "transaction"))
+          )
+      )
+    )
   if (f.payeeId !== undefined) where.push(eq(transactions.payeeId, f.payeeId))
   if (f.status !== undefined) where.push(eq(transactions.status, f.status))
   // Tracking accounts are outside the budget, so their transactions need no category.
@@ -89,35 +113,58 @@ function filterConditions(f: TransactionFilter): SQL | undefined {
         sql`${payees.name} like ${term} escape '\\'`,
         sql`${transactions.notes} like ${term} escape '\\'`,
         sql`${transactions.importedPayee} like ${term} escape '\\'`,
-        sql`${categories.name} like ${term} escape '\\'`
+        sql`${categories.name} like ${term} escape '\\'`,
+        amountMatch(f.search.trim())
       )
     )
   }
   return and(...where)
 }
 
-/** Transactions matching the filter, newest first, with the total count for paging. */
+/** A search that reads as an amount ("42.10", "42,10", "1200") matches it either way round. */
+function amountMatch(term: string): SQL | undefined {
+  if (!/^[+\-−]?\d+([.,]\d{1,2})?$/.test(term)) return undefined
+  const cents = Math.round(
+    Math.abs(Number(term.replace(/^[+\-−]/, "").replace(",", "."))) * 100
+  )
+  return sql`abs(${transactions.amount}) = ${cents}`
+}
+
+/**
+ * Transactions matching the filter, newest first, with the total count and
+ * sum for paging. Listing one account adds each row's running balance.
+ */
 export function listTransactions(
   filter: TransactionFilter = {}
 ): TransactionPage {
   const where = filterConditions(filter)
   const limit = Math.min(Math.max(filter.limit ?? 100, 1), 1000)
   const offset = Math.max(filter.offset ?? 0, 0)
-  const items = selectTransactions()
+  const items = selectTransactions(db(), filter.accountId !== undefined)
     .where(where)
     .orderBy(desc(transactions.date), desc(transactions.id))
     .limit(limit)
     .offset(offset)
     .all()
-  const total = db()
-    .select({ n: sql<number>`count(*)` })
+  const sums = db()
+    .select({
+      currency: accounts.currency,
+      n: sql<number>`count(*)`,
+      amount: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+    })
     .from(transactions)
     .innerJoin(accounts, eq(transactions.accountId, accounts.id))
     .leftJoin(payees, eq(transactions.payeeId, payees.id))
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .where(where)
-    .get()!.n
-  return { items, total }
+    .groupBy(accounts.currency)
+    .orderBy(desc(sql`count(*)`))
+    .all()
+  return {
+    items,
+    total: sums.reduce((n, s) => n + s.n, 0),
+    sums: sums.map(({ currency, amount }) => ({ currency, amount })),
+  }
 }
 
 export function getTransaction(
@@ -196,6 +243,9 @@ function insertTransaction(tx: Tx, input: NewTransaction): number {
       categoryId,
       notes: input.notes ?? "",
       status: input.status === "pending" ? "pending" : "cleared",
+      importedId: input.importedId || null,
+      importedPayee: input.importedPayee || null,
+      bookedDate: input.bookedDate ? checkDate(input.bookedDate) : null,
     })
     .returning({ id: transactions.id })
     .get()
@@ -227,6 +277,7 @@ export function createTransactions(
           entity: "transaction",
           entityId: id,
           summary: `Added ${describeTransaction(t)}`,
+          detail: "Added",
         })
         return id
       })
@@ -363,14 +414,9 @@ export function updateTransactions(
   checkList(ids, "ids")
   db().transaction((tx) => {
     for (const id of ids) {
-      const fields = applyPatch(tx, id, patch)
-      const t = getTransaction(id, tx)
-      logChange(tx, actor, {
-        action: "update",
-        entity: "transaction",
-        entityId: id,
-        summary: `Changed ${fields.join(", ")} of ${describeTransaction(t)}`,
-      })
+      const before = getTransaction(id, tx)
+      applyPatch(tx, id, patch)
+      logUpdate(tx, actor, before, getTransaction(id, tx))
     }
   })
   return ids.map((id) => getTransaction(id))
@@ -391,19 +437,78 @@ export function patchTransactions(
         const { id, ...patch } = checkObject(update, "each update")
         if (!Number.isSafeInteger(id))
           throw new InvalidInput("each update needs the transaction's id")
-        const fields = applyPatch(tx, id, patch)
-        const t = getTransaction(id, tx)
-        logChange(tx, actor, {
-          action: "update",
-          entity: "transaction",
-          entityId: id,
-          summary: `Changed ${fields.join(", ")} of ${describeTransaction(t)}`,
-        })
+        const before = getTransaction(id, tx)
+        applyPatch(tx, id, patch)
+        logUpdate(tx, actor, before, getTransaction(id, tx))
         return id
       })
     )
   )
   return ids.map((id) => getTransaction(id))
+}
+
+/**
+ * Logs what an update changed, compared field by field, so the line says
+ * "Category set to Groceries" rather than which fields were sent; an update
+ * that changed nothing logs nothing.
+ */
+function logUpdate(
+  tx: Tx,
+  actor: Actor,
+  before: Transaction,
+  after: Transaction
+) {
+  const currency = (accountId: number) => getAccount(accountId).currency
+  const parts: string[] = []
+  if (before.categoryId !== after.categoryId)
+    parts.push(
+      after.categoryName
+        ? `category set to ${after.categoryName}`
+        : "category cleared"
+    )
+  if (before.transferAccountId !== after.transferAccountId)
+    parts.push(
+      after.transferAccountName
+        ? `made a transfer to ${after.transferAccountName}`
+        : "no longer a transfer"
+    )
+  if (before.payeeId !== after.payeeId && !after.transferId)
+    parts.push(
+      after.payeeName ? `payee set to ${after.payeeName}` : "payee cleared"
+    )
+  if (before.accountId !== after.accountId)
+    parts.push(`moved to ${after.accountName}`)
+  if (before.date !== after.date) parts.push(`date set to ${after.date}`)
+  if (before.amount !== after.amount)
+    parts.push(
+      `amount set to ${money(after.amount, currency(after.accountId))}`
+    )
+  if (
+    after.transferAmount !== null &&
+    before.transferAmount !== after.transferAmount &&
+    currency(after.accountId) !== currency(after.transferAccountId!)
+  )
+    parts.push(
+      `received set to ${money(after.transferAmount, currency(after.transferAccountId!))}`
+    )
+  if (before.notes !== after.notes)
+    parts.push(after.notes ? "memo edited" : "memo cleared")
+  if (before.status !== after.status) parts.push(`marked ${after.status}`)
+  if (!parts.length) return
+  const detail = parts.join(", ").replace(/^./, (c) => c.toUpperCase())
+  const what = describeTransaction(after)
+  logChange(tx, actor, {
+    action: "update",
+    entity: "transaction",
+    entityId: after.id,
+    summary:
+      parts.length === 1 && parts[0].startsWith("category ")
+        ? after.categoryName
+          ? `Categorised ${what} as ${after.categoryName}`
+          : `Uncategorised ${what}`
+        : `Edited ${what}: ${parts.join(", ")}`,
+    detail,
+  })
 }
 
 export function deleteTransaction(actor: Actor, id: number): void {
@@ -423,6 +528,7 @@ export function deleteTransactions(actor: Actor, ids: number[]): void {
         entity: "transaction",
         entityId: t.id,
         summary: `Deleted ${describeTransaction(t)}`,
+        detail: "Deleted",
       })
     }
   })

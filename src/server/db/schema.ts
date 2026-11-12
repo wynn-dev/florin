@@ -186,14 +186,25 @@ export const changes = sqliteTable(
     at: text()
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
-    /** "person", "mcp:<client name>", "bank-sync", "ibkr", "import" or "demo". */
+    /** "person", "mcp:<client name>", "bank-sync:<bank>", "ibkr", "import:<file>" or "demo". */
     actor: text().notNull(),
     action: text({ enum: ["create", "update", "delete"] }).notNull(),
     entity: text().notNull(),
     entityId: integer("entity_id"),
     summary: text().notNull(),
+    /**
+     * The id of the first change written by the same data-layer call (or the
+     * same sync or import run): one batch is one entry in Activity.
+     */
+    batch: integer(),
+    /** What changed on the entity alone, e.g. "Category set to Groceries", for its history. */
+    detail: text(),
   },
-  (t) => [index("changes_at").on(t.at)]
+  (t) => [
+    index("changes_at").on(t.at),
+    index("changes_batch").on(t.batch),
+    index("changes_entity").on(t.entity, t.entityId),
+  ]
 )
 export * from "./schema-jobs"
 export * from "./schema-tokens"
