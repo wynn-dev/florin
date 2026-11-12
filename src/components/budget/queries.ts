@@ -44,22 +44,22 @@ export function assignDelta(
   delta: number
 ): BudgetMonth {
   const groups = month.groups.map((group) =>
-      group.categories.some((c) => c.id === categoryId)
-        ? {
-            ...group,
-            budgeted: group.budgeted + delta,
-            available: group.available + delta,
-            categories: group.categories.map((c) =>
-              c.id === categoryId
-                ? {
-                    ...c,
-                    budgeted: c.budgeted + delta,
-                    available: c.available + delta,
-                  }
-                : c
-            ),
-          }
-        : group
+    group.categories.some((c) => c.id === categoryId)
+      ? {
+          ...group,
+          budgeted: group.budgeted + delta,
+          available: group.available + delta,
+          categories: group.categories.map((c) =>
+            c.id === categoryId
+              ? {
+                  ...c,
+                  budgeted: c.budgeted + delta,
+                  available: c.available + delta,
+                }
+              : c
+          ),
+        }
+      : group
   )
   return {
     ...month,

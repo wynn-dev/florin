@@ -222,8 +222,7 @@ function overspent(): AttentionItem[] {
   return getBudgetMonth(month).groups.flatMap((group) =>
     group.categories.flatMap((category) => {
       if (category.available >= 0) return []
-      const carried =
-        category.available - category.budgeted - category.activity
+      const carried = category.available - category.budgeted - category.activity
       const since = overspentSince(category.id, month, carried)
       if (!since) return []
       return [
