@@ -12,7 +12,12 @@ export default defineConfig({
     emptyOutDir: false,
     target: "node24",
     rollupOptions: {
-      output: { entryFileNames: "cli.mjs", banner: "#!/usr/bin/env node" },
+      output: {
+        entryFileNames: "cli.mjs",
+        banner: "#!/usr/bin/env node",
+        // One file: the commands it loads on demand stay inside cli.mjs.
+        codeSplitting: false,
+      },
     },
   },
 })

@@ -27,3 +27,18 @@ jobs:
           node .output/cli.mjs start & sleep 3
           curl -sf http://127.0.0.1:4699/api/session
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4699/api/accounts)" = 401
+
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: scripts/package.sh linux-x64
+      - name: Install with install.sh in a clean container without Node
+        run: scripts/test-install.sh

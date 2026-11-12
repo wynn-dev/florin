@@ -36,7 +36,7 @@ const commands: Record<string, (args: string[]) => Promise<void> | void> = {
   "seed-demo": seed,
   password,
   "setup-code": setupCode,
-  service: (args) => notYet(`service ${args[0] ?? ""}`.trim()),
+  service: async (args) => (await import("./cli/service")).service(args),
   mcp: () => notYet("mcp"),
   help: () => console.log(HELP),
 }

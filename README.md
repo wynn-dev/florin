@@ -5,6 +5,74 @@ a JSON API and an MCP server on one local port, over one SQLite file in
 `~/.florin`. Envelope budgets per category with leftover carrying over,
 accounts in any currency, transfers, CSV import and reports.
 
+## Install
+
+On Linux or macOS (x64 or arm64):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/wynn-dev/florin/main/install.sh | sh
+```
+
+It needs only curl (or wget), tar and a sha256 tool: the download carries its
+own Node, so nothing else is installed and no package manager is involved. The
+script checks the download against the release's `checksums.txt`, puts florin
+in `~/.local/share/florin/<version>` and links `~/.local/bin/florin` to it. To
+install a particular version, end the line with `| FLORIN_VERSION=0.2.0 sh`.
+
+Then run it in the background, now and whenever the machine starts:
+
+```sh
+florin service install
+```
+
+It prints the address, by default http://127.0.0.1:4680, and on a fresh florin
+the setup code the dashboard asks for before you choose a password. To try
+florin without a service, `florin start` runs it in the terminal.
+
+## The service
+
+```sh
+florin service install     # set up the service and start it
+florin service status      # running or not, since when, the address, the logs
+florin service stop        # stop it until the next start, login or boot
+florin service start
+florin service uninstall   # stop and remove the service; your data stays
+```
+
+On Linux it is a systemd user unit, `~/.config/systemd/user/florin.service`,
+restarted if it fails; `install` also turns on lingering
+(`loginctl enable-linger`) so it starts at boot and keeps running while you are
+logged out, and tells you the `sudo` line to run if it can't. Its logs are in
+the journal: `journalctl --user -u florin -f`.
+
+On macOS it is a launchd agent, `~/Library/LaunchAgents/io.github.wynn-dev.florin.plist`,
+kept alive while you are logged in, with its log in `~/.florin/logs/florin.log`.
+
+`FLORIN_HOME` and `FLORIN_PORT`, if set when you run `florin service install`,
+are written into the service.
+
+## Updating
+
+Run the install line again. It installs the newest release next to the old
+one, switches `~/.local/share/florin/current` to it, restarts the service if
+it is running, and then removes the old version. Your data is not touched.
+
+## Your data
+
+Everything florin keeps is in one folder, `~/.florin` (or `FLORIN_HOME`):
+`florin.db` (the SQLite database), `config.json` (settings, the password hash
+and connector credentials, readable only by you) and, on macOS, `logs/`. Back
+up that folder to back up florin.
+
+## Uninstalling
+
+```sh
+florin service uninstall
+rm -rf ~/.local/share/florin ~/.local/bin/florin
+```
+
+That leaves your data in `~/.florin`; remove that folder too to delete it.
+
 ## Development
 
 You need Node 24 and pnpm. florin runs on Node; pnpm is its only package manager.
@@ -62,6 +130,23 @@ using exchange rates against the euro, as the ECB publishes them.
 command), `server/` (the app server, dependencies included) and `public/` (the
 dashboard's static files). Run it with `node .output/cli.mjs start`; it needs
 nothing else installed.
+
+### Releases
+
+The build is plain JavaScript (SQLite is Node's built-in `node:sqlite`), so one
+build serves every platform. `scripts/package.sh` turns it into
+`dist/florin-<version>-<os>-<arch>.tar.gz` for linux-x64, linux-arm64,
+darwin-x64 and darwin-arm64, each with the official Node binary for that
+platform (the newest release of the major version in `engines`, checked
+against nodejs.org's SHASUMS256) and the `bin/florin` launcher, plus
+`dist/checksums.txt`. `scripts/test-install.sh` (Docker) installs the linux-x64
+tarball with `install.sh` in a clean Debian container with no Node; CI runs it
+on every pull request.
+
+To release, set `version` in `package.json`, merge, then push a matching tag:
+`git tag v0.1.0 && git push origin v0.1.0`. The release workflow checks, builds,
+packages, tests the installer and publishes the GitHub Release that
+`install.sh` downloads from.
 
 ## License
 
