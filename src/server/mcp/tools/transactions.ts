@@ -147,7 +147,7 @@ export const importTransactionsTool = defineTool({
   name: "import_transactions",
   title: "Import transactions",
   description:
-    "Brings transactions from a statement into one account, skipping any already imported, so importing the same rows twice adds nothing. Give either rows (date, amount in integer minor units with negative = money out, payee text as the bank shows it, optional importedId from the bank) or csv text with a mapping of its column names. Returns how many were added and skipped. Categorise the new ones afterwards with search_transactions (uncategorized) and update_transactions.",
+    "Brings transactions from a statement into one account, skipping any already imported, so importing the same rows twice adds nothing. Give either rows (date, amount in integer minor units with negative = money out, payee text as the bank shows it, optional importedId from the bank) or csv text with a mapping of its column names. The rules (list_rules) set each new row's payee and category from its text, unless a row gives its own categoryId. Returns how many were added and skipped. Categorise what is left afterwards with search_transactions (uncategorized) and update_transactions, or add a rule (save_rules) so the next rows come in categorised.",
   input: {
     accountId: zId,
     rows: z

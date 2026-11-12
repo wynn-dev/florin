@@ -34,6 +34,7 @@ export type Change = {
     | "settings"
     | "fx rate"
     | "mcp token"
+    | "rule"
   entityId: number | null
   /** One readable line, e.g. "Added −€42.50 at Lidl to Current account". */
   summary: string
@@ -150,6 +151,77 @@ export type Payee = {
   transactionCount: number
   /** New transactions from this payee that arrive without a category get it. */
   defaultCategoryId: number | null
+}
+
+/**
+ * A rule that names and categorises transactions from the bank's text. Rules
+ * run in position order; a later match overrides an earlier one.
+ */
+export type Rule = {
+  id: number
+  /** Its place in the list, from 1. */
+  position: number
+  /** JavaScript regular expression source, matched case-insensitively. */
+  pattern: string
+  /** The payee name it sets; $1…$9 are the match's captured parts. */
+  payee: string | null
+  categoryId: number | null
+  categoryName: string | null
+}
+
+/** A rule to create (no id) or change (id; only the fields given change). */
+export type RuleInput = {
+  id?: number
+  pattern?: string
+  /** null clears it. */
+  payee?: string | null
+  /** null clears it. */
+  categoryId?: number | null
+  /** Its place in the list, from 1; new rules without one go last. */
+  position?: number
+}
+
+/** Which existing transactions to run the rules over; none given means all. */
+export type ApplyRulesOptions = {
+  ids?: number[]
+  accountId?: number
+  from?: string
+  to?: string
+  /** Answer what would change without writing it. */
+  dryRun?: boolean
+  /** Set payee and category wherever a rule matches, not only where untouched. */
+  overwrite?: boolean
+}
+
+/** One transaction an apply run changes (or would). */
+export type RuleChange = {
+  id: number
+  date: string
+  bankText: string | null
+  payee?: { from: string | null; to: string }
+  category?: { from: string | null; to: string }
+}
+
+export type ApplyRulesResult = {
+  /** Transactions looked at (transfers are skipped). */
+  checked: number
+  /** Of those, how many some rule matched. */
+  matched: number
+  changed: number
+  payeesSet: number
+  categoriesSet: number
+  /** Payees left with no transactions and no default category, removed. */
+  payeesRemoved: number
+  /** A few of the changes, for a dry run. */
+  sample?: RuleChange[]
+  /** The Activity entry of the run; absent for a dry run or when nothing changed. */
+  change?: number
+}
+
+/** What one rule would match among existing transactions (for the rule dialog). */
+export type RuleTest = {
+  matches: number
+  examples: { bankText: string; payee: string | null }[]
 }
 
 export type Category = {

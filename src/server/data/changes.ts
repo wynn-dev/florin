@@ -126,7 +126,7 @@ const KIND_ENTITIES: Record<ActivityKind, Change["entity"][]> = {
   budget: ["budget"],
   accounts: ["account"],
   categories: ["category", "category group"],
-  settings: ["settings", "payee", "fx rate", "mcp token"],
+  settings: ["settings", "payee", "rule", "fx rate", "mcp token"],
 }
 
 function kindOf(entity: string): ActivityKind {
@@ -259,6 +259,7 @@ const PLURALS: Record<string, [string, string]> = {
   settings: ["setting", "settings"],
   "fx rate": ["exchange rate", "exchange rates"],
   "mcp token": ["MCP token", "MCP tokens"],
+  rule: ["rule", "rules"],
 }
 
 function noun(entity: string, n: number): string {

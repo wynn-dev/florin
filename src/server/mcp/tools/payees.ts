@@ -1,5 +1,6 @@
 import { z } from "zod"
 import {
+  deletePayees,
   listPayees,
   mergePayees,
   renamePayee,
@@ -40,7 +41,7 @@ export const setPayeeCategoryTool = defineTool({
   name: "set_payee_category",
   title: "Set a payee's default category",
   description:
-    "Sets the category that new transactions from this payee get when they arrive without one (bank sync, CSV import, or a new transaction with no categoryId). Existing transactions are not changed. categoryId null clears it.",
+    "Sets the category that new transactions from this payee get when they arrive without one (bank sync, CSV import, or a new transaction with no categoryId) and no rule gives one. Existing transactions are not changed. For a category that depends on the bank's text rather than the payee, or a payee name to set, use save_rules. categoryId null clears it.",
   input: { id: zId, categoryId: zId.nullable() },
   kind: "write",
   idempotent: true,
@@ -57,4 +58,17 @@ export const mergePayeesTool = defineTool({
   kind: "destructive",
   run: ({ intoId, fromIds }, { actor }) =>
     mergePayees(actor(), intoId, fromIds),
+})
+
+export const deletePayeesTool = defineTool({
+  name: "delete_payees",
+  title: "Delete payees",
+  description:
+    "Deletes payees by id, all or none. Their transactions keep everything else (category, notes, the bank's text) and have no payee. To move transactions onto another payee instead, use merge_payees.",
+  input: { ids: z.array(zId).min(1).max(1000) },
+  kind: "destructive",
+  run: ({ ids }, { actor }) => {
+    deletePayees(actor(), ids)
+    return { deleted: ids.length }
+  },
 })

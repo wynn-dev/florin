@@ -324,7 +324,7 @@ export function createTransactions(
 }
 
 /** Runs one item of a bulk write; when there are several, an error names the item. */
-function eachItem<T>(count: number, i: number, fn: () => T): T {
+export function eachItem<T>(count: number, i: number, fn: () => T): T {
   try {
     return fn()
   } catch (error) {

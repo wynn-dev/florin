@@ -2,7 +2,7 @@ import { asc, eq, sql } from "drizzle-orm"
 import { db, schema } from "../db"
 import { logChange } from "./changes"
 import { getCategory } from "./categories"
-import { checkName, found, InvalidInput } from "./validate"
+import { checkList, checkName, found, InvalidInput } from "./validate"
 import type { Database } from "../db"
 import type { Actor, Page, Payee } from "@/shared/types"
 
@@ -147,15 +147,22 @@ export function payeeCategory(
 
 /** Deletes a payee; its transactions keep their data but lose the payee. */
 export function deletePayee(actor: Actor, id: number): void {
-  const payee = getPayee(id)
+  deletePayees(actor, [id])
+}
+
+/** Deletes payees, all of them or none; their transactions keep everything else. */
+export function deletePayees(actor: Actor, ids: number[]): void {
+  const doomed = checkList(ids, "ids").map(getPayee)
   db().transaction((tx) => {
-    tx.delete(payees).where(eq(payees.id, id)).run()
-    logChange(tx, actor, {
-      action: "delete",
-      entity: "payee",
-      entityId: id,
-      summary: `Deleted payee ${payee.name}`,
-    })
+    for (const payee of doomed) {
+      tx.delete(payees).where(eq(payees.id, payee.id)).run()
+      logChange(tx, actor, {
+        action: "delete",
+        entity: "payee",
+        entityId: payee.id,
+        summary: `Deleted payee ${payee.name}`,
+      })
+    }
   })
 }
 
