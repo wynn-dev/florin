@@ -26,7 +26,7 @@ import type {
   RuleTest,
 } from "@/shared/types"
 
-const { rules, categories, transactions, payees, changes } = schema
+const { rules, categories, transactions, payees, changes, accounts } = schema
 
 const MAX_PATTERN = 500
 const MAX_RULES_PER_SAVE = 500
@@ -89,10 +89,14 @@ function firstMatch(
   return null
 }
 
-/** "$1" → the match's first captured part; the result trimmed, spaces collapsed. */
+/**
+ * "$1" → the match's first captured part, tidied as a bank's name is
+ * ("CORNER SHOP 12" → "Corner Shop 12"); text typed into the rule stays as
+ * typed. The result trimmed, spaces collapsed.
+ */
 function fill(template: string, match: RegExpExecArray): string {
   return template
-    .replace(/\$([1-9])/g, (_, n: string) => match[Number(n)] ?? "")
+    .replace(/\$([1-9])/g, (_, n: string) => cleanPayee(match[Number(n)] ?? ""))
     .replace(/\s+/g, " ")
     .trim()
 }
@@ -360,8 +364,10 @@ function subjects(where: Parameters<typeof and>) {
       categoryName: categories.name,
       notes: transactions.notes,
       importedPayee: transactions.importedPayee,
+      onBudget: accounts.onBudget,
     })
     .from(transactions)
+    .innerJoin(accounts, eq(transactions.accountId, accounts.id))
     .leftJoin(payees, eq(transactions.payeeId, payees.id))
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .where(and(isNull(transactions.transferId), ...where))
@@ -406,7 +412,8 @@ export function testRule(input: {
  * what is untouched: a category where there is none, and a payee where the
  * transaction has none or still carries the bank's own name or a name the
  * rules gave it (so a name rule added later renames it); `overwrite`
- * sets both wherever a rule matches. A dry run answers what would change.
+ * sets both wherever a rule matches. A row in an off-budget account gets no
+ * category, as on import. A dry run answers what would change.
  * The run is one Activity entry; payees it leaves with no transactions and
  * no default category are removed in the same step.
  */
@@ -482,7 +489,7 @@ export function applyRules(
         : null
     const finalPayee = payee ?? t.payeeName
     const categoryId =
-      options.overwrite || t.categoryId === null
+      t.onBudget && (options.overwrite || t.categoryId === null)
         ? (run.categoryId ??
           (t.categoryId === null && finalPayee
             ? (byName.get(finalPayee.toLowerCase())?.defaultCategoryId ?? null)

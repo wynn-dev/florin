@@ -184,7 +184,8 @@ forgets the token and keeps the account and its history.
 
 Rules name and categorise transactions from the bank's text. Each has a
 pattern (a JavaScript regular expression, always case-insensitive) and sets a
-payee, a category or both; the payee may use `$1`…`$9` for parts of the match.
+payee, a category or both; the payee may use `$1`…`$9` for parts of the match,
+which are tidied like a bank's name ("CORNER SHOP 12" → "Corner Shop 12").
 They run top to bottom on every new row, from a bank sync, a CSV file or an
 agent's import: a rule matches when its pattern is found in the bank's text,
 the notes, or the payee name as it stands, and a later match overrides an
@@ -197,7 +198,8 @@ rules after it name and categorise that shop:
 | `albert heijn \d\|^ah \d`       | Albert Heijn | Groceries |
 
 A category that comes with the row wins; with no rule category, the payee's
-default category applies. Only the final name becomes a payee. Applying the
+default category applies. Rows in an off-budget account get no category from
+rules or the payee. Only the final name becomes a payee. Applying the
 rules to existing transactions only fills what is untouched (no category, or
 the bank's own name, or a name the rules gave, as payee) unless told to
 overwrite, and removes payees it

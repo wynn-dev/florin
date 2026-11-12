@@ -30,7 +30,8 @@ const { transactions } = schema
  * (with a counter for identical rows), so importing the same file twice adds
  * nothing the second time. Each new row goes through the rules, which may set
  * its payee and category; a category given with the row wins over theirs,
- * and the payee's default category is the fallback. Each added row is logged
+ * and the payee's default category is the fallback. A row in an off-budget
+ * account gets only a category given with it: categories mean nothing there. Each added row is logged
  * on its own, all in one Activity entry, so a transaction's history starts
  * with who brought it in.
  */
@@ -67,7 +68,10 @@ export function importTransactions(
           payeeId,
           // No category given: the rules', else the payee's default.
           categoryId:
-            row.categoryId ?? ruled.categoryId ?? payeeCategory(payeeId, tx),
+            row.categoryId ??
+            (account.onBudget
+              ? (ruled.categoryId ?? payeeCategory(payeeId, tx))
+              : null),
           notes: row.notes ?? "",
           status: row.status ?? "cleared",
           importedId: row.importedId,
