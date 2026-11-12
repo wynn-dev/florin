@@ -43,6 +43,8 @@ type ListOptions = {
   trailing?: (choice: CategoryChoice) => ReactNode
   /** Focuses the search field when the list mounts. */
   autoFocus?: boolean
+  /** Leaves out income groups, e.g. for moving budgeted money. */
+  expensesOnly?: boolean
 }
 
 const RECENT_KEY = "florin-recent-categories"
@@ -88,6 +90,7 @@ export function CategoryList({
   exclude = [],
   trailing,
   autoFocus,
+  expensesOnly,
 }: ListOptions & {
   value: CategoryChoice | null
   onSelect: (choice: CategoryChoice) => void
@@ -101,6 +104,7 @@ export function CategoryList({
   const [recentIds] = useState(() => recent ?? readRecent())
 
   const visible = groups
+    .filter((group) => !expensesOnly || !group.isIncome)
     .map((group) => ({
       ...group,
       categories: group.categories.filter(

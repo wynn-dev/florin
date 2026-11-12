@@ -1,12 +1,13 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { ChevronDownIcon } from "lucide-react"
-import { BudgetBody, ReadyToAssign } from "./month-parts"
+import { BudgetBody, ReadyToAssign, beforeFirstMonth } from "./month-parts"
 import { AssignedCell, AvailablePillText, Figure, SpentLink } from "./cells"
 import { LastChange, SpendingHistory } from "./inspector"
 import { MonthSwitcher } from "./month-switcher"
 import { MoveMoney } from "./move-money"
 import { budgetQueries } from "./queries"
+import type { ReactNode } from "react"
 import type { BudgetCategory, BudgetMonth } from "@/shared/types"
 import { cn } from "@/lib/utils"
 import { formatMoney } from "@/lib/format"
@@ -27,10 +28,15 @@ export function BudgetPhone({
   month,
   currency,
   showHidden,
+  onAddGroup,
+  newGroup,
 }: {
   month: BudgetMonth
   currency: string
   showHidden: boolean
+  onAddGroup: () => void
+  /** The new-group field while Add group is open. */
+  newGroup: ReactNode
 }) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
   const [openId, setOpenId] = useState<number | null>(null)
@@ -40,11 +46,13 @@ export function BudgetPhone({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="sticky top-0 z-10 -mx-4 -mt-4 bg-background/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/80">
-        <ReadyToAssign amount={month.toBudget} currency={currency} />
-      </div>
+      {!beforeFirstMonth(month) && (
+        <div className="sticky top-0 z-10 -mx-4 -mt-4 bg-background/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/80">
+          <ReadyToAssign amount={month.toBudget} currency={currency} />
+        </div>
+      )}
       <MonthSwitcher month={month.month} />
-      <BudgetBody month={month} onAddGroup={() => undefined}>
+      <BudgetBody month={month} onAddGroup={onAddGroup}>
         <div className="flex flex-col">
           {month.groups.map((group) => {
             const isOpen = !collapsed.has(group.id)
@@ -104,6 +112,7 @@ export function BudgetPhone({
           })}
         </div>
       </BudgetBody>
+      {newGroup}
       <Drawer
         open={!!open}
         onOpenChange={(next) => {

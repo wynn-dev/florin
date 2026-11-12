@@ -99,6 +99,7 @@ export function MoveMoney({
           value={null}
           onSelect={apply}
           readyToAssign
+          expensesOnly
           exclude={[category.id]}
           recent={[]}
           autoFocus

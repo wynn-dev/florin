@@ -23,8 +23,21 @@ import {
 
 const CONNECTIONS = "/settings?section=connections"
 
-/** An account's transactions with a running balance; read-only until the shared table lands. */
-export function AccountRegister({ account }: { account: Account }) {
+/**
+ * An account's transactions with a running balance; read-only until the
+ * shared table lands. An account worth its value snapshots (an investment)
+ * has no running balance: its balance isn't the sum of its transactions.
+ */
+export function AccountRegister({
+  account,
+  runningBalance = true,
+}: {
+  account: Account
+  runningBalance?: boolean
+}) {
+  const columns = runningBalance
+    ? "grid-cols-[4rem_minmax(0,1fr)_6.5rem] md:grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)_7rem_7rem]"
+    : "grid-cols-[4rem_minmax(0,1fr)_6.5rem] md:grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)_7rem]"
   const page = useQuery(
     queries.transactions({ accountId: account.id, limit: 200 })
   )
@@ -47,20 +60,26 @@ export function AccountRegister({ account }: { account: Account }) {
           <div role="table" className="text-sm">
             <div
               role="row"
-              className="grid h-9 grid-cols-[4rem_minmax(0,1fr)_6.5rem] items-center gap-x-4 border-b px-2 text-xs font-medium text-muted-foreground md:grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)_7rem_7rem]"
+              className={cn(
+                "grid h-9 items-center gap-x-4 border-b px-2 text-xs font-medium text-muted-foreground",
+                columns
+              )}
             >
               <span>Date</span>
               <span>Payee</span>
               <span className="hidden md:block">Category</span>
               <span className="text-right">Amount</span>
-              <span className="hidden text-right md:block">Balance</span>
+              {runningBalance && (
+                <span className="hidden text-right md:block">Balance</span>
+              )}
             </div>
             {rows.map((t) => (
               <div
                 key={t.id}
                 role="row"
                 className={cn(
-                  "grid h-10 grid-cols-[4rem_minmax(0,1fr)_6.5rem] items-center gap-x-4 border-b px-2 hover:bg-muted/50 md:grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)_7rem_7rem]",
+                  "grid h-10 items-center gap-x-4 border-b px-2 hover:bg-muted/50",
+                  columns,
                   t.status === "pending" && "text-muted-foreground"
                 )}
               >
@@ -82,12 +101,14 @@ export function AccountRegister({ account }: { account: Account }) {
                   signed
                   className="text-right"
                 />
-                <Money
-                  cents={t.balance}
-                  currency={account.currency}
-                  symbol={false}
-                  className="hidden text-right text-muted-foreground md:block"
-                />
+                {runningBalance && (
+                  <Money
+                    cents={t.balance}
+                    currency={account.currency}
+                    symbol={false}
+                    className="hidden text-right text-muted-foreground md:block"
+                  />
+                )}
               </div>
             ))}
           </div>

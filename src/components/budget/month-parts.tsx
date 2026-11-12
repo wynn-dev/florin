@@ -78,3 +78,8 @@ export function BudgetBody({
     )
   return <>{children}</>
 }
+
+/** A month before the first transaction: nothing to budget yet. */
+export function beforeFirstMonth(month: BudgetMonth): boolean {
+  return month.firstMonth === null || month.month < month.firstMonth
+}

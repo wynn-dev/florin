@@ -225,7 +225,7 @@ export function InvestmentAccount({ account }: { account: Account }) {
                 <Holdings rows={rows} currency={account.currency} />
               </TabsContent>
               <TabsContent value="activity">
-                <AccountRegister account={account} />
+                <AccountRegister account={account} runningBalance={false} />
               </TabsContent>
             </Tabs>
           </>

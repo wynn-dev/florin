@@ -1,11 +1,11 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { MoreHorizontalIcon } from "lucide-react"
-import { BudgetTable } from "./budget-table"
+import { BudgetTable, NewGroupRow } from "./budget-table"
 import { BudgetPhone } from "./budget-phone"
 import { CategoryInspector, MonthSummary } from "./inspector"
 import { MonthSwitcher } from "./month-switcher"
-import { BudgetBody, ReadyToAssign } from "./month-parts"
+import { BudgetBody, ReadyToAssign, beforeFirstMonth } from "./month-parts"
 import type { BudgetMonth } from "@/shared/types"
 import { cn } from "@/lib/utils"
 import { queries } from "@/lib/api"
@@ -58,6 +58,10 @@ export function BudgetPage({ month }: { month: string }) {
     </DropdownMenu>
   )
 
+  const newGroup = addingGroup && (
+    <NewGroupRow onDone={() => setAddingGroup(false)} />
+  )
+
   const loading = (
     <div className="flex flex-col gap-6">
       <Skeleton className="h-8 w-64" />
@@ -80,13 +84,15 @@ export function BudgetPage({ month }: { month: string }) {
               month={data}
               currency={currency}
               showHidden={showHidden}
+              onAddGroup={() => setAddingGroup(true)}
+              newGroup={newGroup}
             />
           ) : (
             <div className="grid grid-cols-12 gap-6">
               <div className="col-span-12 flex flex-col gap-4 xl:col-span-8">
                 <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
                   <MonthSwitcher month={month} />
-                  {!before(data) && (
+                  {!beforeFirstMonth(data) && (
                     <ReadyToAssign amount={data.toBudget} currency={currency} />
                   )}
                 </div>
@@ -100,15 +106,14 @@ export function BudgetPage({ month }: { month: string }) {
                     showHidden={showHidden}
                     selectedId={selectedId}
                     onSelect={setSelectedId}
-                    addingGroup={addingGroup}
-                    onAddingGroupChange={setAddingGroup}
                   />
                 </BudgetBody>
+                {newGroup}
               </div>
               <aside
                 className={cn(
                   "sticky top-6 hidden self-start xl:col-span-4",
-                  !before(data) && "xl:block"
+                  !beforeFirstMonth(data) && "xl:block"
                 )}
               >
                 <Inspector
@@ -123,11 +128,6 @@ export function BudgetPage({ month }: { month: string }) {
       </QueryState>
     </Page>
   )
-}
-
-/** A month before the first transaction: nothing to budget yet. */
-function before(month: BudgetMonth): boolean {
-  return month.firstMonth === null || month.month < month.firstMonth
 }
 
 function Inspector({

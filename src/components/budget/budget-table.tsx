@@ -26,16 +26,12 @@ export function BudgetTable({
   showHidden,
   selectedId,
   onSelect,
-  addingGroup,
-  onAddingGroupChange,
 }: {
   month: BudgetMonth
   currency: string
   showHidden: boolean
   selectedId: number | null
   onSelect: (id: number | null) => void
-  addingGroup: boolean
-  onAddingGroupChange: (adding: boolean) => void
 }) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -249,16 +245,6 @@ export function BudgetTable({
         )
       })}
 
-      {addingGroup && (
-        <NewRow
-          label="New group"
-          onSave={(name) => {
-            actions.createGroup.mutate({ name })
-            onAddingGroupChange(false)
-          }}
-          onCancel={() => onAddingGroupChange(false)}
-        />
-      )}
       {del.dialog}
     </div>
   )
@@ -309,6 +295,30 @@ function NewRow({
           onCancel={onCancel}
         />
       </span>
+    </div>
+  )
+}
+
+/**
+ * The name field for a new group, at the end of the budget. It stands on its
+ * own (not inside the table) so Add group works on a phone, with no
+ * categories yet, and before the first month.
+ */
+export function NewGroupRow({ onDone }: { onDone: () => void }) {
+  const { createGroup } = useCategoryActions()
+  return (
+    <div className="flex h-10 items-center border-b px-2">
+      <InlineInput
+        aria-label="New group"
+        placeholder="New group"
+        initial=""
+        className="max-w-64"
+        onSave={(name) => {
+          if (name.trim()) createGroup.mutate({ name: name.trim() })
+          onDone()
+        }}
+        onCancel={onDone}
+      />
     </div>
   )
 }

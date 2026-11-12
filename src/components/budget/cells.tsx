@@ -148,7 +148,11 @@ export function AssignedCell({
   return (
     <button
       type="button"
-      onClick={() => setEditing(true)}
+      onClick={(e) => {
+        // Editing keeps the row selected rather than toggling it.
+        e.stopPropagation()
+        setEditing(true)
+      }}
       aria-label={`Assigned to ${category.name}: ${formatMoney(category.budgeted, currency)}. Edit`}
       className={cn(
         "-mx-2 h-7 rounded-md px-2 text-right tabular-nums outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50",
