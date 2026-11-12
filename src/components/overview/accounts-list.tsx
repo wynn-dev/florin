@@ -72,8 +72,8 @@ export function AccountsList({ currency }: { currency: string }) {
 function AccountRow({ account, budget }: { account: Account; budget: string }) {
   return (
     <Link
-      to={"/accounts/$id" as never}
-      params={{ id: String(account.id) } as never}
+      to="/accounts/$id"
+      params={{ id: String(account.id) }}
       className="-mx-2 flex h-8 items-center justify-between gap-4 rounded-md px-2 hover:bg-muted/60"
     >
       <span className="truncate">{account.name}</span>

@@ -4,7 +4,7 @@
 // the next month, and so does overspending until it is covered. Money arrives
 // through income categories; "to budget" is all income to date minus all
 // amounts assigned to date.
-import { and, eq, sql } from "drizzle-orm"
+import { and, desc, eq, like, or, sql } from "drizzle-orm"
 import { db, schema } from "../db"
 import { getCategory, listCategoryGroups } from "./categories"
 import { logChange, money } from "./changes"
@@ -15,7 +15,9 @@ import {
   checkMonth,
   checkObject,
   InvalidInput,
+  addMonths,
   monthEnd,
+  monthsBetween,
 } from "./validate"
 import type {
   Actor,
@@ -23,8 +25,9 @@ import type {
   BudgetGroup,
   BudgetMonth,
 } from "@/shared/types"
+import type { BudgetCategoryDetail } from "@/shared/budget"
 
-const { budgets, transactions, accounts } = schema
+const { budgets, transactions, accounts, changes: changeLog } = schema
 
 type Sums = Map<number, { total: number; month: number }>
 
@@ -110,6 +113,7 @@ export function getBudgetMonth(month: string): BudgetMonth {
     activity: sum(groups.map((g) => g.activity)),
     available: sum(groups.map((g) => g.available)),
     toBudget: incomeToDate - budgetedToDate,
+    firstMonth: firstBudgetMonth(),
     groups,
   }
 }
@@ -172,17 +176,22 @@ export function setBudgetAmounts(
   return getBudgetMonth(month)
 }
 
-/** Money moved from one category's envelope to another's in a month. */
+/**
+ * Money moved from one category's envelope to another's in a month. A null
+ * side is Ready to assign: moving from it assigns more to `to`, moving to it
+ * takes money back from `from`.
+ */
 export type BudgetMove = {
-  fromCategoryId: number
-  toCategoryId: number
+  fromCategoryId: number | null
+  toCategoryId: number | null
   amount: number
 }
 
 /**
  * Moves money between categories in a month: lowers what is assigned to each
  * `from` category and raises its `to` category by the same amount, so "to
- * budget" is unchanged. All moves happen together or not at all.
+ * budget" is unchanged unless one side is Ready to assign (null). All moves
+ * happen together or not at all.
  */
 export function moveBudgetAmounts(
   actor: Actor,
@@ -193,8 +202,9 @@ export function moveBudgetAmounts(
   const groups = listCategoryGroups()
   const currency = getSettings().currency
   const expense = (id: unknown, field: string) => {
+    if (id === null) return null
     if (!Number.isSafeInteger(id))
-      throw new InvalidInput(`${field} must be a category id`)
+      throw new InvalidInput(`${field} must be a category id or null`)
     const category = getCategory(id as number)
     if (groups.find((g) => g.id === category.groupId)!.isIncome)
       throw new InvalidInput(
@@ -206,7 +216,7 @@ export function moveBudgetAmounts(
     checkObject(move, "each move")
     const from = expense(move.fromCategoryId, "fromCategoryId")
     const to = expense(move.toCategoryId, "toCategoryId")
-    if (from.id === to.id)
+    if (from?.id === to?.id)
       throw new InvalidInput("a move needs two different categories")
     const amount = checkAmount(move.amount)
     if (amount <= 0)
@@ -243,17 +253,100 @@ export function moveBudgetAmounts(
       }
     }
     for (const { from, to, amount } of checked) {
-      add(from.id, -amount)
-      add(to.id, amount)
+      if (from) add(from.id, -amount)
+      if (to) add(to.id, amount)
       logChange(tx, actor, {
         action: "update",
         entity: "budget",
-        entityId: to.id,
-        summary: `Moved ${money(amount, currency)} from ${from.name} to ${to.name} in ${month}`,
+        entityId: (to ?? from)!.id,
+        summary: `Moved ${money(amount, currency)} from ${from?.name ?? "Ready to assign"} to ${to?.name ?? "Ready to assign"} in ${month}`,
       })
     }
   })
   return getBudgetMonth(month)
+}
+
+/**
+ * One category's numbers around a month, for the budget's inspector: what was
+ * spent in each of the twelve months up to it and the latest change to its
+ * budget, by anyone.
+ */
+export function getBudgetCategoryDetail(
+  month: string,
+  categoryId: number
+): BudgetCategoryDetail {
+  checkMonth(month)
+  const category = getCategory(categoryId)
+  const from = addMonths(month, -11)
+  const rows = db()
+    .select({
+      month: sql<string>`substr(${transactions.date}, 1, 7)`,
+      amount: sql<number>`sum(${transactions.amount})`,
+    })
+    .from(transactions)
+    .innerJoin(
+      accounts,
+      and(eq(transactions.accountId, accounts.id), eq(accounts.onBudget, true))
+    )
+    .where(
+      and(
+        eq(transactions.categoryId, category.id),
+        sql`${transactions.date} >= ${from + "-01"} and ${transactions.date} <= ${monthEnd(month)}`
+      )
+    )
+    .groupBy(sql`1`)
+    .all()
+  const byMonth = new Map(rows.map((r) => [r.month, r.amount]))
+  const last = db()
+    .select()
+    .from(changeLog)
+    .where(
+      and(
+        eq(changeLog.entity, "budget"),
+        // A move is logged against the category it went to; the one it
+        // came from is named in the summary.
+        or(
+          eq(changeLog.entityId, category.id),
+          like(changeLog.summary, `Moved % from ${category.name} to %`)
+        )
+      )
+    )
+    .orderBy(desc(changeLog.id))
+    .limit(1)
+    .get()
+  return {
+    categoryId: category.id,
+    history: monthsBetween(from, month).map((m) => ({
+      month: m,
+      spent: 0 - (byMonth.get(m) ?? 0),
+    })),
+    lastChange: last
+      ? {
+          id: last.id,
+          at: last.at,
+          actor: last.actor as Actor,
+          summary: last.summary,
+        }
+      : null,
+  }
+}
+
+/** The first month with a transaction in an on-budget account, or null. */
+function firstBudgetMonth(): string | null {
+  return (
+    db()
+      .select({ date: sql<string | null>`min(${transactions.date})` })
+      .from(transactions)
+      .innerJoin(
+        accounts,
+        and(
+          eq(transactions.accountId, accounts.id),
+          eq(accounts.onBudget, true)
+        )
+      )
+      .get()
+      ?.date?.slice(0, 7) ?? null
+  )
 }
 
 function sum(values: number[]): number {

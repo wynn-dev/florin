@@ -1,4 +1,5 @@
 import { useState } from "react"
+import type { ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { ChevronsUpDownIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -38,6 +39,12 @@ type ListOptions = {
   includeHidden?: boolean
   /** Category ids to leave out, e.g. the one money moves from. */
   exclude?: number[]
+  /** Something to show at the right of an option, e.g. a category's available money. */
+  trailing?: (choice: CategoryChoice) => ReactNode
+  /** Focuses the search field when the list mounts. */
+  autoFocus?: boolean
+  /** Leaves out income groups, e.g. for moving budgeted money. */
+  expensesOnly?: boolean
 }
 
 const RECENT_KEY = "florin-recent-categories"
@@ -81,6 +88,9 @@ export function CategoryList({
   readyToAssign,
   includeHidden,
   exclude = [],
+  trailing,
+  autoFocus,
+  expensesOnly,
 }: ListOptions & {
   value: CategoryChoice | null
   onSelect: (choice: CategoryChoice) => void
@@ -94,6 +104,7 @@ export function CategoryList({
   const [recentIds] = useState(() => recent ?? readRecent())
 
   const visible = groups
+    .filter((group) => !expensesOnly || !group.isIncome)
     .map((group) => ({
       ...group,
       categories: group.categories.filter(
@@ -130,8 +141,15 @@ export function CategoryList({
       keywords={[label, ...keywords]}
       data-checked={sameChoice(value, choice)}
       onSelect={() => pick(choice)}
+      // With a trailing figure, the figure takes the check mark's place.
+      className={trailing ? "[&>svg:last-child]:hidden" : undefined}
     >
       <span className="truncate">{label}</span>
+      {trailing && (
+        <span className="ml-auto pl-3 text-muted-foreground tabular-nums">
+          {trailing(choice)}
+        </span>
+      )}
     </CommandItem>
   )
 
@@ -144,6 +162,7 @@ export function CategoryList({
       }
     >
       <CommandInput
+        autoFocus={autoFocus}
         placeholder="Search categories"
         value={search}
         onValueChange={setSearch}

@@ -36,6 +36,7 @@ const TYPES: AccountType[] = [
   "credit",
   "cash",
   "investment",
+  "loan",
 ]
 
 function checkType(value: unknown): AccountType {
@@ -105,7 +106,8 @@ export function createAccount(actor: Actor, input: NewAccount): Account {
       ? budgetCurrency
       : checkCurrency(input.currency)
   const onBudget =
-    input.onBudget ?? (type !== "investment" && currency === budgetCurrency)
+    input.onBudget ??
+    (type !== "investment" && type !== "loan" && currency === budgetCurrency)
   if (onBudget && currency !== budgetCurrency) {
     throw new InvalidInput(`only ${budgetCurrency} accounts can be on budget`)
   }
@@ -238,6 +240,81 @@ export function linkAccount(
     })
   })
   return getAccount(id)
+}
+
+/**
+ * An account's balance over the last `months` months, one point a week ending
+ * today: for its chart. An account with value snapshots (an investment) gives
+ * its snapshots in that window instead.
+ */
+export function listAccountBalances(
+  accountId: number,
+  months = 12
+): AccountValue[] {
+  getAccount(accountId)
+  const end = today()
+  const start = new Date(`${end}T00:00:00Z`)
+  start.setUTCMonth(start.getUTCMonth() - months)
+  const from = start.toISOString().slice(0, 10)
+  const values = listAccountValues(accountId)
+  if (values.length) return values.filter((v) => v.date >= from)
+
+  const opening = db()
+    .select({ total: sql<number>`coalesce(sum(${transactions.amount}), 0)` })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.accountId, accountId),
+        sql`${transactions.date} < ${from}`
+      )
+    )
+    .get()!.total
+  const days = db()
+    .select({
+      date: transactions.date,
+      amount: sql<number>`sum(${transactions.amount})`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.accountId, accountId),
+        sql`${transactions.date} >= ${from} and ${transactions.date} <= ${end}`
+      )
+    )
+    .groupBy(transactions.date)
+    .orderBy(asc(transactions.date))
+    .all()
+  // Week ends counted back from today, so the last point is today's balance,
+  // and none before the account's first transaction.
+  const first =
+    opening === 0
+      ? (db()
+          .select({ date: sql<string | null>`min(${transactions.date})` })
+          .from(transactions)
+          .where(eq(transactions.accountId, accountId))
+          .get()?.date ?? end)
+      : from
+  const points: string[] = []
+  for (
+    const d = new Date(`${end}T00:00:00Z`);
+    ;
+    d.setUTCDate(d.getUTCDate() - 7)
+  ) {
+    const date = d.toISOString().slice(0, 10)
+    if (date < from) break
+    if (date < first) {
+      // One point before the first transaction shows where it started from.
+      if (first !== end) points.unshift(date)
+      break
+    }
+    points.unshift(date)
+  }
+  let balance = opening
+  let i = 0
+  return points.map((date) => {
+    while (i < days.length && days[i].date <= date) balance += days[i++].amount
+    return { date, value: balance }
+  })
 }
 
 export function listAccountValues(accountId: number): AccountValue[] {

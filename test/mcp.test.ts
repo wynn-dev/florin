@@ -175,6 +175,12 @@ describe("over HTTP", () => {
       ])
     )
 
+    const assigned = await call(client, "move_money", {
+      month: MONTH,
+      moves: [{ fromCategoryId: null, toCategoryId: rent, amount: 1_000 }],
+    })
+    expect(assigned.toBudget).toBe(69_000)
+
     const report = await call(client, "get_report", {
       report: "spending",
       from: day(1),
@@ -187,7 +193,7 @@ describe("over HTTP", () => {
     })
 
     const log = await call(client, "get_activity", { actor: "mcp:" })
-    expect(log.total).toBe(4 + 3 + 1)
+    expect(log.total).toBe(4 + 3 + 1 + 1)
     expect(new Set(log.items.map((c: { actor: string }) => c.actor))).toEqual(
       new Set(["mcp:Claude laptop"])
     )

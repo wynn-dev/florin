@@ -99,14 +99,14 @@ export const moveMoney = defineTool({
   name: "move_money",
   title: "Move money between categories",
   description:
-    "Moves budgeted money between expense categories in a month, e.g. to cover an overspent category from one with money left: each move lowers fromCategoryId's assigned amount and raises toCategoryId's by amount (positive integer minor units). 'To budget' is unchanged. Several moves in one call, all or none. Returns the affected categories' new numbers.",
+    "Moves budgeted money between expense categories in a month, e.g. to cover an overspent category from one with money left: each move lowers fromCategoryId's assigned amount and raises toCategoryId's by amount (positive integer minor units). 'To budget' is unchanged, except that null on either side is 'to budget' itself (Ready to assign): from null assigns more to toCategoryId, to null gives money back. Several moves in one call, all or none. Returns the affected categories' new numbers.",
   input: {
     month: zMonth,
     moves: z
       .array(
         z.object({
-          fromCategoryId: zId,
-          toCategoryId: zId,
+          fromCategoryId: zId.nullable(),
+          toCategoryId: zId.nullable(),
           amount: z.number().int().positive(),
         })
       )

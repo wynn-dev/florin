@@ -58,8 +58,8 @@ function Line({
 }) {
   return (
     <Link
-      to={"/budget/$month" as never}
-      params={{ month: to } as never}
+      to="/budget/$month"
+      params={{ month: to }}
       className="-mx-2 flex items-baseline justify-between gap-4 rounded-md px-2 py-1 hover:bg-muted/60"
     >
       <dt className="text-muted-foreground">{label}</dt>
