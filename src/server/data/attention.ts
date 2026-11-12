@@ -1,6 +1,6 @@
 // Needs attention: what Overview asks the person to look at. Two kinds:
 // - the person's: things only they can do (renew a bank's access, fix a
-//   failed sync or report). They show at once and sort first.
+//   failed sync or IBKR report). They show at once and sort first.
 // - the agents': things an agent normally handles (uncategorised
 //   transactions, an overspent category, money left unassigned). They show
 //   only once they have been open for 24 hours, the agent being assumed on
@@ -8,6 +8,7 @@
 // Each source is one function returning items; add a source by adding one.
 import { and, eq, isNull, sql } from "drizzle-orm"
 import { db, schema } from "../db"
+import { getIbkrStatus } from "../ibkr"
 import { listJobs } from "../jobs"
 import { getBudgetMonth } from "./budget"
 import { listCategoryGroups } from "./categories"
@@ -17,7 +18,7 @@ import { listMcpTokens } from "./tokens"
 import { monthEnd } from "./validate"
 import type { Attention, AttentionItem } from "@/shared/attention"
 
-const { transactions, accounts, budgets, changes } = schema
+const { transactions, accounts, budgets, changes, ibkr } = schema
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -27,7 +28,7 @@ const MAX_ITEMS = 5
 
 type Source = (now: Date) => AttentionItem[]
 
-const personSources: Source[] = [failedJobs]
+const personSources: Source[] = [failedBankSync, failedIbkrReport]
 const agentSources: Source[] = [uncategorized, overspent, unassigned]
 
 export function needsAttention(now: Date = new Date()): Attention {
@@ -67,43 +68,58 @@ function lastAgentSeen(): string | null {
 // ------------------------------------------------------------ the person's
 
 /**
- * A background job whose last run failed, for the jobs only the person can
- * fix. Keyed by job name; the reason is the job's error, first sentence.
+ * A failed bank sync, from the Enable Banking job's last error.
+ * TODO(enable banking): read the connector's links instead, once it lands:
+ * access ending within 7 days or ended (Renew), and each link's sync error.
  */
-const PERSON_JOBS: Record<
-  string,
-  (reason: string) => Pick<AttentionItem, "text" | "action">
-> = {
-  "enable-banking": (reason) => ({
-    text: `Bank sync failed: ${reason}`,
-    action: { label: "Retry", post: "/api/jobs/enable-banking/run" },
-  }),
-  ibkr: (reason) => ({
-    text: `IBKR report failed: ${reason}`,
-    action: /token/i.test(reason)
-      ? {
-          label: "Update token",
-          to: "/settings",
-          search: { section: "connections" },
-          hash: "ibkr",
-        }
-      : { label: "Retry", post: "/api/jobs/ibkr/run" },
-  }),
+function failedBankSync(): AttentionItem[] {
+  const job = listJobs().find((j) => j.name === "enable-banking")
+  if (!job?.lastError) return []
+  return [
+    {
+      id: "job:enable-banking",
+      who: "person",
+      since: job.lastStartedAt ?? new Date().toISOString(),
+      text: `Bank sync failed: ${reason(job.lastError)}`,
+      action: { label: "Retry", post: "/api/jobs/enable-banking/run" },
+    },
+  ]
 }
 
-function failedJobs(): AttentionItem[] {
-  return listJobs().flatMap((job) => {
-    const describe = PERSON_JOBS[job.name]
-    if (!describe || !job.lastError) return []
-    return [
-      {
-        id: `job:${job.name}`,
-        who: "person" as const,
-        since: job.lastStartedAt ?? new Date().toISOString(),
-        ...describe(firstSentence(job.lastError)),
-      },
-    ]
-  })
+/**
+ * The last IBKR pull's error, scheduled or by hand, from the connector's own
+ * state. One that needs the person (an expired token, a query to change)
+ * stops the daily pull, so its fix is in Settings; a passing one can be
+ * retried.
+ */
+function failedIbkrReport(): AttentionItem[] {
+  const state = db().select().from(ibkr).get()
+  if (!state?.lastError || !getIbkrStatus().configured) return []
+  const why = reason(state.lastError)
+  const settings = {
+    to: "/settings",
+    search: { section: "connections" },
+    hash: "ibkr",
+  }
+  return [
+    {
+      id: "ibkr",
+      who: "person",
+      since: state.lastPullAt ?? new Date().toISOString(),
+      text: `IBKR report failed: ${why}`,
+      action: !state.needsPerson
+        ? { label: "Retry", post: "/api/connections/ibkr/pull" }
+        : /token/i.test(why)
+          ? { label: "Update token", ...settings }
+          : { label: "Open settings", ...settings },
+    },
+  ]
+}
+
+/** An error's first sentence, to follow a colon: "your token has expired". */
+function reason(error: string): string {
+  const text = firstSentence(error)
+  return /^[A-Z][a-z]/.test(text) ? text[0].toLowerCase() + text.slice(1) : text
 }
 
 function firstSentence(text: string): string {

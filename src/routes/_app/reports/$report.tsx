@@ -34,14 +34,39 @@ function Reports() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
   const currency = useQuery(queries.settings()).data?.currency
-  const query = reportQuery(search)
+  const accounts = useQuery(queries.accounts()).data
+  // The budget reports cover on-budget accounts only: an off-budget pick
+  // (made on Net worth) would filter them to nothing behind a picker that
+  // can't show it, so it is dropped from the URL.
+  const covered = (id: ReportId, ids: number[] | undefined) => {
+    const kept = ids?.filter(
+      (a) =>
+        id === "net-worth" ||
+        accounts?.find((account) => account.id === a)?.onBudget
+    )
+    return kept?.length ? kept : undefined
+  }
+  const accountIds = covered(report, search.accounts)
+  const query = reportQuery({ ...search, accounts: accountIds })
+  useEffect(() => {
+    if (accounts && accountIds?.length !== search.accounts?.length)
+      void navigate({
+        search: (prev) => ({ ...prev, accounts: accountIds }),
+        replace: true,
+      })
+  })
   const update = (next: Partial<ReportSearch>) =>
     void navigate({
       search: (prev) => validateReportSearch({ ...prev, ...next }),
       replace: true,
     })
-  // The drill-down belongs to Spending; other tabs keep the range and accounts.
-  const tabSearch = (prev: ReportSearch) => ({ ...prev, group: undefined })
+  // The drill-down belongs to Spending; other tabs keep the range and the
+  // accounts they cover.
+  const tabSearch = (id: ReportId) => (prev: ReportSearch) => ({
+    ...prev,
+    accounts: covered(id, prev.accounts),
+    group: undefined,
+  })
   // On a phone the tabs scroll sideways; keep the open one in view.
   const strip = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -59,7 +84,7 @@ function Reports() {
               <Link
                 to="/reports/$report"
                 params={{ report: r.id }}
-                search={tabSearch}
+                search={tabSearch(r.id)}
               >
                 {r.label}
               </Link>
@@ -80,7 +105,7 @@ function Reports() {
               <Link
                 to="/reports/$report"
                 params={{ report: r.id }}
-                search={tabSearch}
+                search={tabSearch(r.id)}
               >
                 {r.label}
               </Link>
@@ -89,11 +114,12 @@ function Reports() {
         </ToggleGroup>
       </div>
       <ReportFilters
-        search={search}
+        search={{ ...search, accounts: accountIds }}
         onChange={update}
         onBudgetOnly={report !== "net-worth"}
       />
       {currency &&
+        accounts &&
         (report === "net-worth" ? (
           <NetWorthReport query={query} currency={currency} />
         ) : report === "spending" ? (

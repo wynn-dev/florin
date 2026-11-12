@@ -2,6 +2,9 @@ import { afterAll, describe, expect, test } from "vitest"
 import { useTempHome } from "./setup"
 import * as data from "@/server/data"
 import { registerJob, resetJobs, runJobNow } from "@/server/jobs"
+import { db, schema } from "@/server/db"
+import { TOKEN_KEY } from "@/server/ibkr/sync"
+import { setSecret } from "@/server/secrets"
 import { today } from "@/server/data/validate"
 
 useTempHome()
@@ -141,16 +144,7 @@ describe("needs attention", () => {
     ])
   })
 
-  test("a failed IBKR report or bank sync shows at once and first, with its fix", async () => {
-    registerJob({
-      name: "ibkr",
-      everyMs: 24 * HOUR,
-      run: () => {
-        throw new Error(
-          "Your IBKR Flex token has expired. Create a new one in Client Portal."
-        )
-      },
-    })
+  test("a failed bank sync shows at once and first, with Retry", async () => {
     registerJob({
       name: "enable-banking",
       everyMs: HOUR,
@@ -165,27 +159,68 @@ describe("needs attention", () => {
         throw new Error("offline")
       },
     })
-    await runJobNow("ibkr")
     await runJobNow("enable-banking")
     await runJobNow("ecb")
-    const items = data.needsAttention().items
-    expect(items.map((i) => [i.who, i.text, i.action])).toEqual([
-      [
-        "person",
-        "IBKR report failed: Your IBKR Flex token has expired",
-        {
-          label: "Update token",
-          to: "/settings",
-          search: { section: "connections" },
-          hash: "ibkr",
-        },
-      ],
-      [
-        "person",
-        "Bank sync failed: the bank did not answer",
-        { label: "Retry", post: "/api/jobs/enable-banking/run" },
-      ],
+    const [first, ...rest] = data.needsAttention().items
+    expect([first.who, first.text, first.action]).toEqual([
+      "person",
+      "Bank sync failed: the bank did not answer",
+      { label: "Retry", post: "/api/jobs/enable-banking/run" },
     ])
+    expect(rest.every((i) => i.who === "agent")).toBe(true)
+  })
+
+  test("a failed IBKR report comes from the connector's state, its fix from the kind of error", () => {
+    const ibkrItem = () =>
+      data.needsAttention().items.find((i) => i.id === "ibkr")
+    const settings = {
+      to: "/settings",
+      search: { section: "connections" },
+      hash: "ibkr",
+    }
+    const failed = (lastError: string | null, needsPerson: boolean) =>
+      db()
+        .insert(schema.ibkr)
+        .values({
+          id: 1,
+          queryId: "123456",
+          lastError,
+          needsPerson,
+          lastPullAt: new Date().toISOString(),
+        })
+        .onConflictDoUpdate({
+          target: schema.ibkr.id,
+          set: { lastError, needsPerson },
+        })
+        .run()
+
+    // Not connected: an old error is no item.
+    failed("Your IBKR Flex token has expired. Create a new one.", true)
+    expect(ibkrItem()).toBeUndefined()
+
+    setSecret(TOKEN_KEY, "1234567890123456")
+    expect(ibkrItem()).toMatchObject({
+      who: "person",
+      text: "IBKR report failed: your IBKR Flex token has expired",
+      action: { label: "Update token", ...settings },
+    })
+    // It stays while the daily pull is stopped, whatever the jobs table says.
+    failed(
+      "The Flex query lacks the Open Positions section. Tick it in Client Portal.",
+      true
+    )
+    expect(ibkrItem()).toMatchObject({
+      text: "IBKR report failed: the Flex query lacks the Open Positions section",
+      action: { label: "Open settings", ...settings },
+    })
+    // A passing failure can be retried; a pull that works clears it.
+    failed("IBKR didn't answer. Try again later.", false)
+    expect(ibkrItem()?.action).toEqual({
+      label: "Retry",
+      post: "/api/connections/ibkr/pull",
+    })
+    failed(null, false)
+    expect(ibkrItem()).toBeUndefined()
   })
 
   test("at most five items", () => {
@@ -199,6 +234,6 @@ describe("needs attention", () => {
       })
     const items = data.needsAttention(later(25)).items
     expect(items).toHaveLength(5)
-    expect(items.slice(0, 2).every((i) => i.who === "person")).toBe(true)
+    expect(items[0].who).toBe("person")
   })
 })
