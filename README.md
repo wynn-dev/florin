@@ -73,6 +73,36 @@ rm -rf ~/.local/share/florin ~/.local/bin/florin
 
 That leaves your data in `~/.florin`; remove that folder too to delete it.
 
+## Connect your bank
+
+florin pulls your bank's transactions through [Enable Banking](https://enablebanking.com),
+using your own Enable Banking application.
+
+1. At enablebanking.com, open the Control Panel and create an application
+   (for personal use: production, activated by linking your own accounts).
+   Keep the private key file (`.pem`) it gives you.
+2. In florin, open Settings › Connections › Enable Banking and copy the URL
+   under "Register this URL in Enable Banking", e.g.
+   `https://florin.example.com/connect/enable-banking/callback`. It is built
+   from florin's public address (Settings › General), so set that first if
+   you reach florin through your own domain. Enable Banking only sends you
+   back to `https://` addresses for production applications.
+3. Add that URL to your application's redirect URLs (API applications › ⋮ ›
+   Edit), and for a restricted application link your accounts there.
+4. Back in florin, paste the application ID and upload or paste the private
+   key. florin checks them with Enable Banking before saving them in
+   `config.json`; they are never shown again or sent to the browser.
+5. Link a bank: Accounts › Add account › Connect a bank (or Link a bank in
+   Settings), pick the country and bank, approve at your bank, then choose
+   which florin account each bank account feeds (a new one or an existing one).
+
+The first sync pulls as much history as the bank gives. After that florin
+syncs every 6 hours (or 12, or daily), and Sync now syncs straight away.
+Access lasts as long as the bank allows, usually 180 days; florin shows when it
+ends, and Renew asks the bank again while keeping your accounts as they are.
+Some banks keep one connection per person, so linking a bank in florin can end
+the same bank's connection in another app that uses Enable Banking.
+
 ## Connect Interactive Brokers
 
 florin reads your IBKR account through IBKR's Flex Web Service: once a day,
@@ -169,7 +199,7 @@ in a temporary folder) and `pnpm build`. CI runs all four on every pull request.
   migrations are bundled into the build and applied when florin opens the database.
 - `src/server/data/` – the data layer: every read and write of the budget.
   The `/api` routes and the MCP both call it. Every write takes an actor
-  (`person`, `mcp:<client>`, `bank-sync`, `ibkr`, `import`, `demo`) and records a line
+  (`person`, `mcp:<client>`, `bank-sync:<bank>`, `ibkr`, `import`, `demo`) and records a line
   in the change log.
 - `src/shared/types.ts` – the API types, shared by the server and the web app.
 - `src/server/jobs.ts` – background jobs (a plain in-process scheduler, state in
@@ -184,6 +214,10 @@ in a temporary folder) and `pnpm build`. CI runs all four on every pull request.
   query `123456`). Fixtures are synthetic; never commit a real report.
 - `src/server/secrets.ts` – connector credentials, kept in `config.json` (0600),
   never in the database or any API answer.
+- `src/server/enablebanking/` – bank sync: the Enable Banking client (JWT,
+  errors), linking (`index.ts`) and syncing with de-duplication (`sync.ts`);
+  its UI is in `src/components/connections/enable-banking/`, its tests run
+  against a fake Enable Banking in `test/enablebanking/`.
 - `src/routes/api/` – the REST API; `src/routes/mcp.ts` – the MCP endpoint.
 - `src/server/mcp/` – the MCP server. Each tool is a `defineTool` in
   `tools/`, listed in `tools/index.ts`; `http.ts` serves them at `/mcp`.

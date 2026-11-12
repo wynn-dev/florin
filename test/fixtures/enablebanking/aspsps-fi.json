@@ -1,0 +1,27 @@
+{
+  "aspsps": [
+    {
+      "name": "Nordea",
+      "country": "FI",
+      "logo": "https://enablebanking.com/brands/FI/Nordea/",
+      "psu_types": ["personal"],
+      "auth_methods": [{ "name": "MTA", "title": "Nordea website", "psu_type": "personal", "approach": "REDIRECT", "hidden_method": false }],
+      "maximum_consent_validity": 15552000,
+      "beta": false,
+      "bic": "NDEAFIHH"
+    },
+    {
+      "name": "S-Pankki",
+      "country": "FI",
+      "logo": "https://enablebanking.com/brands/FI/S-Pankki/",
+      "psu_types": ["personal", "business"],
+      "auth_methods": [
+        { "psu_type": "personal", "approach": "REDIRECT", "hidden_method": false },
+        { "psu_type": "business", "approach": "REDIRECT", "hidden_method": false }
+      ],
+      "maximum_consent_validity": 15552000,
+      "beta": false,
+      "bic": "SBANFIHH"
+    }
+  ]
+}

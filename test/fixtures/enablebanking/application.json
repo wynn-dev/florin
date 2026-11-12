@@ -1,0 +1,10 @@
+{
+  "name": "florin-test",
+  "description": null,
+  "kid": "<app-id>",
+  "environment": "SANDBOX",
+  "redirect_urls": ["http://localhost:4680/connect/enable-banking/callback"],
+  "active": true,
+  "countries": ["DE", "EE", "FI", "NL", "SE"],
+  "services": ["AIS", "PIS"]
+}

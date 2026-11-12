@@ -44,6 +44,7 @@ import { Route as ApiReportsSpendingRouteImport } from './routes/api/reports/spe
 import { Route as ApiReportsSpendingByDayRouteImport } from './routes/api/reports/spending-by-day'
 import { Route as ApiTransactionsIndexRouteImport } from './routes/api/transactions/index'
 import { Route as ApiTransactionsIdRouteImport } from './routes/api/transactions/$id'
+import { Route as ConnectEnableBankingCallbackRouteImport } from './routes/connect/enable-banking/callback'
 import { Route as ApiAccountsIdIndexRouteImport } from './routes/api/accounts/$id/index'
 import { Route as ApiAccountsIdHoldingsRouteImport } from './routes/api/accounts/$id/holdings'
 import { Route as ApiAccountsIdImportRouteImport } from './routes/api/accounts/$id/import'
@@ -52,11 +53,21 @@ import { Route as ApiAccountsIdValuesRouteImport } from './routes/api/accounts/$
 import { Route as ApiActivityTransactionsIdRouteImport } from './routes/api/activity/transactions/$id'
 import { Route as ApiBudgetMonthIndexRouteImport } from './routes/api/budget/$month/index'
 import { Route as ApiBudgetMonthCategoryIdRouteImport } from './routes/api/budget/$month/$categoryId'
+import { Route as ApiConnectionsEnableBankingIndexRouteImport } from './routes/api/connections/enable-banking/index'
+import { Route as ApiConnectionsEnableBankingBanksRouteImport } from './routes/api/connections/enable-banking/banks'
+import { Route as ApiConnectionsEnableBankingCredentialsRouteImport } from './routes/api/connections/enable-banking/credentials'
+import { Route as ApiConnectionsEnableBankingIntervalRouteImport } from './routes/api/connections/enable-banking/interval'
+import { Route as ApiConnectionsEnableBankingSyncRouteImport } from './routes/api/connections/enable-banking/sync'
 import { Route as ApiConnectionsIbkrIndexRouteImport } from './routes/api/connections/ibkr/index'
 import { Route as ApiConnectionsIbkrPullRouteImport } from './routes/api/connections/ibkr/pull'
 import { Route as ApiJobsNameRunRouteImport } from './routes/api/jobs/$name/run'
 import { Route as ApiPayeesIdIndexRouteImport } from './routes/api/payees/$id/index'
 import { Route as ApiPayeesIdMergeRouteImport } from './routes/api/payees/$id/merge'
+import { Route as ApiConnectionsEnableBankingLinksIndexRouteImport } from './routes/api/connections/enable-banking/links/index'
+import { Route as ApiConnectionsEnableBankingLinksIdIndexRouteImport } from './routes/api/connections/enable-banking/links/$id/index'
+import { Route as ApiConnectionsEnableBankingLinksIdAccountsRouteImport } from './routes/api/connections/enable-banking/links/$id/accounts'
+import { Route as ApiConnectionsEnableBankingLinksIdRenewRouteImport } from './routes/api/connections/enable-banking/links/$id/renew'
+import { Route as ApiConnectionsEnableBankingLinksIdSyncRouteImport } from './routes/api/connections/enable-banking/links/$id/sync'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -233,6 +244,12 @@ const ApiTransactionsIdRoute = ApiTransactionsIdRouteImport.update({
   path: '/api/transactions/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConnectEnableBankingCallbackRoute =
+  ConnectEnableBankingCallbackRouteImport.update({
+    id: '/connect/enable-banking/callback',
+    path: '/connect/enable-banking/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiAccountsIdIndexRoute = ApiAccountsIdIndexRouteImport.update({
   id: '/api/accounts/$id/',
   path: '/api/accounts/$id/',
@@ -276,6 +293,36 @@ const ApiBudgetMonthCategoryIdRoute =
     path: '/api/budget/$month/$categoryId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiConnectionsEnableBankingIndexRoute =
+  ApiConnectionsEnableBankingIndexRouteImport.update({
+    id: '/api/connections/enable-banking/',
+    path: '/api/connections/enable-banking/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiConnectionsEnableBankingBanksRoute =
+  ApiConnectionsEnableBankingBanksRouteImport.update({
+    id: '/api/connections/enable-banking/banks',
+    path: '/api/connections/enable-banking/banks',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiConnectionsEnableBankingCredentialsRoute =
+  ApiConnectionsEnableBankingCredentialsRouteImport.update({
+    id: '/api/connections/enable-banking/credentials',
+    path: '/api/connections/enable-banking/credentials',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiConnectionsEnableBankingIntervalRoute =
+  ApiConnectionsEnableBankingIntervalRouteImport.update({
+    id: '/api/connections/enable-banking/interval',
+    path: '/api/connections/enable-banking/interval',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiConnectionsEnableBankingSyncRoute =
+  ApiConnectionsEnableBankingSyncRouteImport.update({
+    id: '/api/connections/enable-banking/sync',
+    path: '/api/connections/enable-banking/sync',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiConnectionsIbkrIndexRoute = ApiConnectionsIbkrIndexRouteImport.update({
   id: '/api/connections/ibkr/',
   path: '/api/connections/ibkr/',
@@ -301,6 +348,36 @@ const ApiPayeesIdMergeRoute = ApiPayeesIdMergeRouteImport.update({
   path: '/api/payees/$id/merge',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiConnectionsEnableBankingLinksIndexRoute =
+  ApiConnectionsEnableBankingLinksIndexRouteImport.update({
+    id: '/api/connections/enable-banking/links/',
+    path: '/api/connections/enable-banking/links/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiConnectionsEnableBankingLinksIdIndexRoute =
+  ApiConnectionsEnableBankingLinksIdIndexRouteImport.update({
+    id: '/api/connections/enable-banking/links/$id/',
+    path: '/api/connections/enable-banking/links/$id/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiConnectionsEnableBankingLinksIdAccountsRoute =
+  ApiConnectionsEnableBankingLinksIdAccountsRouteImport.update({
+    id: '/api/connections/enable-banking/links/$id/accounts',
+    path: '/api/connections/enable-banking/links/$id/accounts',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiConnectionsEnableBankingLinksIdRenewRoute =
+  ApiConnectionsEnableBankingLinksIdRenewRouteImport.update({
+    id: '/api/connections/enable-banking/links/$id/renew',
+    path: '/api/connections/enable-banking/links/$id/renew',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiConnectionsEnableBankingLinksIdSyncRoute =
+  ApiConnectionsEnableBankingLinksIdSyncRouteImport.update({
+    id: '/api/connections/enable-banking/links/$id/sync',
+    path: '/api/connections/enable-banking/links/$id/sync',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -328,6 +405,7 @@ export interface FileRoutesByFullPath {
   '/api/reports/spending': typeof ApiReportsSpendingRoute
   '/api/reports/spending-by-day': typeof ApiReportsSpendingByDayRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
+  '/connect/enable-banking/callback': typeof ConnectEnableBankingCallbackRoute
   '/reports/': typeof AppReportsIndexRoute
   '/api/accounts/': typeof ApiAccountsIndexRoute
   '/api/activity/': typeof ApiActivityIndexRoute
@@ -343,13 +421,23 @@ export interface FileRoutesByFullPath {
   '/api/accounts/$id/values': typeof ApiAccountsIdValuesRoute
   '/api/activity/transactions/$id': typeof ApiActivityTransactionsIdRoute
   '/api/budget/$month/$categoryId': typeof ApiBudgetMonthCategoryIdRoute
+  '/api/connections/enable-banking/banks': typeof ApiConnectionsEnableBankingBanksRoute
+  '/api/connections/enable-banking/credentials': typeof ApiConnectionsEnableBankingCredentialsRoute
+  '/api/connections/enable-banking/interval': typeof ApiConnectionsEnableBankingIntervalRoute
+  '/api/connections/enable-banking/sync': typeof ApiConnectionsEnableBankingSyncRoute
   '/api/connections/ibkr/pull': typeof ApiConnectionsIbkrPullRoute
   '/api/jobs/$name/run': typeof ApiJobsNameRunRoute
   '/api/payees/$id/merge': typeof ApiPayeesIdMergeRoute
   '/api/accounts/$id/': typeof ApiAccountsIdIndexRoute
   '/api/budget/$month/': typeof ApiBudgetMonthIndexRoute
+  '/api/connections/enable-banking/': typeof ApiConnectionsEnableBankingIndexRoute
   '/api/connections/ibkr/': typeof ApiConnectionsIbkrIndexRoute
   '/api/payees/$id/': typeof ApiPayeesIdIndexRoute
+  '/api/connections/enable-banking/links/': typeof ApiConnectionsEnableBankingLinksIndexRoute
+  '/api/connections/enable-banking/links/$id/accounts': typeof ApiConnectionsEnableBankingLinksIdAccountsRoute
+  '/api/connections/enable-banking/links/$id/renew': typeof ApiConnectionsEnableBankingLinksIdRenewRoute
+  '/api/connections/enable-banking/links/$id/sync': typeof ApiConnectionsEnableBankingLinksIdSyncRoute
+  '/api/connections/enable-banking/links/$id/': typeof ApiConnectionsEnableBankingLinksIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -377,6 +465,7 @@ export interface FileRoutesByTo {
   '/api/reports/spending': typeof ApiReportsSpendingRoute
   '/api/reports/spending-by-day': typeof ApiReportsSpendingByDayRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
+  '/connect/enable-banking/callback': typeof ConnectEnableBankingCallbackRoute
   '/reports': typeof AppReportsIndexRoute
   '/api/accounts': typeof ApiAccountsIndexRoute
   '/api/activity': typeof ApiActivityIndexRoute
@@ -392,13 +481,23 @@ export interface FileRoutesByTo {
   '/api/accounts/$id/values': typeof ApiAccountsIdValuesRoute
   '/api/activity/transactions/$id': typeof ApiActivityTransactionsIdRoute
   '/api/budget/$month/$categoryId': typeof ApiBudgetMonthCategoryIdRoute
+  '/api/connections/enable-banking/banks': typeof ApiConnectionsEnableBankingBanksRoute
+  '/api/connections/enable-banking/credentials': typeof ApiConnectionsEnableBankingCredentialsRoute
+  '/api/connections/enable-banking/interval': typeof ApiConnectionsEnableBankingIntervalRoute
+  '/api/connections/enable-banking/sync': typeof ApiConnectionsEnableBankingSyncRoute
   '/api/connections/ibkr/pull': typeof ApiConnectionsIbkrPullRoute
   '/api/jobs/$name/run': typeof ApiJobsNameRunRoute
   '/api/payees/$id/merge': typeof ApiPayeesIdMergeRoute
   '/api/accounts/$id': typeof ApiAccountsIdIndexRoute
   '/api/budget/$month': typeof ApiBudgetMonthIndexRoute
+  '/api/connections/enable-banking': typeof ApiConnectionsEnableBankingIndexRoute
   '/api/connections/ibkr': typeof ApiConnectionsIbkrIndexRoute
   '/api/payees/$id': typeof ApiPayeesIdIndexRoute
+  '/api/connections/enable-banking/links': typeof ApiConnectionsEnableBankingLinksIndexRoute
+  '/api/connections/enable-banking/links/$id/accounts': typeof ApiConnectionsEnableBankingLinksIdAccountsRoute
+  '/api/connections/enable-banking/links/$id/renew': typeof ApiConnectionsEnableBankingLinksIdRenewRoute
+  '/api/connections/enable-banking/links/$id/sync': typeof ApiConnectionsEnableBankingLinksIdSyncRoute
+  '/api/connections/enable-banking/links/$id': typeof ApiConnectionsEnableBankingLinksIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -428,6 +527,7 @@ export interface FileRoutesById {
   '/api/reports/spending': typeof ApiReportsSpendingRoute
   '/api/reports/spending-by-day': typeof ApiReportsSpendingByDayRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
+  '/connect/enable-banking/callback': typeof ConnectEnableBankingCallbackRoute
   '/_app/reports/': typeof AppReportsIndexRoute
   '/api/accounts/': typeof ApiAccountsIndexRoute
   '/api/activity/': typeof ApiActivityIndexRoute
@@ -443,13 +543,23 @@ export interface FileRoutesById {
   '/api/accounts/$id/values': typeof ApiAccountsIdValuesRoute
   '/api/activity/transactions/$id': typeof ApiActivityTransactionsIdRoute
   '/api/budget/$month/$categoryId': typeof ApiBudgetMonthCategoryIdRoute
+  '/api/connections/enable-banking/banks': typeof ApiConnectionsEnableBankingBanksRoute
+  '/api/connections/enable-banking/credentials': typeof ApiConnectionsEnableBankingCredentialsRoute
+  '/api/connections/enable-banking/interval': typeof ApiConnectionsEnableBankingIntervalRoute
+  '/api/connections/enable-banking/sync': typeof ApiConnectionsEnableBankingSyncRoute
   '/api/connections/ibkr/pull': typeof ApiConnectionsIbkrPullRoute
   '/api/jobs/$name/run': typeof ApiJobsNameRunRoute
   '/api/payees/$id/merge': typeof ApiPayeesIdMergeRoute
   '/api/accounts/$id/': typeof ApiAccountsIdIndexRoute
   '/api/budget/$month/': typeof ApiBudgetMonthIndexRoute
+  '/api/connections/enable-banking/': typeof ApiConnectionsEnableBankingIndexRoute
   '/api/connections/ibkr/': typeof ApiConnectionsIbkrIndexRoute
   '/api/payees/$id/': typeof ApiPayeesIdIndexRoute
+  '/api/connections/enable-banking/links/': typeof ApiConnectionsEnableBankingLinksIndexRoute
+  '/api/connections/enable-banking/links/$id/accounts': typeof ApiConnectionsEnableBankingLinksIdAccountsRoute
+  '/api/connections/enable-banking/links/$id/renew': typeof ApiConnectionsEnableBankingLinksIdRenewRoute
+  '/api/connections/enable-banking/links/$id/sync': typeof ApiConnectionsEnableBankingLinksIdSyncRoute
+  '/api/connections/enable-banking/links/$id/': typeof ApiConnectionsEnableBankingLinksIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -479,6 +589,7 @@ export interface FileRouteTypes {
     | '/api/reports/spending'
     | '/api/reports/spending-by-day'
     | '/api/transactions/$id'
+    | '/connect/enable-banking/callback'
     | '/reports/'
     | '/api/accounts/'
     | '/api/activity/'
@@ -494,13 +605,23 @@ export interface FileRouteTypes {
     | '/api/accounts/$id/values'
     | '/api/activity/transactions/$id'
     | '/api/budget/$month/$categoryId'
+    | '/api/connections/enable-banking/banks'
+    | '/api/connections/enable-banking/credentials'
+    | '/api/connections/enable-banking/interval'
+    | '/api/connections/enable-banking/sync'
     | '/api/connections/ibkr/pull'
     | '/api/jobs/$name/run'
     | '/api/payees/$id/merge'
     | '/api/accounts/$id/'
     | '/api/budget/$month/'
+    | '/api/connections/enable-banking/'
     | '/api/connections/ibkr/'
     | '/api/payees/$id/'
+    | '/api/connections/enable-banking/links/'
+    | '/api/connections/enable-banking/links/$id/accounts'
+    | '/api/connections/enable-banking/links/$id/renew'
+    | '/api/connections/enable-banking/links/$id/sync'
+    | '/api/connections/enable-banking/links/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -528,6 +649,7 @@ export interface FileRouteTypes {
     | '/api/reports/spending'
     | '/api/reports/spending-by-day'
     | '/api/transactions/$id'
+    | '/connect/enable-banking/callback'
     | '/reports'
     | '/api/accounts'
     | '/api/activity'
@@ -543,13 +665,23 @@ export interface FileRouteTypes {
     | '/api/accounts/$id/values'
     | '/api/activity/transactions/$id'
     | '/api/budget/$month/$categoryId'
+    | '/api/connections/enable-banking/banks'
+    | '/api/connections/enable-banking/credentials'
+    | '/api/connections/enable-banking/interval'
+    | '/api/connections/enable-banking/sync'
     | '/api/connections/ibkr/pull'
     | '/api/jobs/$name/run'
     | '/api/payees/$id/merge'
     | '/api/accounts/$id'
     | '/api/budget/$month'
+    | '/api/connections/enable-banking'
     | '/api/connections/ibkr'
     | '/api/payees/$id'
+    | '/api/connections/enable-banking/links'
+    | '/api/connections/enable-banking/links/$id/accounts'
+    | '/api/connections/enable-banking/links/$id/renew'
+    | '/api/connections/enable-banking/links/$id/sync'
+    | '/api/connections/enable-banking/links/$id'
   id:
     | '__root__'
     | '/_app'
@@ -578,6 +710,7 @@ export interface FileRouteTypes {
     | '/api/reports/spending'
     | '/api/reports/spending-by-day'
     | '/api/transactions/$id'
+    | '/connect/enable-banking/callback'
     | '/_app/reports/'
     | '/api/accounts/'
     | '/api/activity/'
@@ -593,13 +726,23 @@ export interface FileRouteTypes {
     | '/api/accounts/$id/values'
     | '/api/activity/transactions/$id'
     | '/api/budget/$month/$categoryId'
+    | '/api/connections/enable-banking/banks'
+    | '/api/connections/enable-banking/credentials'
+    | '/api/connections/enable-banking/interval'
+    | '/api/connections/enable-banking/sync'
     | '/api/connections/ibkr/pull'
     | '/api/jobs/$name/run'
     | '/api/payees/$id/merge'
     | '/api/accounts/$id/'
     | '/api/budget/$month/'
+    | '/api/connections/enable-banking/'
     | '/api/connections/ibkr/'
     | '/api/payees/$id/'
+    | '/api/connections/enable-banking/links/'
+    | '/api/connections/enable-banking/links/$id/accounts'
+    | '/api/connections/enable-banking/links/$id/renew'
+    | '/api/connections/enable-banking/links/$id/sync'
+    | '/api/connections/enable-banking/links/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -623,6 +766,7 @@ export interface RootRouteChildren {
   ApiReportsSpendingRoute: typeof ApiReportsSpendingRoute
   ApiReportsSpendingByDayRoute: typeof ApiReportsSpendingByDayRoute
   ApiTransactionsIdRoute: typeof ApiTransactionsIdRoute
+  ConnectEnableBankingCallbackRoute: typeof ConnectEnableBankingCallbackRoute
   ApiAccountsIndexRoute: typeof ApiAccountsIndexRoute
   ApiActivityIndexRoute: typeof ApiActivityIndexRoute
   ApiCategoriesIndexRoute: typeof ApiCategoriesIndexRoute
@@ -637,13 +781,23 @@ export interface RootRouteChildren {
   ApiAccountsIdValuesRoute: typeof ApiAccountsIdValuesRoute
   ApiActivityTransactionsIdRoute: typeof ApiActivityTransactionsIdRoute
   ApiBudgetMonthCategoryIdRoute: typeof ApiBudgetMonthCategoryIdRoute
+  ApiConnectionsEnableBankingBanksRoute: typeof ApiConnectionsEnableBankingBanksRoute
+  ApiConnectionsEnableBankingCredentialsRoute: typeof ApiConnectionsEnableBankingCredentialsRoute
+  ApiConnectionsEnableBankingIntervalRoute: typeof ApiConnectionsEnableBankingIntervalRoute
+  ApiConnectionsEnableBankingSyncRoute: typeof ApiConnectionsEnableBankingSyncRoute
   ApiConnectionsIbkrPullRoute: typeof ApiConnectionsIbkrPullRoute
   ApiJobsNameRunRoute: typeof ApiJobsNameRunRoute
   ApiPayeesIdMergeRoute: typeof ApiPayeesIdMergeRoute
   ApiAccountsIdIndexRoute: typeof ApiAccountsIdIndexRoute
   ApiBudgetMonthIndexRoute: typeof ApiBudgetMonthIndexRoute
+  ApiConnectionsEnableBankingIndexRoute: typeof ApiConnectionsEnableBankingIndexRoute
   ApiConnectionsIbkrIndexRoute: typeof ApiConnectionsIbkrIndexRoute
   ApiPayeesIdIndexRoute: typeof ApiPayeesIdIndexRoute
+  ApiConnectionsEnableBankingLinksIndexRoute: typeof ApiConnectionsEnableBankingLinksIndexRoute
+  ApiConnectionsEnableBankingLinksIdAccountsRoute: typeof ApiConnectionsEnableBankingLinksIdAccountsRoute
+  ApiConnectionsEnableBankingLinksIdRenewRoute: typeof ApiConnectionsEnableBankingLinksIdRenewRoute
+  ApiConnectionsEnableBankingLinksIdSyncRoute: typeof ApiConnectionsEnableBankingLinksIdSyncRoute
+  ApiConnectionsEnableBankingLinksIdIndexRoute: typeof ApiConnectionsEnableBankingLinksIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -893,6 +1047,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTransactionsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/connect/enable-banking/callback': {
+      id: '/connect/enable-banking/callback'
+      path: '/connect/enable-banking/callback'
+      fullPath: '/connect/enable-banking/callback'
+      preLoaderRoute: typeof ConnectEnableBankingCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/accounts/$id/': {
       id: '/api/accounts/$id/'
       path: '/api/accounts/$id'
@@ -949,6 +1110,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBudgetMonthCategoryIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/connections/enable-banking/': {
+      id: '/api/connections/enable-banking/'
+      path: '/api/connections/enable-banking'
+      fullPath: '/api/connections/enable-banking/'
+      preLoaderRoute: typeof ApiConnectionsEnableBankingIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/enable-banking/banks': {
+      id: '/api/connections/enable-banking/banks'
+      path: '/api/connections/enable-banking/banks'
+      fullPath: '/api/connections/enable-banking/banks'
+      preLoaderRoute: typeof ApiConnectionsEnableBankingBanksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/enable-banking/credentials': {
+      id: '/api/connections/enable-banking/credentials'
+      path: '/api/connections/enable-banking/credentials'
+      fullPath: '/api/connections/enable-banking/credentials'
+      preLoaderRoute: typeof ApiConnectionsEnableBankingCredentialsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/enable-banking/interval': {
+      id: '/api/connections/enable-banking/interval'
+      path: '/api/connections/enable-banking/interval'
+      fullPath: '/api/connections/enable-banking/interval'
+      preLoaderRoute: typeof ApiConnectionsEnableBankingIntervalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/enable-banking/sync': {
+      id: '/api/connections/enable-banking/sync'
+      path: '/api/connections/enable-banking/sync'
+      fullPath: '/api/connections/enable-banking/sync'
+      preLoaderRoute: typeof ApiConnectionsEnableBankingSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/connections/ibkr/': {
       id: '/api/connections/ibkr/'
       path: '/api/connections/ibkr'
@@ -982,6 +1178,41 @@ declare module '@tanstack/react-router' {
       path: '/api/payees/$id/merge'
       fullPath: '/api/payees/$id/merge'
       preLoaderRoute: typeof ApiPayeesIdMergeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/enable-banking/links/': {
+      id: '/api/connections/enable-banking/links/'
+      path: '/api/connections/enable-banking/links'
+      fullPath: '/api/connections/enable-banking/links/'
+      preLoaderRoute: typeof ApiConnectionsEnableBankingLinksIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/enable-banking/links/$id/': {
+      id: '/api/connections/enable-banking/links/$id/'
+      path: '/api/connections/enable-banking/links/$id'
+      fullPath: '/api/connections/enable-banking/links/$id/'
+      preLoaderRoute: typeof ApiConnectionsEnableBankingLinksIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/enable-banking/links/$id/accounts': {
+      id: '/api/connections/enable-banking/links/$id/accounts'
+      path: '/api/connections/enable-banking/links/$id/accounts'
+      fullPath: '/api/connections/enable-banking/links/$id/accounts'
+      preLoaderRoute: typeof ApiConnectionsEnableBankingLinksIdAccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/enable-banking/links/$id/renew': {
+      id: '/api/connections/enable-banking/links/$id/renew'
+      path: '/api/connections/enable-banking/links/$id/renew'
+      fullPath: '/api/connections/enable-banking/links/$id/renew'
+      preLoaderRoute: typeof ApiConnectionsEnableBankingLinksIdRenewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/enable-banking/links/$id/sync': {
+      id: '/api/connections/enable-banking/links/$id/sync'
+      path: '/api/connections/enable-banking/links/$id/sync'
+      fullPath: '/api/connections/enable-banking/links/$id/sync'
+      preLoaderRoute: typeof ApiConnectionsEnableBankingLinksIdSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -1030,6 +1261,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiReportsSpendingRoute: ApiReportsSpendingRoute,
   ApiReportsSpendingByDayRoute: ApiReportsSpendingByDayRoute,
   ApiTransactionsIdRoute: ApiTransactionsIdRoute,
+  ConnectEnableBankingCallbackRoute: ConnectEnableBankingCallbackRoute,
   ApiAccountsIndexRoute: ApiAccountsIndexRoute,
   ApiActivityIndexRoute: ApiActivityIndexRoute,
   ApiCategoriesIndexRoute: ApiCategoriesIndexRoute,
@@ -1044,13 +1276,30 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAccountsIdValuesRoute: ApiAccountsIdValuesRoute,
   ApiActivityTransactionsIdRoute: ApiActivityTransactionsIdRoute,
   ApiBudgetMonthCategoryIdRoute: ApiBudgetMonthCategoryIdRoute,
+  ApiConnectionsEnableBankingBanksRoute: ApiConnectionsEnableBankingBanksRoute,
+  ApiConnectionsEnableBankingCredentialsRoute:
+    ApiConnectionsEnableBankingCredentialsRoute,
+  ApiConnectionsEnableBankingIntervalRoute:
+    ApiConnectionsEnableBankingIntervalRoute,
+  ApiConnectionsEnableBankingSyncRoute: ApiConnectionsEnableBankingSyncRoute,
   ApiConnectionsIbkrPullRoute: ApiConnectionsIbkrPullRoute,
   ApiJobsNameRunRoute: ApiJobsNameRunRoute,
   ApiPayeesIdMergeRoute: ApiPayeesIdMergeRoute,
   ApiAccountsIdIndexRoute: ApiAccountsIdIndexRoute,
   ApiBudgetMonthIndexRoute: ApiBudgetMonthIndexRoute,
+  ApiConnectionsEnableBankingIndexRoute: ApiConnectionsEnableBankingIndexRoute,
   ApiConnectionsIbkrIndexRoute: ApiConnectionsIbkrIndexRoute,
   ApiPayeesIdIndexRoute: ApiPayeesIdIndexRoute,
+  ApiConnectionsEnableBankingLinksIndexRoute:
+    ApiConnectionsEnableBankingLinksIndexRoute,
+  ApiConnectionsEnableBankingLinksIdAccountsRoute:
+    ApiConnectionsEnableBankingLinksIdAccountsRoute,
+  ApiConnectionsEnableBankingLinksIdRenewRoute:
+    ApiConnectionsEnableBankingLinksIdRenewRoute,
+  ApiConnectionsEnableBankingLinksIdSyncRoute:
+    ApiConnectionsEnableBankingLinksIdSyncRoute,
+  ApiConnectionsEnableBankingLinksIdIndexRoute:
+    ApiConnectionsEnableBankingLinksIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
