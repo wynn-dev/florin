@@ -15,7 +15,6 @@ import type {
   Account,
   BudgetMonth,
   CategoryGroup,
-  Change,
   Page,
   Payee,
   Settings,
@@ -135,11 +134,6 @@ export const queries = {
     queryOptions({
       queryKey: ["attention"],
       queryFn: () => api<Attention>("/attention"),
-    }),
-  activity: (limit = 8) =>
-    queryOptions({
-      queryKey: ["activity", { limit }],
-      queryFn: () => api<Page<Change>>(`/activity${search({ limit })}`),
     }),
 }
 

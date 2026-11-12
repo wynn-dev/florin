@@ -4,7 +4,7 @@ import { AccountsList } from "@/components/overview/accounts-list"
 import { live } from "@/components/overview/live"
 import { NeedsAttention } from "@/components/overview/needs-attention"
 import { NetWorth } from "@/components/overview/net-worth"
-import { RecentActivity } from "@/components/overview/recent-activity"
+import { ActivityFeed } from "@/components/activity/activity-feed"
 import { SpendingThisMonth } from "@/components/overview/spending-this-month"
 import { ThisMonth } from "@/components/overview/this-month"
 import { Page } from "@/components/page"
@@ -79,10 +79,10 @@ function Overview() {
                 className="h-auto px-0 text-muted-foreground hover:text-foreground"
                 asChild
               >
-                <Link to={"/activity" as never}>View all</Link>
+                <Link to="/activity">View all</Link>
               </Button>
             </div>
-            <RecentActivity limit={8} />
+            <ActivityFeed limit={8} />
           </section>
         </div>
       )}
