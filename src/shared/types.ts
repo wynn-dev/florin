@@ -40,6 +40,11 @@ export type TransactionStatus = "pending" | "cleared"
 export type Settings = {
   /** The budget's currency, ISO 4217 (e.g. "EUR"). */
   currency: string
+  /**
+   * The address people and services reach florin at, e.g.
+   * "https://florin.example.com"; empty means http://localhost:<port>.
+   */
+  publicUrl: string
 }
 
 /** Units of `currency` per 1 EUR on `date`, as the ECB publishes them. */

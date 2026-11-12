@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm"
 import { db, schema } from "../db"
+import { runJobSoon } from "../jobs"
 import { startingBalanceCategoryId } from "./categories"
 import { describe, logChange, money } from "./changes"
 import { checkCurrency, convert } from "./fx"
@@ -146,6 +147,7 @@ export function createAccount(actor: Actor, input: NewAccount): Account {
     })
     return row.id
   })
+  if (currency !== budgetCurrency) runJobSoon("ecb")
   return getAccount(id)
 }
 
