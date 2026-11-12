@@ -209,6 +209,29 @@ describe("spending by day", () => {
   })
 })
 
+describe("the demo", () => {
+  test("has a move to savings to link and last month's overspending", () => {
+    const last = addMonths(today().slice(0, 7), -1)
+    const [pair, ...rest] = data.suggestTransfers()
+    expect(rest).toEqual([])
+    expect(pair).toMatchObject({
+      out: { accountName: "Current account", amount: -50_000 },
+      into: { accountName: "Savings", amount: 50_000 },
+      days: 1,
+    })
+    const shopping = (month: string) =>
+      data
+        .getBudgetMonth(month)
+        .groups.flatMap((g) => g.categories)
+        .find((c) => c.name === "Shopping")!
+    expect(shopping(last).available).toBe(-6_490)
+    expect(shopping(today().slice(0, 7)).available).toBeGreaterThanOrEqual(0)
+    expect(
+      data.getBudgetMonth(today().slice(0, 7)).lastMonthOverspent
+    ).toBeGreaterThanOrEqual(6_490)
+  })
+})
+
 describe("report queries", () => {
   test("parses the URL's parameters and refuses bad ones", () => {
     expect(
