@@ -71,11 +71,12 @@ sides already came in on their own (from two banks, or from your bank and
 IBKR), link them rather than adding a transfer: select the two on the
 Transactions page and choose Link as transfer, or have an agent use
 `suggest_transfers` and `link_transfers`. Each keeps its bank details, so later
-syncs add nothing, and unlinking gives back the two rows. A transfer is never
-spending or income in Overview and Reports, whichever accounts it is between;
-the budget is different on purpose: a transfer to an off-budget account (an
-investment, say) given a category counts in that category, as money leaving
-the budget.
+syncs add nothing; linking clears their payees (and categories, where a
+transfer has none), and Undo right after linking puts those back. A transfer
+is never spending or income in Overview and Reports, whichever accounts it is
+between; the budget is different on purpose: a transfer to an off-budget
+account (an investment, say) given a category counts in that category, as
+money leaving the budget.
 
 ## The service
 

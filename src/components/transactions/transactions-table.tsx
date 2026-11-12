@@ -247,7 +247,8 @@ export function TransactionsTable({
             accounts
           )}
           onLink={(pair) => {
-            link.mutate(pair)
+            const [a, b] = pair.map((id) => rows.find((t) => t.id === id)!)
+            link.mutate([a, b])
             setSelected(new Set())
           }}
           onCategorise={(id) => {

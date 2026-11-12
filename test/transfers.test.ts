@@ -352,6 +352,46 @@ describe("unlinking", () => {
     expect(data.getTransaction(made.id).transferId).toBeNull()
   })
 
+  test("undoing a link puts back each row's payee and category", () => {
+    const [a, b] = data.createTransactions("person", [
+      {
+        accountId: current,
+        date: "2026-10-20",
+        amount: -1_200,
+        payeeName: "Corner market",
+        categoryId: categoryId("Groceries"),
+      },
+      {
+        accountId: savings,
+        date: "2026-10-20",
+        amount: 1_200,
+        payeeName: "Refund desk",
+        categoryId: categoryId("Shopping"),
+      },
+    ])
+    data.linkTransfers("person", [[a.id, b.id]])
+    expect(data.getTransaction(a.id)).toMatchObject({
+      payeeId: null,
+      categoryId: null,
+    })
+    // What the dashboard's Undo sends.
+    data.updateTransaction("person", a.id, {
+      transferAccountId: null,
+      payeeId: a.payeeId,
+      categoryId: a.categoryId,
+    })
+    data.updateTransaction("person", b.id, {
+      payeeId: b.payeeId,
+      categoryId: b.categoryId,
+    })
+    for (const t of [a, b])
+      expect(data.getTransaction(t.id)).toMatchObject({
+        transferId: null,
+        payeeName: t.payeeName,
+        categoryId: t.categoryId,
+      })
+  })
+
   test("two rows typed in and linked both stay when unlinked", () => {
     const [a, b] = data.createTransactions("mcp:agent", [
       { accountId: current, date: "2026-10-11", amount: -900 },

@@ -234,28 +234,39 @@ async function restoreRows(rows: Transaction[]): Promise<void> {
     await api("/transactions/link", { method: "POST", body: { pairs } })
 }
 
-/** Links two transactions as one transfer, with "Linked as a transfer · Undo". */
+/**
+ * Links two transactions as one transfer, with "Linked as a transfer · Undo".
+ * Linking clears their payees (and categories, as transfers have none); Undo
+ * unlinks them and puts back what each row had. Every step of it can run
+ * again, so Retry repeats the whole undo.
+ */
 export function useLinkTransfer() {
   const client = useQueryClient()
   const unlink = useMutation({
-    mutationFn: (id: number) =>
-      api<Transaction>(`/transactions/${id}`, {
-        method: "PATCH",
-        body: { transferAccountId: null },
-      }),
-    onError: (error, id) => errorToast(error, () => unlink.mutate(id)),
+    mutationFn: async (rows: [Transaction, Transaction]) => {
+      for (const [i, t] of rows.entries())
+        await api<Transaction>(`/transactions/${t.id}`, {
+          method: "PATCH",
+          body: {
+            ...(i === 0 ? { transferAccountId: null } : {}),
+            payeeId: t.payeeId,
+            categoryId: t.categoryId,
+          },
+        })
+    },
+    onError: (error, rows) => errorToast(error, () => unlink.mutate(rows)),
     onSettled: () => invalidateAfterEdit(client),
   })
   const mutation = useMutation({
-    mutationFn: (pair: [number, number]) =>
+    mutationFn: (rows: [Transaction, Transaction]) =>
       api<[Transaction, Transaction][]>("/transactions/link", {
         method: "POST",
-        body: { pairs: [pair] },
+        body: { pairs: [rows.map((t) => t.id)] },
       }),
-    onError: (error, pair) => errorToast(error, () => mutation.mutate(pair)),
-    onSuccess: ([[out]]) => {
+    onError: (error, rows) => errorToast(error, () => mutation.mutate(rows)),
+    onSuccess: (_linked, rows) => {
       toast("Linked as a transfer", {
-        action: { label: "Undo", onClick: () => unlink.mutate(out.id) },
+        action: { label: "Undo", onClick: () => unlink.mutate(rows) },
       })
     },
     onSettled: () => invalidateAfterEdit(client),
