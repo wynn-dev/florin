@@ -3,7 +3,7 @@
 // lines one data-layer call writes share a batch (so do the lines of a sync
 // or import run wrapped in inBatch); Activity shows one entry per batch.
 import { AsyncLocalStorage } from "node:async_hooks"
-import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm"
+import { and, asc, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm"
 import { db, schema } from "../db"
 import { minorDigits } from "./fx"
 import { InvalidInput, NotFound } from "./validate"
@@ -57,6 +57,8 @@ export function logChange(
   actor: Actor,
   change: Pick<Change, "action" | "entity" | "summary"> & {
     entityId?: number | null
+    /** Another entity it touched, e.g. the category money moved out of. */
+    relatedId?: number | null
     /** What changed on the entity alone, for its history: "Category set to Groceries". */
     detail?: string | null
   }
@@ -69,6 +71,7 @@ export function logChange(
       actor: checkActor(actor),
       ...change,
       entityId: change.entityId ?? null,
+      relatedId: change.relatedId ?? null,
       detail: change.detail ?? null,
       batch: batch ?? null,
     })
@@ -107,11 +110,15 @@ export function listActivity(
   return { items, total }
 }
 
+/**
+ * One actor, or every actor of a kind for a prefix ending in ":"; a prefix
+ * also takes the bare form older lines carry ("import" for "import:").
+ */
 function sourceCondition(source: string | undefined): SQL | undefined {
   if (!source) return undefined
-  return source.endsWith(":")
-    ? sql`${changes.actor} like ${source.replace(/[\\%_]/g, (c) => "\\" + c) + "%"} escape '\\'`
-    : eq(changes.actor, source)
+  if (!source.endsWith(":")) return eq(changes.actor, source)
+  const like = sql`${changes.actor} like ${source.replace(/[\\%_]/g, (c) => "\\" + c) + "%"} escape '\\'`
+  return or(like, eq(changes.actor, source.slice(0, -1)))
 }
 
 const KIND_ENTITIES: Record<ActivityKind, Change["entity"][]> = {
@@ -119,7 +126,7 @@ const KIND_ENTITIES: Record<ActivityKind, Change["entity"][]> = {
   budget: ["budget"],
   accounts: ["account"],
   categories: ["category", "category group"],
-  settings: ["settings", "payee", "fx rate"],
+  settings: ["settings", "payee", "fx rate", "mcp token"],
 }
 
 function kindOf(entity: string): ActivityKind {
@@ -159,7 +166,8 @@ export function listActivityEntries(filter: ActivityFilter = {}): ActivityPage {
     filter.to === undefined
       ? undefined
       : lt(changes.at, checkTimestamp(filter.to, "to")),
-    filter.before === undefined ? undefined : lt(changes.batch, filter.before)
+    filter.before === undefined ? undefined : lt(changes.batch, filter.before),
+    filter.entry === undefined ? undefined : eq(changes.batch, filter.entry)
   )
   const batches = db()
     .select({ batch: changes.batch })
@@ -250,6 +258,7 @@ const PLURALS: Record<string, [string, string]> = {
   budget: ["budget amount", "budget amounts"],
   settings: ["setting", "settings"],
   "fx rate": ["exchange rate", "exchange rates"],
+  "mcp token": ["MCP token", "MCP tokens"],
 }
 
 function noun(entity: string, n: number): string {

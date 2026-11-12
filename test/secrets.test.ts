@@ -67,6 +67,7 @@ describe("secrets", () => {
       currency: "EUR",
       publicUrl: "",
       locale: "",
+      timeZone: "",
     })
     expect(text).not.toContain("not-a-real-key")
 
@@ -95,6 +96,7 @@ describe("public address", () => {
       currency: "EUR",
       publicUrl: "https://florin.example.com",
       locale: "",
+      timeZone: "",
     })
     expect(data.publicUrl()).toBe("https://florin.example.com")
     expect(data.listActivity().items[0]).toMatchObject({

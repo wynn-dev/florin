@@ -309,3 +309,42 @@ describe("CSV preview and import", () => {
     expect(preview.added).toBe(2)
   })
 })
+
+describe("activity filters and links", () => {
+  test("MCP token changes count as Settings; 'import:' takes bare import lines too; one entry by id", () => {
+    data.createMcpToken("person", "Filter check")
+    const settings = data.listActivityEntries({ kind: "settings" }).items
+    expect(settings.some((e) => /token/i.test(e.summary))).toBe(true)
+
+    const account = data.createAccount("person", {
+      name: "Bare import",
+      type: "cash",
+    })
+    data.importTransactions("import", account.id, [
+      { date: "2026-10-03", amount: -100, payee: "Old style" },
+    ])
+    const imports = data.listActivityEntries({ source: "import:" }).items
+    expect(imports.some((e) => e.actor === "import")).toBe(true)
+
+    const [newest] = data.listActivityEntries({ limit: 1 }).items
+    expect(
+      data.listActivityEntries({ entry: newest.id }).items.map((e) => e.id)
+    ).toEqual([newest.id])
+  })
+
+  test("the budget's last change finds money moved out by id, not by name", () => {
+    const month = "2026-10"
+    const [a, b] = data
+      .listCategoryGroups()
+      .filter((group) => !group.isIncome)
+      .flatMap((group) => group.categories)
+    data.setBudgetAmount("person", month, a.id, 10_000)
+    data.moveBudgetAmounts("person", month, [
+      { fromCategoryId: a.id, toCategoryId: b.id, amount: 4_000 },
+    ])
+    const out = data.getBudgetCategoryDetail(month, a.id).lastChange!
+    const into = data.getBudgetCategoryDetail(month, b.id).lastChange!
+    expect(out.id).toBe(into.id)
+    expect([out.into, into.into]).toEqual([false, true])
+  })
+})

@@ -45,6 +45,8 @@ export type ActivityFilter = {
   to?: string
   /** Only entries older than this entry id (the cursor for the next page). */
   before?: number
+  /** Only this entry (its id, the batch). */
+  entry?: number
   limit?: number
 }
 

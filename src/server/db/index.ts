@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto"
 import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
+import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/node-sqlite"
 import { migrateSync } from "drizzle-orm/sqlite-core/async/session"
 import { databasePath } from "../config"
@@ -45,14 +46,31 @@ export function openDatabase(path: string) {
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
   const database = drizzle({ connection: { path } })
   // WAL and a busy timeout let another florin process (e.g. `florin
-  // seed-demo`) write while the service runs. Write transactions start immediate, so one that waits for the other
-  // process waits out the busy timeout instead of failing on a stale read.
+  // seed-demo`) write while the service runs. Write transactions start
+  // immediate, so one that waits for the other process waits out the busy
+  // timeout instead of failing on a stale read.
   database.$client.exec(
     "PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;"
   )
+  // A transaction started inside another (a data-layer call inside a larger
+  // all-or-nothing step, like mapping a bank's accounts) becomes a savepoint
+  // of the outer one instead of failing.
   const transaction = database.transaction.bind(database)
-  database.transaction = (fn, config) =>
-    transaction(fn, { behavior: "immediate", ...config })
+  let open: Parameters<Parameters<typeof transaction>[0]>[0] | undefined
+  database.transaction = (fn, config) => {
+    const outer = open
+    const run: typeof fn = (tx) => {
+      open = tx
+      try {
+        return fn(tx)
+      } finally {
+        open = outer
+      }
+    }
+    return outer
+      ? outer.transaction(run)
+      : transaction(run, { behavior: "immediate", ...config })
+  }
   migrateSync(
     migrations(),
     (database as unknown as { session: Parameters<typeof migrateSync>[1] })
@@ -63,6 +81,10 @@ export function openDatabase(path: string) {
   return database
 }
 
+/** The category opening balances are booked to, found by this key whatever its name. */
+export const STARTING_BALANCES = "starting-balances"
+const DEFAULTS_ADDED = "defaultCategoriesAdded"
+
 const DEFAULT_CATEGORIES: [string, boolean, string[]][] = [
   ["Income", true, ["Income", "Starting balances"]],
   ["Bills", false, ["Rent", "Utilities", "Phone & internet", "Insurance"]],
@@ -70,11 +92,20 @@ const DEFAULT_CATEGORIES: [string, boolean, string[]][] = [
   ["Goals", false, ["Emergency fund", "Holidays"]],
 ]
 
-/** A new budget starts with a small set of categories the person can change. */
+/**
+ * A new budget starts with a small set of categories the person can change,
+ * once: a budget whose categories were all deleted stays without them.
+ */
 function addDefaultCategories(database: ReturnType<typeof drizzle>) {
-  if (database.select().from(schema.categoryGroups).limit(1).all().length)
-    return
+  const added = database
+    .select()
+    .from(schema.settings)
+    .where(eq(schema.settings.key, DEFAULTS_ADDED))
+    .get()
+  if (added) return
   database.transaction((tx) => {
+    tx.insert(schema.settings).values({ key: DEFAULTS_ADDED, value: "1" }).run()
+    if (tx.select().from(schema.categoryGroups).limit(1).all().length) return
     DEFAULT_CATEGORIES.forEach(([name, isIncome, cats], i) => {
       const group = tx
         .insert(schema.categoryGroups)
@@ -83,7 +114,12 @@ function addDefaultCategories(database: ReturnType<typeof drizzle>) {
         .get()
       tx.insert(schema.categories)
         .values(
-          cats.map((c, j) => ({ groupId: group.id, name: c, sortOrder: j + 1 }))
+          cats.map((c, j) => ({
+            groupId: group.id,
+            name: c,
+            sortOrder: j + 1,
+            key: c === "Starting balances" ? STARTING_BALANCES : null,
+          }))
         )
         .run()
     })

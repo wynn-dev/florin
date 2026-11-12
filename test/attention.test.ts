@@ -144,7 +144,8 @@ describe("needs attention", () => {
     ])
   })
 
-  test("a failed bank sync shows at once and first, with Retry", async () => {
+  test("a bank link's access and sync errors show at once and first, from the link itself", async () => {
+    // The job's own error is no longer what counts.
     registerJob({
       name: "enable-banking",
       everyMs: HOUR,
@@ -152,22 +153,62 @@ describe("needs attention", () => {
         throw new Error("the bank did not answer")
       },
     })
-    registerJob({
-      name: "ecb",
-      everyMs: HOUR,
-      run: () => {
-        throw new Error("offline")
+    await runJobNow("enable-banking")
+    expect(data.needsAttention().items.some((i) => i.who === "person")).toBe(
+      false
+    )
+
+    const days = (n: number) =>
+      new Date(Date.now() + n * 24 * HOUR).toISOString()
+    const link = (bank: string, validUntil: string, lastError?: string) =>
+      db()
+        .insert(schema.ebLinks)
+        .values({
+          sessionId: `session-${bank}`,
+          bank,
+          country: "FI",
+          validUntil,
+          lastError: lastError ?? null,
+          lastAttemptAt: new Date().toISOString(),
+        })
+        .returning({ id: schema.ebLinks.id })
+        .get().id
+    const fine = link("Fine Bank", days(90))
+    const failing = link(
+      "Nordea",
+      days(90),
+      "The bank did not answer. Try later."
+    )
+    const ending = link("OP", days(5.5))
+    const ended = link("S-Pankki", days(-2))
+    const person = data.needsAttention().items.filter((i) => i.who === "person")
+    const byId = new Map(person.map((i) => [i.id, i]))
+    expect(byId.has(`bank:${fine}`)).toBe(false)
+    expect(byId.get(`bank:${failing}`)).toMatchObject({
+      text: "Bank sync failed: the bank did not answer",
+      action: {
+        label: "Retry",
+        post: `/api/connections/enable-banking/links/${failing}/sync`,
       },
     })
-    await runJobNow("enable-banking")
-    await runJobNow("ecb")
-    const [first, ...rest] = data.needsAttention().items
-    expect([first.who, first.text, first.action]).toEqual([
-      "person",
-      "Bank sync failed: the bank did not answer",
-      { label: "Retry", post: "/api/jobs/enable-banking/run" },
-    ])
-    expect(rest.every((i) => i.who === "agent")).toBe(true)
+    const renew = (id: number) => ({
+      label: "Renew",
+      post: `/api/connections/enable-banking/links/${id}/renew`,
+      body: { returnTo: "/" },
+    })
+    expect(byId.get(`bank:${ending}`)).toMatchObject({
+      text: expect.stringMatching(/^OP access ends on \d{1,2} \w{3}/),
+      action: renew(ending),
+    })
+    expect(byId.get(`bank:${ended}`)).toMatchObject({
+      text: "S-Pankki access ended",
+      action: renew(ended),
+    })
+    // The person's items come first.
+    const items = data.needsAttention().items
+    expect(items.slice(0, person.length).every((i) => i.who === "person")).toBe(
+      true
+    )
   })
 
   test("a failed IBKR report comes from the connector's state, its fix from the kind of error", () => {

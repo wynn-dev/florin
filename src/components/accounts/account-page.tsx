@@ -3,10 +3,10 @@ import { AccountMenu } from "./account-menu"
 import { InvestmentAccount } from "./investment"
 import { accountQueries } from "./queries"
 import { ConnectionLine } from "./connection"
-import { AccountRegister } from "./slots"
 import type { Account } from "@/shared/types"
 import { formatMoney } from "@/lib/format"
 import { AreaTrend } from "@/components/charts"
+import { TransactionsTable } from "@/components/transactions/transactions-table"
 import { Page } from "@/components/page"
 import {
   QueryState,
@@ -77,7 +77,7 @@ function BankAccount({ account }: { account: Account }) {
           ) : null
         }
       </QueryState>
-      <AccountRegister account={account} />
+      <TransactionsTable accountId={account.id} />
     </div>
   )
 }

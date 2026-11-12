@@ -78,7 +78,11 @@ export function SegmentedBar({
       >
         {shown.map((part) => {
           const text = formatPercent(part.share)
-          const fits = (width - gaps) * part.share >= text.length * 7 + 14
+          const trueWidth = (width - gaps) * part.share
+          const fits = trueWidth >= text.length * 7 + 14
+          // A sliver too thin to see gets 2px, but only when the bar is wide
+          // enough that adding it barely moves the others.
+          const floor = trueWidth < 2 && width >= shown.length * 100
           return (
             <Tooltip key={part.key}>
               <TooltipTrigger asChild>
@@ -86,12 +90,14 @@ export function SegmentedBar({
                   tabIndex={0}
                   aria-label={`${part.label}: ${formatMoney(part.value, currency)}, ${text}`}
                   className={cn(
-                    "flex h-full min-w-0.5 items-center rounded-[4px] px-2 text-xs font-medium tabular-nums outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                    "flex h-full min-w-0 items-center overflow-hidden rounded-[4px] text-xs font-medium tabular-nums outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                    fits && "px-2",
                     INK[part.slot]
                   )}
                   style={{
                     flexGrow: part.share,
                     flexBasis: 0,
+                    minWidth: floor ? 2 : 0,
                     background: CHART_SLOTS[part.slot],
                   }}
                 >

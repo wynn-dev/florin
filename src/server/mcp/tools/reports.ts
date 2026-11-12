@@ -101,7 +101,7 @@ export const getActivity = defineTool({
   name: "get_activity",
   title: "Read the change log",
   description:
-    "Who changed what, newest first: every write records its actor (person = the dashboard, mcp:<name> = an MCP client, bank-sync, import, demo) and a one-line summary. actor filters to one actor; 'mcp:' matches every MCP client. Paged.",
+    "Who changed what, newest first: every write records its actor and a one-line summary. Actors: person (the dashboard), mcp:<client> (an MCP client, by its token's name), bank-sync:<bank> (Enable Banking sync of that bank), ibkr (the Interactive Brokers report), import:<file> (a CSV import), demo (sample data). actor filters to one exactly; a prefix ending in ':' matches all of a kind: 'mcp:' every MCP client, 'bank-sync:' every bank, 'import:' every file. Paged.",
   input: {
     actor: z.string().optional(),
     limit: zLimit(50, 500),

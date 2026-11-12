@@ -1,5 +1,14 @@
 import { describe, expect, test } from "vitest"
-import { launchdLabel, launchdPlist, systemdUnit, unitEnv } from "@/cli/service"
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import {
+  launchdLabel,
+  launchdPlist,
+  rotateLog,
+  systemdUnit,
+  unitEnv,
+} from "@/cli/service"
 
 const launcher = "/home/ana/.local/share/florin/current/bin/florin"
 
@@ -94,5 +103,21 @@ describe("launchd plist", () => {
       FLORIN_HOME: "/Users/ana/R&D",
       FLORIN_PORT: "4691",
     })
+  })
+})
+
+describe("the macOS log", () => {
+  test("is moved aside once it passes the limit, keeping one old log", () => {
+    const dir = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), "florin-log-"))
+    const file = join(dir, "florin.log")
+    expect(rotateLog(file, 10)).toBe(false)
+    writeFileSync(file, "short")
+    expect(rotateLog(file, 10)).toBe(false)
+    writeFileSync(file, "a long first log")
+    expect(rotateLog(file, 10)).toBe(true)
+    expect(existsSync(file)).toBe(false)
+    writeFileSync(file, "a long second log")
+    expect(rotateLog(file, 10)).toBe(true)
+    expect(readFileSync(`${file}.1`, "utf8")).toBe("a long second log")
   })
 })

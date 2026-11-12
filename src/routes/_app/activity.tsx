@@ -21,6 +21,10 @@ export const Route = createFileRoute("/_app/activity")({
         : undefined,
     to:
       typeof raw.to === "string" && ISO_DATE.test(raw.to) ? raw.to : undefined,
+    entry:
+      Number.isSafeInteger(Number(raw.entry)) && Number(raw.entry) > 0
+        ? Number(raw.entry)
+        : undefined,
   }),
   component: Activity,
 })

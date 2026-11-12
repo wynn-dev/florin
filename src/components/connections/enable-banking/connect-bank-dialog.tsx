@@ -8,7 +8,7 @@ import { describeSync, ebQueries, mapAccounts, startLink } from "./api"
 import type { AccountMapping, BankAccount } from "@/shared/enablebanking"
 import { queries } from "@/lib/api"
 import { cn } from "@/lib/utils"
-import { getLocale } from "@/lib/format"
+import { formatDate, getLocale } from "@/lib/format"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -57,34 +57,62 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 
 // The bank sends the browser back to the page the link started on, with
-// ?link=<id> (accounts to map) or ?linkError=<words>. The first dialog
-// mounted on that page picks it up and opens itself.
+// ?link=<id> (accounts to map), ?linked=<id> (a renewal with every account
+// still mapped, syncing already) or ?linkError=<words>. The first dialog
+// mounted on that page picks it up: it opens itself for the first and last,
+// and confirms a renewal with a toast.
 let claimed = false
 const RETURN_PARAMS = ["link", "linkError", "linked"]
 
+function clearReturnParams() {
+  const url = new URL(window.location.href)
+  RETURN_PARAMS.forEach((p) => url.searchParams.delete(p))
+  window.history.replaceState(
+    window.history.state,
+    "",
+    url.pathname + url.search + url.hash
+  )
+}
+
 function useReturnFromBank() {
+  const queryClient = useQueryClient()
   const [back, setBack] = useState<{ linkId?: number; error?: string } | null>(
     null
   )
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const link = Number(params.get("link")) || undefined
+    const linked = Number(params.get("linked")) || undefined
     const error = params.get("linkError") ?? undefined
-    if ((!link && !error) || claimed) return
+    if ((!link && !linked && !error) || claimed) return
     claimed = true
+    if (linked && !link && !error) {
+      clearReturnParams()
+      void queryClient
+        .fetchQuery(ebQueries.links())
+        .then((links) => links.find((l) => l.id === linked))
+        .catch(() => undefined)
+        .then((l) => {
+          toast(
+            l
+              ? `Renewed access to ${l.bank} until ${formatDate(l.validUntil.slice(0, 10))}`
+              : "Renewed the bank's access",
+            { description: "Syncing it now." }
+          )
+          // The sync started on the way back; show what it brings.
+          setTimeout(() => void queryClient.invalidateQueries(), 4_000)
+        })
+      return () => {
+        claimed = false
+      }
+    }
     setBack({ linkId: link, error })
     return () => {
       claimed = false
     }
-  }, [])
+  }, [queryClient])
   const clear = () => {
-    const url = new URL(window.location.href)
-    RETURN_PARAMS.forEach((p) => url.searchParams.delete(p))
-    window.history.replaceState(
-      window.history.state,
-      "",
-      url.pathname + url.search + url.hash
-    )
+    clearReturnParams()
     setBack(null)
   }
   return { back, clear }

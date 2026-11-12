@@ -8,8 +8,16 @@ import { minorDigits } from "./fx"
 import { listAccounts } from "./accounts"
 import { listTransactions } from "./transactions"
 
-function csvCell(value: string | number | null): string {
-  const text = value === null ? "" : String(value)
+/**
+ * One CSV cell. Text a spreadsheet would run as a formula (starting with =,
+ * +, -, @, a tab or a carriage return: a payee or bank description is
+ * whatever the bank or an agent sent) gets a leading ' so it stays text;
+ * florin's own plain numbers ("-42.10") are left as they are.
+ */
+export function csvCell(value: string | number | null): string {
+  let text = value === null ? "" : String(value)
+  if (/^[=+\-@\t\r]/.test(text) && !/^-?\d+(\.\d+)?$/.test(text))
+    text = `'${text}`
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
 }
 

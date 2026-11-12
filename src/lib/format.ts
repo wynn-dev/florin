@@ -2,23 +2,47 @@
 // pages never call Intl themselves. Amounts are integer minor units in an
 // explicit currency; dates are ISO strings ("2026-11-12", months "2026-11").
 //
-// The locale is one setting for the whole app. It defaults to en-GB, which
-// gives the plan's "12 Nov" and "US$52,310", and is the same on the server and
-// in the browser so server-rendered text matches what the browser renders.
+// The locale is one setting for the whole app: numbers, money and dates
+// follow it, while words stay English ("2 hr ago", "Today"). It defaults to
+// en-GB, which gives the plan's "12 Nov" and "US$52,310". The time zone is
+// one setting too ("today", "this month", times of day). Both are set the same
+// on the server and in the browser, so server-rendered text matches.
 
 let locale = "en-GB"
+let timeZone: string | undefined
 
 /** Sets the locale every formatter uses, e.g. from the person's settings. */
 export function setLocale(next: string): void {
   if (next === locale) return
   locale = next
+  clearFormats()
+}
+
+export function getLocale(): string {
+  return locale
+}
+
+/** Sets the time zone "today" and times of day are in; undefined for the runtime's own. */
+export function setTimeZone(next: string | undefined): void {
+  if (next === timeZone) return
+  timeZone = next
+  clearFormats()
+}
+
+function clearFormats() {
   numberFormats.clear()
   dateFormats.clear()
   relativeFormats.clear()
 }
 
-export function getLocale(): string {
-  return locale
+/** English in the locale's region ("en-DE" for de-DE), for words that stay English. */
+function englishLocale(): string {
+  try {
+    const region = new Intl.Locale(locale).maximize().region
+    return region ? `en-${region}` : "en-GB"
+  } catch {
+    return "en-GB"
+  }
 }
 
 const MINUS = "−"
@@ -186,15 +210,30 @@ function pad(n: number): string {
 }
 
 function isoDate(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  if (!timeZone)
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  // Latin digits whatever the locale: this is an ISO date, not display text.
+  let format = dateFormats.get("iso")
+  if (!format) {
+    format = new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      timeZone,
+    })
+    dateFormats.set("iso", format)
+  }
+  const parts = format.formatToParts(date)
+  const part = (type: string) => parts.find((p) => p.type === type)?.value
+  return `${part("year")}-${part("month")}-${part("day")}`
 }
 
-/** Today in the browser's (or server's) local time: "2026-11-12". */
+/** Today in the person's time zone (else the runtime's): "2026-11-12". */
 export function today(now: Date = new Date()): string {
   return isoDate(now)
 }
 
-/** This month in local time: "2026-11". */
+/** This month in the person's time zone: "2026-11". */
 export function currentMonth(now: Date = new Date()): string {
   return isoDate(now).slice(0, 7)
 }
@@ -251,7 +290,7 @@ function dateFormat(
 
 /** A row's date: "12 Nov", or "12 Nov 2025" when not in the current year. */
 export function formatDate(date: string, now: Date = new Date()): string {
-  const sameYear = date.slice(0, 4) === String(now.getFullYear())
+  const sameYear = date.slice(0, 4) === today(now).slice(0, 4)
   return dateFormat(sameYear ? "day" : "day-year", {
     day: "numeric",
     month: "short",
@@ -264,7 +303,7 @@ export function formatDate(date: string, now: Date = new Date()): string {
 export function formatDayHeading(date: string, now: Date = new Date()): string {
   if (date === today(now)) return "Today"
   if (date === addDays(today(now), -1)) return "Yesterday"
-  const sameYear = date.slice(0, 4) === String(now.getFullYear())
+  const sameYear = date.slice(0, 4) === today(now).slice(0, 4)
   return dateFormat(sameYear ? "weekday" : "weekday-year", {
     weekday: "short",
     day: "numeric",
@@ -313,6 +352,7 @@ export function formatDateTime(iso: string): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone,
   }).format(new Date(iso))
 }
 
@@ -331,7 +371,7 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
   if (abs < 45) return "just now"
   let format = relativeFormats.get("short")
   if (!format) {
-    format = new Intl.RelativeTimeFormat(locale, {
+    format = new Intl.RelativeTimeFormat(englishLocale(), {
       numeric: "auto",
       style: "short",
     })
@@ -356,7 +396,72 @@ export function formatDayTime(iso: string, now: Date = new Date()): string {
 
 /** The time of day alone: "09:30". */
 export function formatTime(iso: string): string {
-  return dateFormat("time", { hour: "2-digit", minute: "2-digit" }).format(
-    new Date(iso)
-  )
+  return dateFormat("time", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
+  }).format(new Date(iso))
+}
+
+// ---------------------------------------------------------------- server text
+
+const STORED_CURRENCIES = [
+  "EUR",
+  "USD",
+  "GBP",
+  "CHF",
+  "JPY",
+  "SEK",
+  "NOK",
+  "DKK",
+  "PLN",
+  "CZK",
+  "HUF",
+  "CAD",
+  "AUD",
+]
+let storedAmount: { pattern: RegExp; currencies: Map<string, string> } | null =
+  null
+
+/**
+ * Re-formats the amounts in text the server wrote once in English
+ * ("Moved €1,234.50 from …", "−CHF 40.00") in the person's locale, so a
+ * change summary reads like the rest of the page ("Moved 1.234,50 € …").
+ */
+export function localiseAmounts(text: string): string {
+  if (!storedAmount) {
+    const currencies = new Map<string, string>()
+    for (const currency of STORED_CURRENCIES) {
+      const prefix = new Intl.NumberFormat("en", {
+        style: "currency",
+        currency,
+      })
+        .formatToParts(1)
+        .filter((p) => p.type === "currency" || p.type === "literal")
+        .map((p) => p.value)
+        .join("")
+      currencies.set(prefix.trim(), currency)
+    }
+    const symbols = [...currencies.keys()]
+      .sort((a, b) => b.length - a.length)
+      .map((s) => s.replace(/[$^*+?.()|[\]{}\\]/g, "\\$&"))
+    storedAmount = {
+      pattern: new RegExp(
+        `([−-]?)(${symbols.join("|")})[\\s\\u00a0]?(\\d{1,3}(?:,\\d{3})*(?:\\.\\d+)?)(?![\\d.,]*\\d)`,
+        "g"
+      ),
+      currencies,
+    }
+  }
+  const { pattern, currencies } = storedAmount
+  return text.replace(pattern, (whole, sign: string, symbol: string, n) => {
+    const currency = currencies.get(symbol)
+    if (!currency) return whole
+    const digits = currencyDigits(currency)
+    const [int, frac = ""] = String(n).replace(/,/g, "").split(".")
+    if (frac.length > digits) return whole
+    const minor =
+      Number(int) * 10 ** digits + Number(frac.padEnd(digits, "0") || 0)
+    return formatMoney(sign ? -minor : minor, currency)
+  })
 }

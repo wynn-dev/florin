@@ -26,8 +26,10 @@ export function seedDemo(): {
     throw new data.InvalidInput(
       "florin already has accounts; seed-demo only fills an empty one"
     )
-  // The history is one Activity entry ("Demo data added …"); the last few days follow as agents would make them.
-  const { accountId, cat, transactions } = data.inBatch(seedHistory)
+  // The history reads as the entries a real florin would have: accounts
+  // added, a CSV import per account, transfers and budgets by an agent; the
+  // last few days follow as agents and bank syncs would make them.
+  const { accountId, cat, transactions } = seedHistory()
   return {
     accounts: data.listAccounts().length,
     transactions: transactions + recentActivity(accountId, cat),
@@ -41,7 +43,7 @@ function seedHistory() {
     Math.round((lo + rand() * (hi - lo)) * 100)
   const pick = <T>(items: T[]) => items[Math.floor(rand() * items.length)]
 
-  data.updateSettings("demo", { currency: "EUR" })
+  data.updateSettings("person", { currency: "EUR" })
   const now = today()
   const thisMonth = now.slice(0, 7)
   const first = addMonths(thisMonth, -MONTHS + 1)
@@ -65,12 +67,16 @@ function seedHistory() {
       rate: Math.round(r * 10_000) / 10_000,
     })
   }
-  data.saveFxRates("demo", rates)
+  data.saveFxRates(null, rates)
   const usdPerEur = (date: string) => data.rateOn("USD", date) ?? 1.08
 
   const groups = data.listCategoryGroups()
   const goals = groups.find((g) => g.name === "Goals")!
-  data.createCategory("demo", { groupId: goals.id, name: "Investing" })
+  const bills = groups.find((g) => g.name === "Bills")!
+  data.inBatch(() => {
+    data.createCategory("person", { groupId: bills.id, name: "Subscriptions" })
+    data.createCategory("person", { groupId: goals.id, name: "Investing" })
+  })
   const cat = (name: string) =>
     data
       .listCategoryGroups()
@@ -78,29 +84,29 @@ function seedHistory() {
       .find((c) => c.name === name)!.id
 
   const start = `${first}-01`
-  const current = data.createAccount("demo", {
+  const current = data.createAccount("person", {
     name: "Current account",
     type: "checking",
     startingBalance: 320_000,
     startingDate: start,
   })
-  const savings = data.createAccount("demo", {
+  const savings = data.createAccount("person", {
     name: "Savings",
     type: "savings",
     startingBalance: 800_000,
     startingDate: start,
   })
-  const card = data.createAccount("demo", {
+  const card = data.createAccount("person", {
     name: "Credit card",
     type: "credit",
   })
-  const cash = data.createAccount("demo", {
+  const cash = data.createAccount("person", {
     name: "Cash",
     type: "cash",
     startingBalance: 12_000,
     startingDate: start,
   })
-  const brokerage = data.createAccount("demo", {
+  const brokerage = data.createAccount("person", {
     name: "Brokerage",
     type: "investment",
     currency: "USD",
@@ -110,17 +116,24 @@ function seedHistory() {
     ["Rent", 125_000],
     ["Utilities", 11_000],
     ["Phone & internet", 4_500],
+    ["Subscriptions", 2_800],
     ["Insurance", 13_500],
-    ["Groceries", 45_000],
-    ["Dining out", 18_000],
+    ["Groceries", 52_000],
+    ["Dining out", 21_000],
     ["Transport", 12_000],
-    ["Shopping", 17_000],
-    ["Emergency fund", 70_000],
+    ["Shopping", 20_000],
+    ["Emergency fund", 54_000],
     ["Holidays", 20_000],
     ["Investing", 30_000],
   ]
 
   let transactions = 0
+  const imported = {
+    current: [] as ImportRow[],
+    card: [] as ImportRow[],
+    cash: [] as ImportRow[],
+  }
+  const transfers: Parameters<typeof data.createTransactions>[1] = []
   for (const month of months) {
     const currentRows: ImportRow[] = []
     const cardRows: ImportRow[] = []
@@ -150,6 +163,8 @@ function seedHistory() {
     add(currentRows, 6, -between(70, 130), "City Power & Water", "Utilities")
     add(currentRows, 9, -4_499, "Fibrenet", "Phone & internet")
     add(currentRows, 15, -13_250, "Assura Health", "Insurance")
+    add(cardRows, 4, -1_199, "Spotify", "Subscriptions")
+    add(cardRows, 11, -1_399, "Netflix", "Subscriptions")
     add(currentRows, 3, -9_400, "Metro Transit", "Transport", "Monthly pass")
     for (let i = 0, n = 7 + Math.floor(rand() * 4); i < n; i++) {
       add(
@@ -204,13 +219,9 @@ function seedHistory() {
       )
     }
 
-    transactions += data.importTransactions(
-      "demo",
-      current.id,
-      currentRows
-    ).added
-    transactions += data.importTransactions("demo", card.id, cardRows).added
-    transactions += data.importTransactions("demo", cash.id, cashRows).added
+    imported.current.push(...currentRows)
+    imported.card.push(...cardRows)
+    imported.cash.push(...cashRows)
 
     const cardSpend = -cardRows.reduce((s, r) => s + r.amount, 0)
     const moves: [day: number, to: number, amount: number][] = [
@@ -221,17 +232,16 @@ function seedHistory() {
     for (const [d, to, amount] of moves) {
       const date = day(month, d)
       if (!date || !amount) continue
-      data.createTransaction("demo", {
+      transfers.push({
         accountId: current.id,
         date,
         amount,
         transferAccountId: to,
       })
-      transactions++
     }
     const investDate = day(month, 28)
     if (investDate) {
-      data.createTransaction("demo", {
+      transfers.push({
         accountId: current.id,
         date: investDate,
         amount: -30_000,
@@ -240,11 +250,10 @@ function seedHistory() {
         transferAmount: Math.round(30_000 * usdPerEur(investDate)),
         notes: "Monthly investment",
       })
-      transactions++
     }
 
     data.setBudgetAmounts(
-      "demo",
+      "mcp:Claude Desktop",
       month,
       budgets.map(([name, amount]) => ({
         categoryId: cat(name),
@@ -257,22 +266,41 @@ function seedHistory() {
     )
   }
 
-  // A couple of card purchases still pending at the bank.
-  for (const [payee, amount] of [
-    ["Albert Heijn", -3_412],
-    ["Café Lune", -1_850],
+  // Each account's history as the CSV export it came from, then the
+  // transfers between them as an agent recorded them.
+  for (const [file, account, rows] of [
+    ["current-account.csv", current.id, imported.current],
+    ["credit-card.csv", card.id, imported.card],
+    ["cash.csv", cash.id, imported.cash],
   ] as const) {
-    data.importTransactions("demo", card.id, [
-      {
-        date: now,
-        amount,
-        payee,
-        status: "pending",
-        categoryId: cat(payee === "Café Lune" ? "Dining out" : "Groceries"),
-      },
-    ])
-    transactions++
+    transactions += data.importTransactions(
+      `import:${file}`,
+      account,
+      rows
+    ).added
   }
+  transactions += data.createTransactions(
+    "mcp:Claude Desktop",
+    transfers
+  ).length
+
+  // A couple of card purchases still pending at the bank.
+  transactions += data.importTransactions("bank-sync:Revolut", card.id, [
+    {
+      date: now,
+      amount: -3_412,
+      payee: "Albert Heijn",
+      status: "pending",
+      categoryId: cat("Groceries"),
+    },
+    {
+      date: now,
+      amount: -1_850,
+      payee: "Café Lune",
+      status: "pending",
+      categoryId: cat("Dining out"),
+    },
+  ]).added
 
   // The brokerage (USD): a value per weekday that grows with the monthly
   // deposits and the market, and today's holdings.
@@ -289,7 +317,7 @@ function seedHistory() {
     if (date.endsWith("-02")) value += Math.round(30_000 * usdPerEur(date))
     values.push({ date, value })
   }
-  data.setAccountValues("demo", brokerage.id, values)
+  data.setAccountValues("ibkr", brokerage.id, values)
   const positions = [
     {
       symbol: "VT",
@@ -334,7 +362,7 @@ function seedHistory() {
   ]
   const cashValue =
     value - positions.reduce((s, p) => s + Math.round(value * p.weight), 0)
-  data.replaceHoldings("demo", brokerage.id, [
+  data.replaceHoldings("ibkr", brokerage.id, [
     ...positions.map((p) => {
       const v = Math.round(value * p.weight)
       const costBasis = Math.round(v / (1 + p.gain))
@@ -426,30 +454,29 @@ function recentActivity(
       .map((t) => t.id)
 
   sync(ago(2, "06:12"), [
-    [3, "ALBERT HEIJN 1043", -4_812],
-    [3, "NS GROEP", -1_420],
-    [2, "SPOTIFY AB", -1_199],
-    [2, "CAFE LUNE", -2_350],
-    [2, "BOL.COM", -3_999],
+    [3, "Albert Heijn", -4_812],
+    [3, "NS Reizen", -1_420],
+    [2, "Audible", -995],
+    [2, "Café Lune", -2_350],
+    [2, "Bol.com", -3_999],
   ])
   at(ago(2, "09:30"), () =>
     data.inBatch(() => {
-      data.updateTransactions(
-        "mcp:Claude Desktop",
-        synced(["Albert Heijn 1043"]),
-        { categoryId: cat("Groceries") }
-      )
-      data.updateTransactions("mcp:Claude Desktop", synced(["Ns Groep"]), {
+      data.updateTransactions("mcp:Claude Desktop", synced(["Albert Heijn"]), {
+        categoryId: cat("Groceries"),
+      })
+      data.updateTransactions("mcp:Claude Desktop", synced(["NS Reizen"]), {
         categoryId: cat("Transport"),
+      })
+      data.updateTransactions("mcp:Claude Desktop", synced(["Audible"]), {
+        categoryId: cat("Subscriptions"),
       })
     })
   )
   at(ago(2, "09:31"), () => {
-    data.updateTransactions(
-      "mcp:Claude Desktop",
-      synced(["Spotify Ab", "Cafe Lune"]),
-      { categoryId: cat("Dining out") }
-    )
+    data.updateTransactions("mcp:Claude Desktop", synced(["Café Lune"]), {
+      categoryId: cat("Dining out"),
+    })
   })
   at(ago(1, "18:40"), () => {
     data.updateTransaction("person", synced(["Bol.com"])[0], {
@@ -458,10 +485,10 @@ function recentActivity(
     })
   })
   sync(ago(0, "06:10"), [
-    [1, "JUMBO 221", -2_766],
-    [1, "UBER *TRIP", -1_830],
-    [0, "TICKETMASTER NL", -8_600],
-    [0, "PAYPAL *STEAM", -1_999],
+    [1, "Jumbo", -2_766],
+    [1, "Uber", -1_830],
+    [0, "Ticketmaster", -8_600],
+    [0, "Steam", -1_999],
   ])
   at(ago(0, "09:05"), () => {
     const month = date(new Date()).slice(0, 7)

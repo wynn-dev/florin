@@ -711,3 +711,60 @@ describe("linking to an account that already has transactions", () => {
     })
   })
 })
+
+describe("the person's rows and deletions", () => {
+  test("a typed-in row matched to a pending bank row is unmatched, not deleted, when the bank drops it", async () => {
+    const link = listBankLinks()[0].id
+    const accountId = listBankLinks()[0].accounts.find(
+      (a) => a.accountId !== null && a.identifier.endsWith("7469")
+    )!.accountId!
+    const typed = data.createTransaction("person", {
+      accountId,
+      date: day(0),
+      amount: -777,
+      payeeName: "Corner shop",
+      notes: "typed in",
+    })
+    current.transactions.push(
+      on("atm", 0, {
+        entry_reference: null,
+        status: "PDNG",
+        booking_date: null,
+        transaction_amount: { currency: "EUR", amount: "7.77" },
+      })
+    )
+    expect((await syncLink(link, { psu: PSU })).matched).toBe(1)
+    expect(data.getTransaction(typed.id).importedId).toMatch(/^pend:/)
+    current.transactions.pop()
+    expect(await syncLink(link, { psu: PSU })).toMatchObject({ removed: 0 })
+    expect(data.getTransaction(typed.id)).toMatchObject({
+      importedId: null,
+      status: "cleared",
+      notes: "typed in",
+    })
+    data.deleteTransaction("person", typed.id)
+  })
+
+  test("a bank row the person deletes stays deleted on the next sync; Undo brings it back for good", async () => {
+    const link = listBankLinks()[0]
+    const accountId = link.accounts.find(
+      (a) => a.accountId !== null && a.identifier.endsWith("7469")
+    )!.accountId!
+    const bankRow = txs(accountId).find(
+      (t) => t.importedId?.startsWith("er:") && t.status === "cleared"
+    )!
+    const before = txs(accountId).length
+    data.deleteTransactions("person", [bankRow.id])
+    expect(await syncLink(link.id, { psu: PSU })).toMatchObject({ added: 0 })
+    expect(txs(accountId)).toHaveLength(before - 1)
+    // Undo puts it back with its bank id; it isn't duplicated or skipped later.
+    data.createTransaction("person", {
+      accountId,
+      date: bankRow.date,
+      amount: bankRow.amount,
+      importedId: bankRow.importedId,
+    })
+    expect(await syncLink(link.id, { psu: PSU })).toMatchObject({ added: 0 })
+    expect(txs(accountId)).toHaveLength(before)
+  })
+})

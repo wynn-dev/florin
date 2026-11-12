@@ -134,10 +134,17 @@ function checkImportCategory(categoryId: number, i: number) {
 }
 
 /** Bank descriptions often shout and pad; keep the payee name readable. */
-function cleanPayee(raw: string): string {
+export function cleanPayee(raw: string): string {
   const name = raw.replace(/\s+/g, " ").trim()
   if (name !== name.toUpperCase()) return name
-  return name.toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase())
+  // Capitalise each word's first letter; \b is ASCII-only, so it would also
+  // capitalise after Ä or Ö ("KÄYTTÖ" → "KÄyttÖ").
+  return name
+    .toLowerCase()
+    .replace(
+      /(^|[^\p{L}\p{N}'’])(\p{L})/gu,
+      (_, before: string, c: string) => before + c.toUpperCase()
+    )
 }
 
 /** Parses CSV text (comma, semicolon or tab separated, quoted fields) into rows of cells. */

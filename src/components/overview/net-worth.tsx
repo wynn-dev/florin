@@ -48,7 +48,8 @@ export function NetWorth({ currency }: { currency: string }) {
                     <p className="text-sm text-muted-foreground">
                       {formatMoney(change, currency, { signed: true })} since{" "}
                       {formatDate(first.date)}
-                      {report.missingRates && " · waiting for exchange rates"}
+                      {report.leftOut.length > 0 &&
+                        ` · leaves out ${report.leftOut.join(", ")} until its exchange rate arrives`}
                     </p>
                   )}
                 </div>
@@ -57,6 +58,7 @@ export function NetWorth({ currency }: { currency: string }) {
                   x="date"
                   series={[{ key: "netWorth", label: "Net worth" }]}
                   currency={currency}
+                  baseline="auto"
                   height={height}
                   className="-mx-1"
                   tooltipExtra={(row) => [

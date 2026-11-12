@@ -53,6 +53,8 @@ type Props = {
   onAdd?: () => void
   /** Opens the page's own CSV import; otherwise the table opens one. */
   onImport?: () => void
+  /** False for an account whose balance isn't the sum of its rows (an investment's). */
+  runningBalance?: boolean
 }
 
 /**
@@ -66,6 +68,7 @@ export function TransactionsTable({
   onSearchChange,
   onAdd,
   onImport,
+  runningBalance = true,
 }: Props) {
   const [local, setLocal] = useState<TransactionSearch>({})
   const search = controlled ?? local
@@ -195,7 +198,7 @@ export function TransactionsTable({
         rows={rows}
         accounts={accounts}
         showAccount={scopedTo === undefined}
-        showBalance={scopedTo !== undefined}
+        showBalance={scopedTo !== undefined && runningBalance}
         columnCurrency={columnCurrency}
         budgetCurrency={budgetCurrency}
         dimCategorised={!!search.uncategorized}

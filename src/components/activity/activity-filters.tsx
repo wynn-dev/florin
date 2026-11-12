@@ -49,7 +49,8 @@ function sourceOptions(actors: Actor[]): { value: string; label: string }[] {
   for (const actor of [...actors].sort(
     (a, b) => order(a) - order(b) || a.localeCompare(b)
   )) {
-    if (actor.startsWith("import:")) options.set("import:", "Import")
+    if (actor === "import" || actor.startsWith("import:"))
+      options.set("import:", "Import")
     else options.set(actor, sourceName(actor))
   }
   return [...options].map(([value, label]) => ({ value, label }))

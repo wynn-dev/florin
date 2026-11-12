@@ -147,6 +147,21 @@ describe("over HTTP", () => {
     expect(updated.updated).toBe(4)
     expect((await call(client, "overview")).uncategorized).toBe(0)
 
+    // A foreign account with no exchange rate yet is named, not silently dropped.
+    expect(lay.netWorthLeavesOut).toBeUndefined()
+    const usd = data.createAccount("person", {
+      name: "Broker USD",
+      type: "investment",
+      currency: "USD",
+      startingBalance: 50_000,
+    })
+    const partial = await call(client, "overview")
+    expect(partial.netWorthLeavesOut).toEqual([
+      expect.objectContaining({ name: "Broker USD", currency: "USD" }),
+    ])
+    expect(partial.netWorthNote).toMatch(/exchange rate/)
+    data.deleteAccount("person", usd.id)
+
     const set = await call(client, "set_budget", {
       month: MONTH,
       amounts: [

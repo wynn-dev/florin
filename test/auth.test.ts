@@ -1,10 +1,12 @@
-import { statSync } from "node:fs"
+import { readdirSync, statSync } from "node:fs"
+import { dirname } from "node:path"
 import { describe, expect, test } from "vitest"
 import { useTempHome } from "./setup"
 import {
   checkSetupCode,
   createSession,
   needsSetup,
+  revokeSession,
   setPassword,
   verifySession,
 } from "@/server/auth"
@@ -36,5 +38,20 @@ describe("first run", () => {
     setPassword("another password")
     expect(verifySession(token)).toBe(false)
     expect(loadConfig().setupCode).toBeUndefined()
+  })
+})
+
+describe("signing out", () => {
+  test("revokes that session's token, not only its cookie; others stay signed in", () => {
+    const mine = createSession()
+    const other = createSession()
+    revokeSession(mine)
+    expect(verifySession(mine)).toBe(false)
+    expect(verifySession(other)).toBe(true)
+    // config.json is replaced whole, private, with no temp file left behind.
+    expect(statSync(configPath()).mode & 0o777).toBe(0o600)
+    expect(
+      readdirSync(dirname(configPath())).filter((f) => f.endsWith(".tmp"))
+    ).toEqual([])
   })
 })

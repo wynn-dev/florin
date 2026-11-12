@@ -41,6 +41,8 @@ export type BankLink = {
   /** Whole days until access ends; negative once it has. */
   daysLeft: number
   lastSyncAt: string | null
+  /** The last sync tried, whatever came of it. */
+  lastAttemptAt: string | null
   /** The last sync's error in plain words; null after a sync that went fine. */
   lastError: string | null
   /** Whether a sync of this link is running now. */

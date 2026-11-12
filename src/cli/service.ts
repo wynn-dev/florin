@@ -9,7 +9,9 @@ import {
   mkdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs"
 import { homedir, userInfo } from "node:os"
@@ -343,6 +345,25 @@ function enableLinger(): string {
   )
 }
 
+/** Blocks for `ms` milliseconds: the CLI waits on launchd between commands. */
+function pause(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+/** launchd keeps its log file forever; past this size a start moves it to florin.log.1. */
+export const LOG_LIMIT_BYTES = 5 * 1024 * 1024
+
+/** Keeps one old log and starts a new one once the log passes LOG_LIMIT_BYTES. */
+export function rotateLog(file: string, limit = LOG_LIMIT_BYTES): boolean {
+  try {
+    if (statSync(file).size < limit) return false
+  } catch {
+    return false
+  }
+  renameSync(file, `${file}.1`)
+  return true
+}
+
 function launchd(): Platform {
   const label = launchdLabel()
   const domain = `gui/${process.getuid?.() ?? userInfo().uid}`
@@ -350,9 +371,25 @@ function launchd(): Platform {
   const unitPath = join(homedir(), "Library", "LaunchAgents", `${label}.plist`)
   const logFile = () => join(homeDir(), "logs", "florin.log")
   const loaded = () => run("launchctl", ["print", target]).ok
+  // bootout returns before the job is gone; bootstrapping it again too soon
+  // fails with "Bootstrap failed: 5: Input/output error". So wait for it to
+  // go, and retry a bootstrap that still lands in that window.
+  const bootout = () => {
+    run("launchctl", ["bootout", target])
+    for (let i = 0; i < 50 && loaded(); i++) pause(200)
+  }
   const bootstrap = () => {
+    rotateLog(logFile())
     run("launchctl", ["enable", target])
-    must("launchctl", ["bootstrap", domain, unitPath])
+    for (let attempt = 1; ; attempt++) {
+      const result = run("launchctl", ["bootstrap", domain, unitPath])
+      if (result.ok || loaded()) return
+      if (attempt === 5)
+        throw new Error(
+          `launchctl bootstrap ${domain} ${unitPath} failed${result.stderr ? `: ${result.stderr}` : ""}`
+        )
+      pause(attempt * 500)
+    }
   }
   return {
     kind: `launchd agent ${label}`,
@@ -374,7 +411,7 @@ function launchd(): Platform {
     install() {
       mkdirSync(dirname(logFile()), { recursive: true })
       mkdirSync(dirname(unitPath), { recursive: true })
-      if (loaded()) run("launchctl", ["bootout", target])
+      if (loaded()) bootout()
       writeFileSync(
         unitPath,
         launchdPlist({
@@ -387,7 +424,7 @@ function launchd(): Platform {
       bootstrap()
     },
     uninstall() {
-      if (loaded()) run("launchctl", ["bootout", target])
+      if (loaded()) bootout()
       rmSync(unitPath, { force: true })
     },
     start() {
@@ -395,7 +432,7 @@ function launchd(): Platform {
       else bootstrap()
     },
     stop() {
-      if (loaded()) must("launchctl", ["bootout", target])
+      if (loaded()) bootout()
     },
     status() {
       const printed = run("launchctl", ["print", target])

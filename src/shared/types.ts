@@ -64,6 +64,11 @@ export type Settings = {
    * until first set, which means en-GB.
    */
   locale: string
+  /**
+   * IANA time zone "today" and "this month" are in, e.g. "Europe/Helsinki";
+   * empty means the machine's own.
+   */
+  timeZone: string
 }
 
 /** Units of `currency` per 1 EUR on `date`, as the ECB publishes them. */

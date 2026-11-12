@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 import { AssignedCell, AvailablePillText, Figure, SpentLink } from "./cells"
 import { MoveMoney } from "./move-money"
 import { budgetQueries } from "./queries"
@@ -53,29 +53,27 @@ export function MonthSummary({
   )
 }
 
-/** "Claude Desktop assigned €400.00 · 2 Nov", from a change's summary. */
-function describeChange(
+/**
+ * "Claude Desktop assigned €400.00", "You moved CHF 40.00 to Groceries", from
+ * a change's summary. Whether money came in or went out is the server's
+ * answer (by category id), not a guess from names; the amount is whatever
+ * comes before " for " or " from ", spaces and all.
+ */
+export function describeChange(
   change: NonNullable<BudgetCategoryDetail["lastChange"]>,
-  month: string,
-  category: string
+  month: string
 ): string {
   const inMonth = (m: string) => (m === month ? "" : ` in ${formatMonth(m)}`)
-  const assigned = /^Budgeted (\S+) for .+ in (\d{4}-\d{2})$/.exec(
+  const assigned = /^Budgeted (.+?) for .+ in (\d{4}-\d{2})$/.exec(
     change.summary
   )
-  const moved = /^Moved (\S+) from (.+) to (.+) in (\d{4}-\d{2})$/.exec(
+  const moved = /^Moved (.+?) from (.+) to (.+) in (\d{4}-\d{2})$/.exec(
     change.summary
   )
   const what = assigned
     ? `assigned ${assigned[1]}${inMonth(assigned[2])}`
     : moved
-      ? `moved ${moved[1]} ${
-          moved[3] === category
-            ? `from ${moved[2]}`
-            : moved[2] === category
-              ? `to ${moved[3]}`
-              : `from ${moved[2]} to ${moved[3]}`
-        }${inMonth(moved[4])}`
+      ? `moved ${moved[1]} ${change.into ? `from ${moved[2]}` : `to ${moved[3]}`}${inMonth(moved[4])}`
       : change.summary.charAt(0).toLowerCase() + change.summary.slice(1)
   return `${sourceName(change.actor)} ${what}`
 }
@@ -83,12 +81,9 @@ function describeChange(
 export function LastChange({
   detail,
   month,
-  category,
 }: {
   detail: BudgetCategoryDetail | undefined
   month: string
-  /** The category's name, left out of the line ("moved €40.00 to Groceries"). */
-  category: string
 }) {
   if (!detail) return <div className="h-5" />
   const change = detail.lastChange
@@ -96,9 +91,13 @@ export function LastChange({
     return <p className="text-sm text-muted-foreground">No changes yet</p>
   return (
     <p className="text-sm text-muted-foreground">
-      <span className="text-foreground">
-        {describeChange(change, month, category)}
-      </span>
+      <Link
+        to="/activity"
+        search={{ entry: change.entry }}
+        className="text-foreground underline-offset-4 hover:underline"
+      >
+        {describeChange(change, month)}
+      </Link>
       {" · "}
       <Tooltip>
         <TooltipTrigger asChild>
@@ -156,11 +155,7 @@ export function CategoryInspector({
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 className="truncate text-sm font-medium">{category.name}</h2>
-        <LastChange
-          detail={detail.data}
-          month={month.month}
-          category={category.name}
-        />
+        <LastChange detail={detail.data} month={month.month} />
       </div>
       <dl className="flex flex-col">
         <Figure label="Assigned">

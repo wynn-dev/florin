@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
 import { MoreHorizontalIcon } from "lucide-react"
 import { toast } from "sonner"
 import { accountQueries, useDeleteAccount, useUpdateAccount } from "./queries"
-import { ConnectBankSlot, ImportCsvSlot } from "./slots"
 import { useAfterClose } from "@/hooks/use-after-close"
 import type { Account } from "@/shared/types"
+import { ConnectBankDialog } from "@/components/connections/enable-banking/connect-bank-dialog"
+import { ImportCsvDialog } from "@/components/transactions/import-csv-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -86,7 +86,11 @@ export function AccountMenu({ account }: { account: Account }) {
             )}
             {account.provider ? (
               <DropdownMenuItem asChild>
-                <a href="/settings?section=connections">Disconnect</a>
+                <a
+                  href={`/settings?section=connections#${account.provider === "ibkr" ? "ibkr" : "enable-banking"}`}
+                >
+                  Disconnect
+                </a>
               </DropdownMenuItem>
             ) : (
               !investment && (
@@ -117,12 +121,12 @@ export function AccountMenu({ account }: { account: Account }) {
           />
         </PopoverContent>
       </Popover>
-      <ImportCsvSlot
+      <ImportCsvDialog
         open={dialog === "import"}
         onOpenChange={(open) => !open && setDialog(null)}
         accountId={account.id}
       />
-      <ConnectBankSlot
+      <ConnectBankDialog
         open={dialog === "connect"}
         onOpenChange={(open) => !open && setDialog(null)}
         accountId={account.id}
@@ -181,7 +185,6 @@ function DeleteAccount({
     enabled: open,
   })
   const remove = useDeleteAccount(account.id)
-  const navigate = useNavigate()
   const n = count.data
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -207,7 +210,6 @@ function DeleteAccount({
                 onSuccess: () => {
                   onOpenChange(false)
                   toast(`Deleted ${account.name}`)
-                  void navigate({ to: "/accounts" })
                 },
               })
             }}

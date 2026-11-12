@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { ChevronRightIcon } from "lucide-react"
 import { TYPE_LABELS, useCreateAccount } from "./queries"
-import { ConnectBankSlot } from "./slots"
 import type { AccountType } from "@/shared/types"
 import { queries } from "@/lib/api"
+import { ConnectBankDialog } from "@/components/connections/enable-banking/connect-bank-dialog"
 import { ConnectIbkrDialog } from "@/components/connections/ibkr/connect-ibkr-dialog"
 import { formatAmountInput, parseAmount } from "@/lib/format"
 import { Button } from "@/components/ui/button"
@@ -149,7 +149,7 @@ export function AddAccountDialog({
           )}
         </DialogContent>
       </Dialog>
-      <ConnectBankSlot open={step === "bank"} onOpenChange={close} />
+      <ConnectBankDialog open={step === "bank"} onOpenChange={close} />
       <ConnectIbkrDialog open={step === "ibkr"} onOpenChange={close} />
     </>
   )

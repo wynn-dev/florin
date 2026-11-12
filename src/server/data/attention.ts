@@ -8,14 +8,14 @@
 // Each source is one function returning items; add a source by adding one.
 import { and, eq, isNull, sql } from "drizzle-orm"
 import { db, schema } from "../db"
+import { listBankLinks } from "../enablebanking"
 import { getIbkrStatus } from "../ibkr"
-import { listJobs } from "../jobs"
 import { getBudgetMonth } from "./budget"
 import { listCategoryGroups } from "./categories"
 import { minorDigits } from "./fx"
 import { getSettings } from "./settings"
 import { listMcpTokens } from "./tokens"
-import { monthEnd } from "./validate"
+import { dayIn, monthEnd, thisMonth, timeZone, today } from "./validate"
 import type { Attention, AttentionItem } from "@/shared/attention"
 
 const { transactions, accounts, budgets, changes, ibkr } = schema
@@ -28,7 +28,7 @@ const MAX_ITEMS = 5
 
 type Source = (now: Date) => AttentionItem[]
 
-const personSources: Source[] = [failedBankSync, failedIbkrReport]
+const personSources: Source[] = [bankAccess, failedIbkrReport]
 const agentSources: Source[] = [uncategorized, overspent, unassigned]
 
 export function needsAttention(now: Date = new Date()): Attention {
@@ -67,23 +67,64 @@ function lastAgentSeen(): string | null {
 
 // ------------------------------------------------------------ the person's
 
+/** A bank's access ending within this many days asks for a renewal. */
+export const RENEW_DAYS = 7
+
 /**
- * A failed bank sync, from the Enable Banking job's last error.
- * TODO(enable banking): read the connector's links instead, once it lands:
- * access ending within 7 days or ended (Renew), and each link's sync error.
+ * Each bank link's own state: access ended or revoked, or ending within
+ * RENEW_DAYS (Renew, which comes back to Overview), else its last sync's
+ * error (Retry on that link).
  */
-function failedBankSync(): AttentionItem[] {
-  const job = listJobs().find((j) => j.name === "enable-banking")
-  if (!job?.lastError) return []
-  return [
-    {
-      id: "job:enable-banking",
-      who: "person",
-      since: job.lastStartedAt ?? new Date().toISOString(),
-      text: `Bank sync failed: ${reason(job.lastError)}`,
-      action: { label: "Retry", post: "/api/jobs/enable-banking/run" },
-    },
-  ]
+function bankAccess(now: Date): AttentionItem[] {
+  return listBankLinks().flatMap((link): AttentionItem[] => {
+    const base = `/api/connections/enable-banking/links/${link.id}`
+    const renew = {
+      label: "Renew",
+      post: `${base}/renew`,
+      body: { returnTo: "/" },
+    }
+    const end = Date.parse(link.validUntil)
+    if (link.state === "revoked" || link.state === "expired" || end <= +now)
+      return [
+        {
+          id: `bank:${link.id}`,
+          who: "person",
+          since: link.validUntil,
+          text: `${link.bank} access ${link.state === "revoked" ? "was revoked" : "ended"}`,
+          action: renew,
+        },
+      ]
+    if (end - now.getTime() < RENEW_DAYS * DAY)
+      return [
+        {
+          id: `bank:${link.id}`,
+          who: "person",
+          since: new Date(end - RENEW_DAYS * DAY).toISOString(),
+          text: `${link.bank} access ends ${endDay(link.validUntil, now)}`,
+          action: renew,
+        },
+      ]
+    if (link.lastError)
+      return [
+        {
+          id: `bank:${link.id}`,
+          who: "person",
+          since: link.lastAttemptAt ?? now.toISOString(),
+          text: `Bank sync failed: ${reason(link.lastError)}`,
+          action: { label: "Retry", post: `${base}/sync` },
+        },
+      ]
+    return []
+  })
+}
+
+/** "today", "tomorrow" or "on 18 Nov". */
+function endDay(iso: string, now: Date): string {
+  const end = dayIn(new Date(iso), timeZone())
+  const days = Math.round((Date.parse(end) - Date.parse(today(now))) / DAY)
+  if (days <= 0) return "today"
+  if (days === 1) return "tomorrow"
+  return `on ${shortDate(end, now)}`
 }
 
 /**
@@ -307,10 +348,8 @@ function lastCrossing(
 function withAge(item: AttentionItem, now: Date): string {
   const age = now.getTime() - Date.parse(item.since)
   const fresh = age < DAY
-  const day = item.since.slice(0, 10)
-  const days = Math.round(
-    (Date.parse(now.toISOString().slice(0, 10)) - Date.parse(day)) / DAY
-  )
+  const day = dayIn(new Date(item.since), timeZone())
+  const days = Math.round((Date.parse(today(now)) - Date.parse(day)) / DAY)
   const sinceText =
     days <= 1
       ? "since yesterday"
@@ -331,6 +370,7 @@ function withAge(item: AttentionItem, now: Date): string {
     .replace(/ ?\{since\}/, fresh ? "" : ` ${sinceText}`)
 }
 
+/** The weekday's name, in English like the rest of the text. */
 function weekday(date: string): string {
   return new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
@@ -338,30 +378,31 @@ function weekday(date: string): string {
   }).format(new Date(`${date}T00:00:00Z`))
 }
 
+/** The person's locale for numbers and dates, as the dashboard formats them. */
+const locale = () => getSettings().locale || "en-GB"
+
+/** "2 Oct" in the person's locale ("2. Okt." in de-DE), with the year when not this one. */
 function shortDate(date: string, now: Date): string {
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale(), {
     day: "numeric",
     month: "short",
-    year:
-      date.slice(0, 4) === String(now.getUTCFullYear()) ? undefined : "numeric",
+    year: date.slice(0, 4) === today(now).slice(0, 4) ? undefined : "numeric",
     timeZone: "UTC",
   }).format(new Date(`${date}T00:00:00Z`))
 }
 
-/** "€42", or "€42.10" when it has cents. */
+/** "€42", or "€42.10" when it has cents, in the person's locale ("42 €"). */
 function amount(cents: number, currency: string): string {
   const digits = minorDigits(currency)
   const whole = cents % 10 ** digits === 0
-  return new Intl.NumberFormat("en-GB", {
+  return new Intl.NumberFormat(locale(), {
     style: "currency",
     currency,
     minimumFractionDigits: whole ? 0 : digits,
     maximumFractionDigits: whole ? 0 : digits,
-  }).format(cents / 10 ** digits)
-}
-
-function thisMonth(): string {
-  return new Date().toISOString().slice(0, 7)
+  })
+    .format(cents / 10 ** digits)
+    .replace(/-/g, "−")
 }
 
 /** created_at is SQLite's "YYYY-MM-DD HH:MM:SS" in UTC. */

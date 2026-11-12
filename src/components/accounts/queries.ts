@@ -4,6 +4,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 import type {
   Account,
@@ -106,14 +107,21 @@ export function useUpdateAccount(id: number) {
   })
 }
 
+/**
+ * Deletes the account, then leaves its page for /accounts before anything
+ * refetches: refreshing first would ask for the deleted account while its
+ * page is still open and flash "Couldn't load this account."
+ */
 export function useDeleteAccount(id: number) {
   const client = useQueryClient()
   const invalidate = useInvalidateAccounts()
+  const navigate = useNavigate()
   return useMutation({
     mutationFn: () => api(`/accounts/${id}`, { method: "DELETE" }),
     onError: (error) =>
       toast.error(`Couldn't delete the account: ${error.message}`),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await navigate({ to: "/accounts" })
       client.removeQueries({ queryKey: ["accounts", id] })
       return Promise.all([
         invalidate(),
