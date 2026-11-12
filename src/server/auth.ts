@@ -1,6 +1,7 @@
-// Dashboard sign-in: one password, set on first run and kept as a scrypt hash
-// in config.json, and a signed session cookie. Changing the password signs
-// every session out.
+// Dashboard sign-in: one password, kept as a scrypt hash in config.json, and a
+// signed session cookie. The first password is set either from the first-run
+// page, which asks for the setup code florin prints, or with `florin password`.
+// Changing the password signs every session out.
 import {
   createHmac,
   randomBytes,
@@ -29,11 +30,25 @@ export function needsSetup(): boolean {
   return !loadConfig().passwordHash
 }
 
+/** Sets (or replaces) the dashboard password and drops the setup code. */
 export function setPassword(password: string): void {
   if (typeof password !== "string" || password.length < 8) {
     throw new InvalidInput("the password needs at least 8 characters")
   }
-  saveConfig({ ...loadConfig(), passwordHash: hashPassword(password) })
+  const config = loadConfig()
+  delete config.setupCode
+  saveConfig({ ...config, passwordHash: hashPassword(password) })
+}
+
+/** Whether `code` is the current setup code (constant-time). */
+export function checkSetupCode(code: unknown): boolean {
+  const expected = loadConfig().setupCode
+  if (!expected || typeof code !== "string") return false
+  const a = createHmac("sha256", "florin-setup").update(expected).digest()
+  const b = createHmac("sha256", "florin-setup")
+    .update(code.trim().toUpperCase())
+    .digest()
+  return timingSafeEqual(a, b)
 }
 
 function sign(expires: number): string {

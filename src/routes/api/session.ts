@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import {
+  checkSetupCode,
   createSession,
   isSignedIn,
   needsSetup,
@@ -20,12 +21,25 @@ export const Route = createFileRoute("/api/session")({
           needsSetup: needsSetup(),
         })),
 
-      /** Signs in; on first run this sets the password. */
+      /**
+       * Signs in with { password }. On first run, { setupCode, password } sets
+       * the password; the code is the one `florin start` printed.
+       */
       POST: ({ request }) =>
         respond(async () => {
-          const { password } = await body<{ password: string }>(request)
-          if (needsSetup()) setPassword(password)
-          else if (
+          const { password, setupCode } = await body<{
+            password: string
+            setupCode?: string
+          }>(request)
+          if (needsSetup()) {
+            if (!checkSetupCode(setupCode)) {
+              return Response.json(
+                { error: "wrong setup code; run florin setup-code to see it" },
+                { status: 401 }
+              )
+            }
+            setPassword(password)
+          } else if (
             typeof password !== "string" ||
             !verifyPassword(password, loadConfig().passwordHash!)
           ) {

@@ -7,6 +7,20 @@ export class NotFound extends Error {}
 const DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/
 
+/** Refuses anything but a plain object (a JSON body or list item). */
+export function checkObject<T>(value: T, what: string): T {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new InvalidInput(`${what} must be an object`)
+  }
+  return value
+}
+
+/** Refuses anything but a list. */
+export function checkList<T>(value: T[], what: string): T[] {
+  if (!Array.isArray(value)) throw new InvalidInput(`${what} must be a list`)
+  return value
+}
+
 export function checkDate(value: unknown, field = "date"): string {
   if (typeof value !== "string" || !DATE.test(value)) {
     throw new InvalidInput(`${field} must be a date as YYYY-MM-DD`)

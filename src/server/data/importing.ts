@@ -7,7 +7,16 @@ import { db, schema } from "../db"
 import { getAccount } from "./accounts"
 import { logChange } from "./changes"
 import { payeeIdForName } from "./payees"
-import { checkAmount, checkDate, InvalidInput } from "./validate"
+import { getCategory } from "./categories"
+import { minorDigits } from "./fx"
+import {
+  checkAmount,
+  checkDate,
+  checkList,
+  checkObject,
+  InvalidInput,
+  NotFound,
+} from "./validate"
 import type { Actor, CsvMapping, ImportResult, ImportRow } from "@/shared/types"
 
 const { transactions } = schema
@@ -25,7 +34,10 @@ export function importTransactions(
 ): ImportResult {
   const account = getAccount(accountId)
   const seen = new Map<string, number>()
-  const prepared = rows.map((row, i) => {
+  const prepared = checkList(rows, "rows").map((row, i) => {
+    checkObject(row, `row ${i + 1}`)
+    if (row.categoryId !== undefined && row.categoryId !== null)
+      checkImportCategory(row.categoryId, i)
     const date = checkDate(row.date, `row ${i + 1} date`)
     const amount = checkAmount(row.amount, `row ${i + 1} amount`)
     const payee = String(row.payee ?? "").trim()
@@ -90,6 +102,16 @@ export function importTransactions(
   })
 }
 
+function checkImportCategory(categoryId: number, i: number) {
+  try {
+    getCategory(categoryId)
+  } catch (error) {
+    if (error instanceof NotFound)
+      throw new InvalidInput(`row ${i + 1}: there is no category ${categoryId}`)
+    throw error
+  }
+}
+
 /** Bank descriptions often shout and pad; keep the payee name readable. */
 function cleanPayee(raw: string): string {
   const name = raw.replace(/\s+/g, " ").trim()
@@ -139,8 +161,12 @@ function parseDate(
   return checkDate(`${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`)
 }
 
-/** "1.234,56" or "-1,234.56" → cents. */
-function parseMoney(value: string, decimal: "." | "," = "."): number {
+/** "1.234,56" or "-1,234.56" → minor units, with the currency's number of decimals. */
+function parseMoney(
+  value: string,
+  digits: number,
+  decimal: "." | "," = "."
+): number {
   let v = value.trim().replace(/[^\d.,()-]/g, "")
   if (!v) return 0
   const negative = v.startsWith("-") || (v.startsWith("(") && v.endsWith(")"))
@@ -150,8 +176,10 @@ function parseMoney(value: string, decimal: "." | "," = "."): number {
   ).split(decimal)
   if (!/^\d*$/.test(whole) || !/^\d*$/.test(frac))
     throw new InvalidInput(`cannot read amount "${value}"`)
-  const cents = Number(whole || 0) * 100 + Number((frac + "00").slice(0, 2))
-  return negative ? -cents : cents
+  const minor =
+    Number(whole || 0) * 10 ** digits +
+    Number((frac + "0".repeat(digits)).slice(0, digits) || 0)
+  return negative ? -minor : minor
 }
 
 /** Imports a CSV file into an account, mapping columns by their header names. */
@@ -161,6 +189,8 @@ export function importCsv(
   csv: string,
   mapping: CsvMapping
 ): ImportResult {
+  checkObject(mapping, "mapping")
+  const digits = minorDigits(getAccount(accountId).currency)
   const [header, ...lines] = parseCsv(csv)
   if (!header) throw new InvalidInput("the file is empty")
   const col = (name: string | undefined) => {
@@ -183,9 +213,9 @@ export function importCsv(
     date: parseDate(cells[date] ?? "", mapping.dateFormat),
     amount:
       amount >= 0
-        ? parseMoney(cells[amount] ?? "", mapping.decimal)
-        : parseMoney(cells[inflow] ?? "", mapping.decimal) -
-          Math.abs(parseMoney(cells[outflow] ?? "", mapping.decimal)),
+        ? parseMoney(cells[amount] ?? "", digits, mapping.decimal)
+        : parseMoney(cells[inflow] ?? "", digits, mapping.decimal) -
+          Math.abs(parseMoney(cells[outflow] ?? "", digits, mapping.decimal)),
     payee: cells[payee] ?? "",
     notes: notes >= 0 ? (cells[notes] ?? "").trim() : undefined,
   }))

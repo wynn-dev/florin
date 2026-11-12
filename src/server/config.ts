@@ -1,6 +1,7 @@
 // florin's folder (~/.florin, or FLORIN_HOME) holds florin.db and config.json.
-// config.json is private (0600): it holds the password hash and session secret,
-// and later the connectors' credentials.
+// config.json is private (0600): it holds the password hash, the session
+// secret, the one-time setup code until a password is set, and later the
+// connectors' credentials.
 import { randomBytes } from "node:crypto"
 import {
   chmodSync,
@@ -15,8 +16,13 @@ import { join } from "node:path"
 export type Config = {
   host: string
   port: number
-  /** scrypt hash of the dashboard password; absent until the first sign-in sets it. */
+  /** scrypt hash of the dashboard password; absent until it is first set. */
   passwordHash?: string
+  /**
+   * While no password is set: the code the first-run page asks for, so only
+   * someone who can read florin's output or folder can claim the dashboard.
+   */
+  setupCode?: string
   sessionSecret: string
 }
 
@@ -34,7 +40,10 @@ export function databasePath(): string {
   return join(homeDir(), "florin.db")
 }
 
-/** Reads config.json, creating the folder and a fresh config on first run. */
+/**
+ * Reads config.json, creating the folder and a fresh config on first run, and
+ * a setup code whenever no password is set yet.
+ */
 export function loadConfig(): Config {
   const path = configPath()
   if (!existsSync(path)) {
@@ -45,7 +54,19 @@ export function loadConfig(): Config {
       sessionSecret: randomBytes(32).toString("hex"),
     })
   }
-  return JSON.parse(readFileSync(path, "utf8")) as Config
+  const config = JSON.parse(readFileSync(path, "utf8")) as Config
+  if (!config.passwordHash && !config.setupCode) {
+    config.setupCode = newSetupCode()
+    saveConfig(config)
+  }
+  return config
+}
+
+/** "7KQ2-M9XD-4TFH": twelve characters, easy to read and type. */
+function newSetupCode(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+  const chars = [...randomBytes(12)].map((b) => alphabet[b % alphabet.length])
+  return [0, 4, 8].map((i) => chars.slice(i, i + 4).join("")).join("-")
 }
 
 export function saveConfig(config: Config): void {

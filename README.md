@@ -17,8 +17,11 @@ pnpm florin seed-demo                        # 18 months of sample data
 pnpm florin start                            # http://127.0.0.1:4691
 ```
 
-The first visit asks you to choose the dashboard password. Keep development
-instances in a temporary `FLORIN_HOME` and off port 4680, the default.
+On first start florin prints a one-time setup code; the dashboard asks for it
+before you choose a password, so only someone who can see florin's output or
+folder can claim it. `florin setup-code` prints it again, and `florin password`
+sets or resets the password from the command line. Keep development instances
+in a temporary `FLORIN_HOME` and off port 4680, the default.
 
 For UI work, `pnpm dev` runs the same app with hot reload on port 4780, using
 the data folder in `FLORIN_HOME`.

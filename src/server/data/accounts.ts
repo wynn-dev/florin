@@ -6,11 +6,13 @@ import { checkCurrency, convert } from "./fx"
 import { payeeIdForName } from "./payees"
 import { getSettings } from "./settings"
 import {
+  InvalidInput,
   checkAmount,
   checkDate,
+  checkList,
   checkName,
+  checkObject,
   found,
-  InvalidInput,
   today,
 } from "./validate"
 import type {
@@ -296,7 +298,8 @@ export function replaceHoldings(
   positions: Holding[]
 ): Holding[] {
   const account = getAccount(accountId)
-  for (const p of positions) {
+  for (const p of checkList(positions, "holdings")) {
+    checkObject(p, "each holding")
     checkName(p.symbol, "symbol")
     checkAmount(p.value, "value")
     checkDate(p.asOf, "asOf")

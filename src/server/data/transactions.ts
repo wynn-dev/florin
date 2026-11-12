@@ -5,7 +5,14 @@ import { getAccount } from "./accounts"
 import { getCategory } from "./categories"
 import { logChange, money } from "./changes"
 import { payeeIdForName } from "./payees"
-import { checkAmount, checkDate, found, InvalidInput } from "./validate"
+import {
+  checkAmount,
+  checkDate,
+  checkList,
+  checkObject,
+  found,
+  InvalidInput,
+} from "./validate"
 import type { SQL } from "drizzle-orm"
 import type { Database } from "../db"
 import type {
@@ -149,6 +156,7 @@ function describeTransaction(t: Transaction): string {
 }
 
 function insertTransaction(tx: Tx, input: NewTransaction): number {
+  checkObject(input, "a transaction")
   getAccount(input.accountId)
   const date = checkDate(input.date)
   const amount = checkAmount(input.amount)
@@ -198,6 +206,7 @@ export function createTransactions(
   actor: Actor,
   inputs: NewTransaction[]
 ): Transaction[] {
+  checkList(inputs, "transactions")
   const ids = db().transaction((tx) =>
     inputs.map((input) => {
       const id = insertTransaction(tx, input)
@@ -248,6 +257,7 @@ function addTransferLeg(
 }
 
 function applyPatch(tx: Tx, id: number, patch: TransactionPatch): string[] {
+  checkObject(patch, "patch")
   const current = getTransaction(id, tx)
   const set: Partial<typeof transactions.$inferInsert> = {}
   if (patch.accountId !== undefined)
@@ -259,11 +269,16 @@ function applyPatch(tx: Tx, id: number, patch: TransactionPatch): string[] {
     set.status = patch.status === "pending" ? "pending" : "cleared"
   if (patch.categoryId !== undefined)
     set.categoryId = checkCategory(patch.categoryId)
-  if (patch.transferAccountId) {
-    getAccount(patch.transferAccountId)
-    if (patch.transferAccountId === (set.accountId ?? current.accountId)) {
-      throw new InvalidInput("a transfer needs two different accounts")
-    }
+  const transferAccountId =
+    patch.transferAccountId === undefined
+      ? current.transferAccountId
+      : patch.transferAccountId
+  if (patch.transferAccountId) getAccount(patch.transferAccountId)
+  if (
+    transferAccountId !== null &&
+    transferAccountId === (set.accountId ?? current.accountId)
+  ) {
+    throw new InvalidInput("a transfer needs two different accounts")
   }
   const payeeId = resolvePayee(tx, patch)
   if (payeeId !== undefined) set.payeeId = payeeId
@@ -320,6 +335,7 @@ export function updateTransactions(
   ids: number[],
   patch: TransactionPatch
 ): Transaction[] {
+  checkList(ids, "ids")
   db().transaction((tx) => {
     for (const id of ids) {
       const fields = applyPatch(tx, id, patch)
@@ -341,7 +357,7 @@ export function deleteTransaction(actor: Actor, id: number): void {
 
 /** Deletes transactions in one database transaction; deleting either leg of a transfer deletes both. */
 export function deleteTransactions(actor: Actor, ids: number[]): void {
-  const doomed = ids.map((id) => getTransaction(id))
+  const doomed = checkList(ids, "ids").map((id) => getTransaction(id))
   db().transaction((tx) => {
     for (const t of doomed) {
       tx.delete(transactions).where(eq(transactions.id, t.id)).run()

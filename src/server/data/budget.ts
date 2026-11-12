@@ -9,7 +9,14 @@ import { db, schema } from "../db"
 import { getCategory, listCategoryGroups } from "./categories"
 import { logChange, money } from "./changes"
 import { getSettings } from "./settings"
-import { checkAmount, checkMonth, InvalidInput, monthEnd } from "./validate"
+import {
+  checkAmount,
+  checkList,
+  checkMonth,
+  checkObject,
+  InvalidInput,
+  monthEnd,
+} from "./validate"
 import type {
   Actor,
   BudgetAmount,
@@ -126,7 +133,8 @@ export function setBudgetAmounts(
   checkMonth(month)
   const groups = listCategoryGroups()
   const currency = getSettings().currency
-  const changes = amounts.map(({ categoryId, amount }) => {
+  const changes = checkList(amounts, "amounts").map((entry) => {
+    const { categoryId, amount } = checkObject(entry, "each amount")
     checkAmount(amount)
     const category = getCategory(categoryId)
     if (groups.find((g) => g.id === category.groupId)!.isIncome) {

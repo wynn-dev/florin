@@ -478,3 +478,63 @@ describe("bulk writes and the change log", () => {
     )
   })
 })
+
+describe("input checks", () => {
+  test("malformed lists and rows are refused as invalid input", () => {
+    const acct = data.createAccount("person", {
+      name: "Checks",
+      type: "checking",
+    })
+    const invalid = data.InvalidInput
+    expect(() => data.createTransactions("person", [null as never])).toThrow(
+      invalid
+    )
+    expect(() => data.createTransactions("person", null as never)).toThrow(
+      invalid
+    )
+    expect(() =>
+      data.importTransactions("person", acct.id, [null as never])
+    ).toThrow(invalid)
+    expect(() =>
+      data.setBudgetAmounts("person", "2024-08", [null as never])
+    ).toThrow(invalid)
+    expect(() =>
+      data.importTransactions("person", acct.id, [
+        { date: "2024-08-01", amount: -100, payee: "X", categoryId: 99_999 },
+      ])
+    ).toThrow(/no category 99999/)
+  })
+
+  test("a transfer leg can't move into the other leg's account", () => {
+    const a = data.createAccount("person", { name: "Leg A", type: "checking" })
+    const b = data.createAccount("person", { name: "Leg B", type: "savings" })
+    const t = createTransaction("person", {
+      accountId: a.id,
+      date: "2024-08-02",
+      amount: -500,
+      transferAccountId: b.id,
+    })
+    expect(() =>
+      updateTransaction("person", t.id, { accountId: b.id })
+    ).toThrow(data.InvalidInput)
+    expect(() =>
+      updateTransaction("person", t.transferId!, { accountId: a.id })
+    ).toThrow(data.InvalidInput)
+  })
+
+  test("CSV amounts use the account currency's decimals", () => {
+    const yen = data.createAccount("person", {
+      name: "Yen",
+      type: "cash",
+      currency: "JPY",
+    })
+    const csv =
+      "Date,Payee,Amount\n2024-08-03,Konbini,-1200\n2024-08-04,Ramen,-980.00"
+    data.importCsv("person", yen.id, csv, {
+      date: "Date",
+      payee: "Payee",
+      amount: "Amount",
+    })
+    expect(data.getAccount(yen.id).balance).toBe(-2_180)
+  })
+})

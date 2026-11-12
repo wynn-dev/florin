@@ -11,6 +11,7 @@ import type {
   DateRange,
   IncomeExpensePoint,
   NetWorthPoint,
+  Page,
   Payee,
   Settings,
   TransactionFilter,
@@ -81,10 +82,12 @@ export const queries = {
       queryKey: ["categories"],
       queryFn: () => api<CategoryGroup[]>("/categories"),
     }),
-  payees: () =>
+  payees: (
+    options: { search?: string; limit?: number; offset?: number } = {}
+  ) =>
     queryOptions({
-      queryKey: ["payees"],
-      queryFn: () => api<Payee[]>("/payees"),
+      queryKey: ["payees", options],
+      queryFn: () => api<Page<Payee>>(`/payees${search(options)}`),
     }),
   budget: (month: string) =>
     queryOptions({

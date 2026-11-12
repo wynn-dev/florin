@@ -19,10 +19,13 @@ function Login() {
   const setup = session.data?.needsSetup ?? false
 
   const form = useForm({
-    defaultValues: { password: "" },
+    defaultValues: { setupCode: "", password: "" },
     onSubmit: async ({ value, formApi }) => {
       try {
-        await api<Session>("/session", { method: "POST", body: value })
+        await api<Session>("/session", {
+          method: "POST",
+          body: setup ? value : { password: value.password },
+        })
         await navigate({ to: "/" })
       } catch (error) {
         formApi.setErrorMap({
@@ -45,10 +48,29 @@ function Login() {
           <h1 className="text-xl font-semibold tracking-tight">florin</h1>
           <p className="text-sm text-muted-foreground">
             {setup
-              ? "Choose a password for this dashboard."
+              ? "Enter the setup code florin printed when it started (or run florin setup-code), then choose a password."
               : "Sign in to your budget."}
           </p>
         </div>
+        {setup && (
+          <form.Field name="setupCode">
+            {(field) => (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor={field.name}>Setup code</Label>
+                <Input
+                  id={field.name}
+                  autoFocus
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="XXXX-XXXX-XXXX"
+                  className="font-mono uppercase"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+              </div>
+            )}
+          </form.Field>
+        )}
         <form.Field
           name="password"
           validators={{
@@ -62,7 +84,7 @@ function Login() {
               <Input
                 id={field.name}
                 type="password"
-                autoFocus
+                autoFocus={!setup}
                 autoComplete={setup ? "new-password" : "current-password"}
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
