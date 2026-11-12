@@ -24,7 +24,7 @@ export const accounts = sqliteTable(
     id: integer().primaryKey(),
     name: text().notNull(),
     type: text({
-      enum: ["checking", "savings", "credit", "cash", "investment"],
+      enum: ["checking", "savings", "credit", "cash", "investment", "loan"],
     }).notNull(),
     /** ISO 4217 code; the account's transactions, values and holdings are in it. */
     currency: text().notNull(),

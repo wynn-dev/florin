@@ -69,6 +69,8 @@ export type MoneyOptions = {
   symbol?: boolean
   /** Short form for axis ticks: "€12k". */
   compact?: boolean
+  /** Rounded to whole units: "≈ €48,140" beside a figure in another currency. */
+  whole?: boolean
 }
 
 /** Formats integer minor units as money: formatMoney(-4210, "EUR") → "−€42.10". */
@@ -77,9 +79,14 @@ export function formatMoney(
   currency: string,
   options: MoneyOptions = {}
 ): string {
-  const { signed = false, symbol = true, compact = false } = options
+  const {
+    signed = false,
+    symbol = true,
+    compact = false,
+    whole = false,
+  } = options
   const digits = currencyDigits(currency)
-  const key = `money:${currency}:${signed}:${symbol}:${compact}`
+  const key = `money:${currency}:${signed}:${symbol}:${compact}:${whole}`
   const format = numberFormat(key, {
     ...(symbol
       ? { style: "currency", currency, currencyDisplay: "symbol" }
@@ -94,7 +101,9 @@ export function formatMoney(
           minimumFractionDigits: 0,
           maximumFractionDigits: 1,
         }
-      : {}),
+      : whole
+        ? { minimumFractionDigits: 0, maximumFractionDigits: 0 }
+        : {}),
     signDisplay: signed ? "exceptZero" : "auto",
   })
   return format.format(cents / 10 ** digits).replace(/-/g, MINUS)
@@ -112,6 +121,15 @@ export function formatPercent(
     signDisplay: signed ? "exceptZero" : "auto",
   })
     .format(ratio)
+    .replace(/-/g, MINUS)
+}
+
+/** A plain quantity, grouped, with up to `digits` decimals: 1204.5 → "1,204.5". */
+export function formatQuantity(value: number, digits = 4): string {
+  return numberFormat(`quantity:${digits}`, {
+    maximumFractionDigits: digits,
+  })
+    .format(value)
     .replace(/-/g, MINUS)
 }
 

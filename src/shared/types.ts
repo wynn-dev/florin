@@ -47,7 +47,7 @@ export type Change = {
 export type Page<T> = { items: T[]; total: number }
 
 export type AccountType =
-  "checking" | "savings" | "credit" | "cash" | "investment"
+  "checking" | "savings" | "credit" | "cash" | "investment" | "loan"
 export type Provider = "enablebanking" | "ibkr"
 export type TransactionStatus = "pending" | "cleared"
 
@@ -88,7 +88,7 @@ export type NewAccount = {
   type: AccountType
   /** Defaults to the budget's currency. */
   currency?: string
-  /** Defaults to true for every type except investment, when the account is in the budget's currency. */
+  /** Defaults to true for every type except investment and loan, when the account is in the budget's currency. */
   onBudget?: boolean
   /** Opening balance, booked as a "Starting balance" transaction today. */
   startingBalance?: number
@@ -296,6 +296,8 @@ export type BudgetMonth = {
   available: number
   /** All income to date minus everything budgeted to date; negative means over-assigned. */
   toBudget: number
+  /** The first month with a transaction in an on-budget account; null before any. */
+  firstMonth: string | null
   groups: BudgetGroup[]
 }
 

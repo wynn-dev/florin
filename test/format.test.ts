@@ -12,6 +12,7 @@ import {
   formatMonth,
   formatMonthTick,
   formatPercent,
+  formatQuantity,
   formatRelative,
   lastDay,
   parseAmount,
@@ -35,6 +36,11 @@ describe("formatMoney", () => {
     expect(formatMoney(120000, "EUR", { signed: true })).toBe("+€1,200.00")
     expect(formatMoney(-4210, "EUR", { signed: true })).toBe("−€42.10")
     expect(formatMoney(0, "EUR", { signed: true })).toBe("€0.00")
+  })
+
+  test("whole rounds to whole units", () => {
+    expect(formatMoney(4814049, "EUR", { whole: true })).toBe("€48,140")
+    expect(formatMoney(-4814050, "EUR", { whole: true })).toBe("−€48,141")
   })
 
   test("drops the symbol for single-currency columns", () => {
@@ -155,6 +161,12 @@ describe("dates", () => {
     ).toBe("in 5 days")
     expect(formatRelative(at(30 * 86_400_000), now)).toBe("13 Oct")
   })
+})
+
+test("formatQuantity", () => {
+  expect(formatQuantity(1204.5)).toBe("1,204.5")
+  expect(formatQuantity(12.123456)).toBe("12.1235")
+  expect(formatQuantity(-3)).toBe("−3")
 })
 
 test("formatPercent", () => {

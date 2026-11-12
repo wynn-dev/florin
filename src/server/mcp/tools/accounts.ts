@@ -16,6 +16,7 @@ const accountType = z.enum([
   "credit",
   "cash",
   "investment",
+  "loan",
 ])
 
 export const listAccountsTool = defineTool({
