@@ -260,7 +260,7 @@ function seedHistory() {
         // The first month also assigns the opening balances.
         amount:
           amount +
-          (month === first && name === "Emergency fund" ? 1_000_000 : 0) +
+          (month === first && name === "Emergency fund" ? 900_000 : 0) +
           (name !== "Holidays" && rand() < 0.2 ? 2_000 : 0),
       }))
     )
