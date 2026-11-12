@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { deleteCategoryGroup, renameCategoryGroup } from "@/server/data"
-import { body, id, respond } from "@/server/http"
+import { body, id, optionalInt, query, respond } from "@/server/http"
 
 export const Route = createFileRoute("/api/category-groups/$id")({
   server: {
@@ -13,8 +13,15 @@ export const Route = createFileRoute("/api/category-groups/$id")({
             (await body<{ name: string }>(request)).name
           )
         ),
-      DELETE: ({ params }) =>
-        respond(() => deleteCategoryGroup("person", id(params.id))),
+      /** ?transferTo=<categoryId> moves its categories' transactions and budgets there first. */
+      DELETE: ({ request, params }) =>
+        respond(() =>
+          deleteCategoryGroup(
+            "person",
+            id(params.id),
+            optionalInt(query(request).transferTo)
+          )
+        ),
     },
   },
 })

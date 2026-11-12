@@ -187,3 +187,4 @@ export const changes = sqliteTable(
   (t) => [index("changes_at").on(t.at)]
 )
 export * from "./schema-jobs"
+export * from "./schema-tokens"

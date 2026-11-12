@@ -90,7 +90,7 @@ export function listAccounts(): Account[] {
 export function getAccount(id: number): Account {
   return found(
     listAccounts().find((a) => a.id === id),
-    "account"
+    `account ${id}`
   )
 }
 

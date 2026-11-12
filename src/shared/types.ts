@@ -24,6 +24,7 @@ export type Change = {
     | "budget"
     | "settings"
     | "fx rate"
+    | "mcp token"
   entityId: number | null
   /** One readable line, e.g. "Added −€42.50 at Lidl to Current account". */
   summary: string
@@ -140,11 +141,14 @@ export type TransactionFilter = {
   accountId?: number
   categoryId?: number
   payeeId?: number
-  /** Only transactions without a category (transfers excluded). */
+  /** Only transactions in on-budget accounts without a category (transfers excluded). */
   uncategorized?: boolean
   status?: TransactionStatus
   from?: string
   to?: string
+  /** Amount bounds in minor units, inclusive; money out is negative. */
+  minAmount?: number
+  maxAmount?: number
   /** Matches payee, notes, imported payee text and category name. */
   search?: string
   limit?: number

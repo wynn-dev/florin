@@ -1,15 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { handleMcpRequest } from "@/server/mcp/http"
 
-// Placeholder: the MCP server (streamable HTTP) lands here, over the same data
-// layer as /api (src/server/data).
-const notYet = () =>
-  Response.json(
-    { error: "the MCP server is not implemented yet" },
-    { status: 501 }
-  )
-
+// The MCP over streamable HTTP; it checks its own access token (src/start.ts
+// lets /mcp through without a dashboard session).
 export const Route = createFileRoute("/mcp")({
   server: {
-    handlers: { GET: notYet, POST: notYet, DELETE: notYet },
+    handlers: {
+      GET: ({ request }) => handleMcpRequest(request),
+      POST: ({ request }) => handleMcpRequest(request),
+      DELETE: ({ request }) => handleMcpRequest(request),
+    },
   },
 })

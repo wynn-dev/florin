@@ -67,12 +67,21 @@ function filterConditions(f: TransactionFilter): SQL | undefined {
     where.push(eq(transactions.categoryId, f.categoryId))
   if (f.payeeId !== undefined) where.push(eq(transactions.payeeId, f.payeeId))
   if (f.status !== undefined) where.push(eq(transactions.status, f.status))
+  // Tracking accounts are outside the budget, so their transactions need no category.
   if (f.uncategorized)
-    where.push(isNull(transactions.categoryId), isNull(transactions.transferId))
+    where.push(
+      isNull(transactions.categoryId),
+      isNull(transactions.transferId),
+      eq(accounts.onBudget, true)
+    )
   if (f.from !== undefined)
     where.push(gte(transactions.date, checkDate(f.from, "from")))
   if (f.to !== undefined)
     where.push(lte(transactions.date, checkDate(f.to, "to")))
+  if (f.minAmount !== undefined)
+    where.push(gte(transactions.amount, checkAmount(f.minAmount, "minAmount")))
+  if (f.maxAmount !== undefined)
+    where.push(lte(transactions.amount, checkAmount(f.maxAmount, "maxAmount")))
   if (f.search?.trim()) {
     const term = `%${f.search.trim().replace(/[\\%_]/g, (c) => "\\" + c)}%`
     where.push(
@@ -103,6 +112,7 @@ export function listTransactions(
   const total = db()
     .select({ n: sql<number>`count(*)` })
     .from(transactions)
+    .innerJoin(accounts, eq(transactions.accountId, accounts.id))
     .leftJoin(payees, eq(transactions.payeeId, payees.id))
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .where(where)
@@ -116,7 +126,7 @@ export function getTransaction(
 ): Transaction {
   return found(
     selectTransactions(tx).where(eq(transactions.id, id)).get(),
-    "transaction"
+    `transaction ${id}`
   )
 }
 
@@ -133,7 +143,7 @@ function resolvePayee(
         .from(payees)
         .where(eq(payees.id, input.payeeId))
         .get(),
-      "payee"
+      `payee ${input.payeeId}`
     )
     return input.payeeId
   }
@@ -208,19 +218,34 @@ export function createTransactions(
 ): Transaction[] {
   checkList(inputs, "transactions")
   const ids = db().transaction((tx) =>
-    inputs.map((input) => {
-      const id = insertTransaction(tx, input)
-      const t = getTransaction(id, tx)
-      logChange(tx, actor, {
-        action: "create",
-        entity: "transaction",
-        entityId: id,
-        summary: `Added ${describeTransaction(t)}`,
+    inputs.map((input, i) =>
+      eachItem(inputs.length, i, () => {
+        const id = insertTransaction(tx, input)
+        const t = getTransaction(id, tx)
+        logChange(tx, actor, {
+          action: "create",
+          entity: "transaction",
+          entityId: id,
+          summary: `Added ${describeTransaction(t)}`,
+        })
+        return id
       })
-      return id
-    })
+    )
   )
   return ids.map((id) => getTransaction(id))
+}
+
+/** Runs one item of a bulk write; when there are several, an error names the item. */
+function eachItem<T>(count: number, i: number, fn: () => T): T {
+  try {
+    return fn()
+  } catch (error) {
+    if (count > 1 && error instanceof Error) {
+      const prefix = `item ${i + 1} of ${count}: `
+      error.message = prefix + error.message
+    }
+    throw error
+  }
 }
 
 /** Creates the mirrored leg of transaction `id` in `accountId` and links the two. */
@@ -348,6 +373,36 @@ export function updateTransactions(
       })
     }
   })
+  return ids.map((id) => getTransaction(id))
+}
+
+/**
+ * Applies a different change to each transaction (e.g. a category per
+ * transaction) in one database transaction: all of them or none.
+ */
+export function patchTransactions(
+  actor: Actor,
+  updates: (TransactionPatch & { id: number })[]
+): Transaction[] {
+  checkList(updates, "updates")
+  const ids = db().transaction((tx) =>
+    updates.map((update, i) =>
+      eachItem(updates.length, i, () => {
+        const { id, ...patch } = checkObject(update, "each update")
+        if (!Number.isSafeInteger(id))
+          throw new InvalidInput("each update needs the transaction's id")
+        const fields = applyPatch(tx, id, patch)
+        const t = getTransaction(id, tx)
+        logChange(tx, actor, {
+          action: "update",
+          entity: "transaction",
+          entityId: id,
+          summary: `Changed ${fields.join(", ")} of ${describeTransaction(t)}`,
+        })
+        return id
+      })
+    )
+  )
   return ids.map((id) => getTransaction(id))
 }
 

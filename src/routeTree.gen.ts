@@ -28,6 +28,8 @@ import { Route as ApiCategoryGroupsIdRouteImport } from './routes/api/category-g
 import { Route as ApiFxRefreshRouteImport } from './routes/api/fx/refresh'
 import { Route as ApiFxStatusRouteImport } from './routes/api/fx/status'
 import { Route as ApiJobsIndexRouteImport } from './routes/api/jobs/index'
+import { Route as ApiMcpTokensIndexRouteImport } from './routes/api/mcp-tokens/index'
+import { Route as ApiMcpTokensIdRouteImport } from './routes/api/mcp-tokens/$id'
 import { Route as ApiPayeesIndexRouteImport } from './routes/api/payees/index'
 import { Route as ApiReportsCashFlowRouteImport } from './routes/api/reports/cash-flow'
 import { Route as ApiReportsIncomeExpensesRouteImport } from './routes/api/reports/income-expenses'
@@ -139,6 +141,16 @@ const ApiJobsIndexRoute = ApiJobsIndexRouteImport.update({
   path: '/api/jobs/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMcpTokensIndexRoute = ApiMcpTokensIndexRouteImport.update({
+  id: '/api/mcp-tokens/',
+  path: '/api/mcp-tokens/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpTokensIdRoute = ApiMcpTokensIdRouteImport.update({
+  id: '/api/mcp-tokens/$id',
+  path: '/api/mcp-tokens/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPayeesIndexRoute = ApiPayeesIndexRouteImport.update({
   id: '/api/payees/',
   path: '/api/payees/',
@@ -237,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
   '/api/fx/refresh': typeof ApiFxRefreshRoute
   '/api/fx/status': typeof ApiFxStatusRoute
+  '/api/mcp-tokens/$id': typeof ApiMcpTokensIdRoute
   '/api/reports/cash-flow': typeof ApiReportsCashFlowRoute
   '/api/reports/income-expenses': typeof ApiReportsIncomeExpensesRoute
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
@@ -246,6 +259,7 @@ export interface FileRoutesByFullPath {
   '/api/categories/': typeof ApiCategoriesIndexRoute
   '/api/category-groups/': typeof ApiCategoryGroupsIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
+  '/api/mcp-tokens/': typeof ApiMcpTokensIndexRoute
   '/api/payees/': typeof ApiPayeesIndexRoute
   '/api/transactions/': typeof ApiTransactionsIndexRoute
   '/api/accounts/$id/holdings': typeof ApiAccountsIdHoldingsRoute
@@ -273,6 +287,7 @@ export interface FileRoutesByTo {
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
   '/api/fx/refresh': typeof ApiFxRefreshRoute
   '/api/fx/status': typeof ApiFxStatusRoute
+  '/api/mcp-tokens/$id': typeof ApiMcpTokensIdRoute
   '/api/reports/cash-flow': typeof ApiReportsCashFlowRoute
   '/api/reports/income-expenses': typeof ApiReportsIncomeExpensesRoute
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
@@ -282,6 +297,7 @@ export interface FileRoutesByTo {
   '/api/categories': typeof ApiCategoriesIndexRoute
   '/api/category-groups': typeof ApiCategoryGroupsIndexRoute
   '/api/jobs': typeof ApiJobsIndexRoute
+  '/api/mcp-tokens': typeof ApiMcpTokensIndexRoute
   '/api/payees': typeof ApiPayeesIndexRoute
   '/api/transactions': typeof ApiTransactionsIndexRoute
   '/api/accounts/$id/holdings': typeof ApiAccountsIdHoldingsRoute
@@ -311,6 +327,7 @@ export interface FileRoutesById {
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
   '/api/fx/refresh': typeof ApiFxRefreshRoute
   '/api/fx/status': typeof ApiFxStatusRoute
+  '/api/mcp-tokens/$id': typeof ApiMcpTokensIdRoute
   '/api/reports/cash-flow': typeof ApiReportsCashFlowRoute
   '/api/reports/income-expenses': typeof ApiReportsIncomeExpensesRoute
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
@@ -320,6 +337,7 @@ export interface FileRoutesById {
   '/api/categories/': typeof ApiCategoriesIndexRoute
   '/api/category-groups/': typeof ApiCategoryGroupsIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
+  '/api/mcp-tokens/': typeof ApiMcpTokensIndexRoute
   '/api/payees/': typeof ApiPayeesIndexRoute
   '/api/transactions/': typeof ApiTransactionsIndexRoute
   '/api/accounts/$id/holdings': typeof ApiAccountsIdHoldingsRoute
@@ -349,6 +367,7 @@ export interface FileRouteTypes {
     | '/api/category-groups/$id'
     | '/api/fx/refresh'
     | '/api/fx/status'
+    | '/api/mcp-tokens/$id'
     | '/api/reports/cash-flow'
     | '/api/reports/income-expenses'
     | '/api/reports/net-worth'
@@ -358,6 +377,7 @@ export interface FileRouteTypes {
     | '/api/categories/'
     | '/api/category-groups/'
     | '/api/jobs/'
+    | '/api/mcp-tokens/'
     | '/api/payees/'
     | '/api/transactions/'
     | '/api/accounts/$id/holdings'
@@ -385,6 +405,7 @@ export interface FileRouteTypes {
     | '/api/category-groups/$id'
     | '/api/fx/refresh'
     | '/api/fx/status'
+    | '/api/mcp-tokens/$id'
     | '/api/reports/cash-flow'
     | '/api/reports/income-expenses'
     | '/api/reports/net-worth'
@@ -394,6 +415,7 @@ export interface FileRouteTypes {
     | '/api/categories'
     | '/api/category-groups'
     | '/api/jobs'
+    | '/api/mcp-tokens'
     | '/api/payees'
     | '/api/transactions'
     | '/api/accounts/$id/holdings'
@@ -422,6 +444,7 @@ export interface FileRouteTypes {
     | '/api/category-groups/$id'
     | '/api/fx/refresh'
     | '/api/fx/status'
+    | '/api/mcp-tokens/$id'
     | '/api/reports/cash-flow'
     | '/api/reports/income-expenses'
     | '/api/reports/net-worth'
@@ -431,6 +454,7 @@ export interface FileRouteTypes {
     | '/api/categories/'
     | '/api/category-groups/'
     | '/api/jobs/'
+    | '/api/mcp-tokens/'
     | '/api/payees/'
     | '/api/transactions/'
     | '/api/accounts/$id/holdings'
@@ -455,6 +479,7 @@ export interface RootRouteChildren {
   ApiCategoryGroupsIdRoute: typeof ApiCategoryGroupsIdRoute
   ApiFxRefreshRoute: typeof ApiFxRefreshRoute
   ApiFxStatusRoute: typeof ApiFxStatusRoute
+  ApiMcpTokensIdRoute: typeof ApiMcpTokensIdRoute
   ApiReportsCashFlowRoute: typeof ApiReportsCashFlowRoute
   ApiReportsIncomeExpensesRoute: typeof ApiReportsIncomeExpensesRoute
   ApiReportsNetWorthRoute: typeof ApiReportsNetWorthRoute
@@ -464,6 +489,7 @@ export interface RootRouteChildren {
   ApiCategoriesIndexRoute: typeof ApiCategoriesIndexRoute
   ApiCategoryGroupsIndexRoute: typeof ApiCategoryGroupsIndexRoute
   ApiJobsIndexRoute: typeof ApiJobsIndexRoute
+  ApiMcpTokensIndexRoute: typeof ApiMcpTokensIndexRoute
   ApiPayeesIndexRoute: typeof ApiPayeesIndexRoute
   ApiTransactionsIndexRoute: typeof ApiTransactionsIndexRoute
   ApiAccountsIdHoldingsRoute: typeof ApiAccountsIdHoldingsRoute
@@ -612,6 +638,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiJobsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mcp-tokens/': {
+      id: '/api/mcp-tokens/'
+      path: '/api/mcp-tokens'
+      fullPath: '/api/mcp-tokens/'
+      preLoaderRoute: typeof ApiMcpTokensIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp-tokens/$id': {
+      id: '/api/mcp-tokens/$id'
+      path: '/api/mcp-tokens/$id'
+      fullPath: '/api/mcp-tokens/$id'
+      preLoaderRoute: typeof ApiMcpTokensIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/payees/': {
       id: '/api/payees/'
       path: '/api/payees'
@@ -756,6 +796,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCategoryGroupsIdRoute: ApiCategoryGroupsIdRoute,
   ApiFxRefreshRoute: ApiFxRefreshRoute,
   ApiFxStatusRoute: ApiFxStatusRoute,
+  ApiMcpTokensIdRoute: ApiMcpTokensIdRoute,
   ApiReportsCashFlowRoute: ApiReportsCashFlowRoute,
   ApiReportsIncomeExpensesRoute: ApiReportsIncomeExpensesRoute,
   ApiReportsNetWorthRoute: ApiReportsNetWorthRoute,
@@ -765,6 +806,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCategoriesIndexRoute: ApiCategoriesIndexRoute,
   ApiCategoryGroupsIndexRoute: ApiCategoryGroupsIndexRoute,
   ApiJobsIndexRoute: ApiJobsIndexRoute,
+  ApiMcpTokensIndexRoute: ApiMcpTokensIndexRoute,
   ApiPayeesIndexRoute: ApiPayeesIndexRoute,
   ApiTransactionsIndexRoute: ApiTransactionsIndexRoute,
   ApiAccountsIdHoldingsRoute: ApiAccountsIdHoldingsRoute,

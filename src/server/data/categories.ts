@@ -5,7 +5,7 @@ import { checkName, found, InvalidInput } from "./validate"
 import type { Database } from "../db"
 import type { Actor, Category, CategoryGroup } from "@/shared/types"
 
-const { categoryGroups, categories, transactions } = schema
+const { categoryGroups, categories, transactions, budgets } = schema
 
 export function listCategoryGroups(): CategoryGroup[] {
   const groups = db()
@@ -47,14 +47,14 @@ export function getCategory(id: number): Category {
       .from(categories)
       .where(eq(categories.id, id))
       .get(),
-    "category"
+    `category ${id}`
   )
 }
 
 function getGroup(id: number): CategoryGroup {
   return found(
     listCategoryGroups().find((g) => g.id === id),
-    "category group"
+    `category group ${id}`
   )
 }
 
@@ -106,18 +106,61 @@ export function renameCategoryGroup(
   return getGroup(id)
 }
 
-/** Deletes a group with its categories; their transactions become uncategorized. */
-export function deleteCategoryGroup(actor: Actor, id: number): void {
+/**
+ * Deletes a group with its categories. With `transferTo`, their transactions
+ * and budget amounts move to that category first (see deleteCategory);
+ * otherwise their transactions become uncategorized.
+ */
+export function deleteCategoryGroup(
+  actor: Actor,
+  id: number,
+  transferTo?: number
+): void {
   const group = getGroup(id)
+  const target = transferTo === undefined ? undefined : getCategory(transferTo)
+  if (target?.groupId === id)
+    throw new InvalidInput(
+      `${target.name} is in the group being deleted; pick a category in another group`
+    )
   db().transaction((tx) => {
+    if (target)
+      for (const c of group.categories) moveCategoryData(tx, c.id, target.id)
     tx.delete(categoryGroups).where(eq(categoryGroups.id, id)).run()
     logChange(tx, actor, {
       action: "delete",
       entity: "category group",
       entityId: id,
-      summary: `Deleted category group ${group.name}`,
+      summary:
+        `Deleted category group ${group.name}` +
+        (target ? `, moving its transactions to ${target.name}` : ""),
     })
   })
+}
+
+/** Moves a category's transactions and budget amounts onto another category. */
+function moveCategoryData(
+  tx: Pick<Database, "select" | "insert" | "update">,
+  fromId: number,
+  toId: number
+) {
+  tx.update(transactions)
+    .set({ categoryId: toId })
+    .where(eq(transactions.categoryId, fromId))
+    .run()
+  const amounts = tx
+    .select()
+    .from(budgets)
+    .where(eq(budgets.categoryId, fromId))
+    .all()
+  for (const { month, amount } of amounts) {
+    tx.insert(budgets)
+      .values({ month, categoryId: toId, amount })
+      .onConflictDoUpdate({
+        target: [budgets.month, budgets.categoryId],
+        set: { amount: sql`${budgets.amount} + ${amount}` },
+      })
+      .run()
+  }
 }
 
 export function createCategory(
@@ -171,8 +214,9 @@ export function updateCategory(
 }
 
 /**
- * Deletes a category. Its transactions move to `transferTo` when given,
- * otherwise they become uncategorized; its budget amounts are dropped.
+ * Deletes a category. With `transferTo`, its transactions and budget amounts
+ * move to that category, so what was available carries over there; otherwise
+ * its transactions become uncategorized and its budget amounts are dropped.
  */
 export function deleteCategory(
   actor: Actor,
@@ -188,12 +232,7 @@ export function deleteCategory(
     getCategory(transferTo)
   }
   db().transaction((tx) => {
-    if (transferTo !== undefined) {
-      tx.update(transactions)
-        .set({ categoryId: transferTo })
-        .where(eq(transactions.categoryId, id))
-        .run()
-    }
+    if (transferTo !== undefined) moveCategoryData(tx, id, transferTo)
     tx.delete(categories).where(eq(categories.id, id)).run()
     logChange(tx, actor, {
       action: "delete",
