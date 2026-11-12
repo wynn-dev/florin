@@ -312,6 +312,29 @@ describe("applying to existing transactions", () => {
     expect(data.applyRules("mcp:test", { accountId: a }).changed).toBe(0)
   })
 
+  test("a payee the rules gave counts as untouched, so a later name rule renames it", () => {
+    data.saveRules("person", [
+      { pattern: String.raw`^BEA, [^,]*?Pay\s+(.+?)\s+NR:`, payee: "$1" },
+    ])
+    const a = account()
+    const t = importOne(a, {
+      payee: "BEA, Apple Pay",
+      notes: "BEA, Apple Pay JUMBO 1234 AMSTERDAM NR:XY12, 03.02.26/12:00",
+    })
+    expect(t.payeeName).toBe("JUMBO 1234 AMSTERDAM")
+    data.saveRules("person", [
+      { pattern: String.raw`^jumbo \d`, payee: "Jumbo" },
+    ])
+    expect(
+      data.applyRules("person", { accountId: a, dryRun: true })
+    ).toMatchObject({ changed: 1, payeesSet: 1 })
+    data.applyRules("person", { accountId: a })
+    expect(data.getTransaction(t.id).payeeName).toBe("Jumbo")
+    // A name given by hand stays.
+    data.updateTransaction("person", t.id, { payeeName: "Jumbo Centrum" })
+    expect(data.applyRules("person", { accountId: a }).changed).toBe(0)
+  })
+
   test("overwrite sets payee and category wherever a rule matches", () => {
     const a = existing()
     const done = data.applyRules("person", { accountId: a, overwrite: true })

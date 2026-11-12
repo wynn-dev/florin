@@ -79,7 +79,7 @@ export const applyRulesTool = defineTool({
   name: "apply_rules",
   title: "Apply rules to existing transactions",
   description:
-    "Runs the rules over existing transactions (transfers skipped): those with ids, or in accountId between from and to, or all. By default it only fills what is untouched: a category where there is none, and a payee where the transaction has none or still carries the bank's own name, so edits made by hand stay; overwrite: true sets both wherever a rule matches. dryRun: true answers the counts and a sample of up to 20 changes without writing. The run is one Activity entry, and payees it leaves with no transactions and no default category are deleted. Example: after save_rules, {dryRun: true} to check, then {} to apply.",
+    "Runs the rules over existing transactions (transfers skipped): those with ids, or in accountId between from and to, or all. By default it only fills what is untouched: a category where there is none, and a payee where the transaction has none or still carries the bank's own name or a name the rules gave it, so edits made by hand stay; overwrite: true sets both wherever a rule matches. dryRun: true answers the counts and a sample of up to 20 changes without writing. The run is one Activity entry, and payees it leaves with no transactions and no default category are deleted. Example: after save_rules, {dryRun: true} to check, then {} to apply.",
   input: {
     ids: z.array(zId).max(5000).optional(),
     accountId: zId.optional(),

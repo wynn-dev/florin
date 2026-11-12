@@ -199,7 +199,8 @@ rules after it name and categorise that shop:
 A category that comes with the row wins; with no rule category, the payee's
 default category applies. Only the final name becomes a payee. Applying the
 rules to existing transactions only fills what is untouched (no category, or
-the bank's own name as payee) unless told to overwrite, and removes payees it
+the bank's own name, or a name the rules gave, as payee) unless told to
+overwrite, and removes payees it
 leaves empty. Manage them in Settings › Rules or with the MCP tools
 `list_rules`, `save_rules`, `delete_rules` and `apply_rules`.
 

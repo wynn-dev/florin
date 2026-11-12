@@ -51,23 +51,31 @@ export type RuleSubject = {
  * Runs a row through the rules, top to bottom. A rule matches when its
  * pattern is found in the bank's text, the notes or the payee name as it
  * stands (which an earlier rule may have set); the first of those that
- * matches supplies $1…$9. A later match overrides an earlier one.
+ * matches supplies $1…$9. A later match overrides an earlier one. `names`
+ * is every payee name the row carried on the way, the first one included.
  */
 export function runRules(
   list: CompiledRule[],
   row: RuleSubject
-): { payee: string | null; categoryId: number | null; matched: boolean } {
+): {
+  payee: string | null
+  categoryId: number | null
+  matched: boolean
+  names: string[]
+} {
   let payee = row.payee
   let categoryId: number | null = null
   let matched = false
+  const names = payee ? [payee] : []
   for (const rule of list) {
     const match = firstMatch(rule.regex, [row.bankText, row.notes, payee])
     if (!match) continue
     matched = true
     if (rule.payee) payee = fill(rule.payee, match) || payee
+    if (payee && payee !== names.at(-1)) names.push(payee)
     if (rule.categoryId !== null) categoryId = rule.categoryId
   }
-  return { payee, categoryId, matched }
+  return { payee, categoryId, matched, names }
 }
 
 function firstMatch(
@@ -396,7 +404,8 @@ export function testRule(input: {
  * Runs the rules over existing transactions (transfers skipped): those with
  * `ids`, or in an account and date range, or all. By default it only fills
  * what is untouched: a category where there is none, and a payee where the
- * transaction has none or still carries the bank's own name; `overwrite`
+ * transaction has none or still carries the bank's own name or a name the
+ * rules gave it (so a name rule added later renames it); `overwrite`
  * sets both wherever a rule matches. A dry run answers what would change.
  * The run is one Activity entry; payees it leaves with no transactions and
  * no default category are removed in the same step.
@@ -449,16 +458,20 @@ export function applyRules(
   const leaving = new Map<number, number>()
   for (const t of rows) {
     const bankName = t.importedPayee ? cleanPayee(t.importedPayee) : null
+    // From the bank's own name, as on import, so the rules see the same
+    // chain of names they did then.
     const run = runRules(list, {
       bankText: t.importedPayee,
       notes: t.notes,
-      payee: t.payeeName ?? bankName,
+      payee: bankName ?? t.payeeName,
     })
     if (!run.matched) continue
     result.matched++
+    // Untouched: no payee, the bank's own name, or a name the rules give on
+    // the way (one an earlier run or the import set), not a hand edit.
     const untouchedPayee =
       t.payeeName === null ||
-      t.payeeName.toLowerCase() === bankName?.toLowerCase()
+      run.names.some((n) => n.toLowerCase() === t.payeeName!.toLowerCase())
     const payee =
       run.payee &&
       (options.overwrite || untouchedPayee) &&
