@@ -73,6 +73,45 @@ rm -rf ~/.local/share/florin ~/.local/bin/florin
 
 That leaves your data in `~/.florin`; remove that folder too to delete it.
 
+## Connect Interactive Brokers
+
+florin reads your IBKR account through IBKR's Flex Web Service: once a day,
+and whenever you press Pull now, it fetches an Activity Flex report and keeps
+the account's value for each day, its holdings and cash, and its trades,
+dividends, interest, fees, deposits and withdrawals. The account appears in
+florin in its IBKR base currency; if that isn't your budget's currency, it is
+tracking only and counts in net worth at the ECB rate of each day.
+
+In IBKR's Client Portal, under **Performance & Reports › Flex Queries**:
+
+1. Create an **Activity Flex Query** (the + beside Activity Flex Query) named
+   e.g. `florin`, with these sections:
+   - **Account Information** (florin keeps only the account id and base
+     currency; you may untick the personal fields)
+   - **Net Asset Value (NAV) in Base**
+   - **Cash Report**
+   - **Open Positions**, with level of detail **Summary**
+   - **Trades**, **Executions**
+   - **Cash Transactions**
+
+   Delivery configuration: format **XML**, period **Last 365 Calendar Days**.
+   General configuration: date format **yyyyMMdd**, time format **HHmmss**,
+   date/time separator **;** (IBKR's defaults), include canceled trades **No**.
+   Save it and note the **Query ID**, the number beside its name.
+
+2. Open **Flex Web Service Configuration**, turn the service on, and generate a
+   token. Pick a long validity (up to a year) and keep the token at hand.
+3. In florin: Accounts › Add account › Connect Interactive Brokers (or
+   Settings › Connections › Interactive Brokers), paste the token and the query
+   ID, and Connect. florin pulls the report right away and only keeps the token
+   once that works; the first pull brings in the past year.
+
+IBKR's reports are end of day and IBKR allows one request a minute, so florin
+pulls once a day and spaces pulls a minute apart. When the token expires,
+florin says so in Settings; generate a new one in step 2 and Change it there.
+If the query lacks a section, florin names the section to tick. Disconnecting
+forgets the token and keeps the account and its history.
+
 ## Connecting an MCP client
 
 florin's MCP server lets agents read and work the whole budget: accounts,
@@ -130,12 +169,19 @@ in a temporary folder) and `pnpm build`. CI runs all four on every pull request.
   migrations are bundled into the build and applied when florin opens the database.
 - `src/server/data/` – the data layer: every read and write of the budget.
   The `/api` routes and the MCP both call it. Every write takes an actor
-  (`person`, `mcp:<client>`, `bank-sync`, `import`, `demo`) and records a line
+  (`person`, `mcp:<client>`, `bank-sync`, `ibkr`, `import`, `demo`) and records a line
   in the change log.
 - `src/shared/types.ts` – the API types, shared by the server and the web app.
 - `src/server/jobs.ts` – background jobs (a plain in-process scheduler, state in
   the `jobs` table); `src/server/job-list.ts` registers them, one line each.
   `src/server/ecb.ts` is one: it keeps ECB rates for the currencies in use.
+- `src/server/ibkr/` – the Interactive Brokers connector: the Flex Web Service
+  client, the report parser and the sync (job `ibkr`, API under
+  `/api/connections/ibkr`). Tests run it against a fake Flex service
+  (`test/ibkr/fake-flex.ts`) serving a synthetic report; for development, run
+  `node test/ibkr/fake-flex.ts 4799` and start florin with
+  `FLORIN_IBKR_FLEX_URL=http://127.0.0.1:4799` (token `1234567890123456`,
+  query `123456`). Fixtures are synthetic; never commit a real report.
 - `src/server/secrets.ts` – connector credentials, kept in `config.json` (0600),
   never in the database or any API answer.
 - `src/routes/api/` – the REST API; `src/routes/mcp.ts` – the MCP endpoint.

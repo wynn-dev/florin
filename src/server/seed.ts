@@ -262,55 +262,92 @@ export function seedDemo(): {
     transactions++
   }
 
-  // The brokerage (USD): month-end values that grow with deposits and the market, and today's holdings.
+  // The brokerage (USD): a value per weekday that grows with the monthly
+  // deposits and the market, and today's holdings.
+  const values = []
   let value = 1_850_000
-  for (const month of months) {
-    value = Math.round(value * (1 + (rand() - 0.42) * 0.05) + 30_000 * 1.08)
-    data.setAccountValue(
-      "demo",
-      brokerage.id,
-      month === thisMonth ? now : monthEnd(month),
-      value
-    )
+  for (
+    let d = new Date(`${start}T00:00:00Z`);
+    d.toISOString().slice(0, 10) <= now;
+    d.setUTCDate(d.getUTCDate() + 1)
+  ) {
+    const date = d.toISOString().slice(0, 10)
+    if (d.getUTCDay() === 0 || d.getUTCDay() === 6) continue
+    value = Math.round(value * (1 + (rand() - 0.46) * 0.016))
+    if (date.endsWith("-02")) value += Math.round(30_000 * usdPerEur(date))
+    values.push({ date, value })
   }
+  data.setAccountValues("demo", brokerage.id, values)
   const positions = [
     {
       symbol: "VT",
       name: "Vanguard Total World Stock ETF",
+      assetClass: "etf" as const,
       weight: 0.52,
       price: 128.4,
+      gain: 0.21,
     },
     {
       symbol: "BND",
       name: "Vanguard Total Bond Market ETF",
+      assetClass: "bond" as const,
       weight: 0.18,
       price: 72.9,
+      gain: -0.03,
     },
-    { symbol: "AAPL", name: "Apple Inc.", weight: 0.11, price: 231.5 },
-    { symbol: "MSFT", name: "Microsoft Corp.", weight: 0.1, price: 438.2 },
-    { symbol: "ASML", name: "ASML Holding NV", weight: 0.06, price: 702.1 },
+    {
+      symbol: "AAPL",
+      name: "Apple Inc.",
+      assetClass: "stock" as const,
+      weight: 0.11,
+      price: 231.5,
+      gain: 0.34,
+    },
+    {
+      symbol: "MSFT",
+      name: "Microsoft Corp.",
+      assetClass: "stock" as const,
+      weight: 0.1,
+      price: 438.2,
+      gain: 0.12,
+    },
+    {
+      symbol: "ASML",
+      name: "ASML Holding NV",
+      assetClass: "stock" as const,
+      weight: 0.06,
+      price: 702.1,
+      gain: -0.08,
+    },
   ]
   const cashValue =
     value - positions.reduce((s, p) => s + Math.round(value * p.weight), 0)
   data.replaceHoldings("demo", brokerage.id, [
     ...positions.map((p) => {
       const v = Math.round(value * p.weight)
+      const costBasis = Math.round(v / (1 + p.gain))
       return {
         symbol: p.symbol,
         name: p.name,
+        assetClass: p.assetClass,
         quantity: Math.round((v / 100 / p.price) * 1000) / 1000,
         price: p.price,
         value: v,
+        costBasis,
+        unrealizedPnl: v - costBasis,
         currency: "USD",
         asOf: now,
       }
     }),
     {
       symbol: "USD",
-      name: "Cash",
+      name: "USD cash",
+      assetClass: "cash",
       quantity: cashValue / 100,
       price: 1,
       value: cashValue,
+      costBasis: null,
+      unrealizedPnl: null,
       currency: "USD",
       asOf: now,
     },

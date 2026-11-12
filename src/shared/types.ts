@@ -5,9 +5,10 @@
 
 /**
  * Who makes a change: the person in the dashboard, an MCP client (by its
- * name), the bank connector, a file import, or the demo seed.
+ * name), the bank connector, the IBKR connector, a file import, or the demo seed.
  */
-export type Actor = "person" | "bank-sync" | "import" | "demo" | `mcp:${string}`
+export type Actor =
+  "person" | "bank-sync" | "ibkr" | "import" | "demo" | `mcp:${string}`
 
 export type Change = {
   id: number
@@ -88,17 +89,38 @@ export type AccountPatch = Partial<
 
 export type AccountValue = { date: string; value: number }
 
+/** How a holding counts in an account's allocation. */
+export type AssetClass = "stock" | "etf" | "bond" | "cash" | "other"
+
+/**
+ * One position of an investment account, or its cash in one currency
+ * (assetClass "cash": symbol and currency are the currency's code, quantity
+ * the amount in it, price 1).
+ */
 export type Holding = {
   symbol: string
   name: string
+  assetClass: AssetClass
   quantity: number
   /** Unit price in the holding's own currency. */
   price: number
   /** Market value in the account's currency. */
   value: number
+  /** What the position cost, in the account's currency; null when unknown and for cash. */
+  costBasis: number | null
+  /** value − costBasis as the broker reports it, in the account's currency; null when unknown and for cash. */
+  unrealizedPnl: number | null
+  /** The holding's own currency (its price is in it). */
   currency: string
   asOf: string
 }
+
+/** A holding as written: asset class defaults to "other", cost basis and P/L to unknown. */
+export type NewHolding = Omit<
+  Holding,
+  "assetClass" | "costBasis" | "unrealizedPnl"
+> &
+  Partial<Pick<Holding, "assetClass" | "costBasis" | "unrealizedPnl">>
 
 export type Payee = { id: number; name: string; transactionCount: number }
 

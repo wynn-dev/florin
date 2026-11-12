@@ -22,8 +22,10 @@ import type {
   AccountType,
   AccountValue,
   Actor,
+  AssetClass,
   Holding,
   NewAccount,
+  NewHolding,
 } from "@/shared/types"
 
 const { accounts, transactions, accountValues, holdings } = schema
@@ -275,15 +277,20 @@ export function setAccountValue(
   })
 }
 
+const ASSET_CLASSES: AssetClass[] = ["stock", "etf", "bond", "cash", "other"]
+
 export function listHoldings(accountId: number): Holding[] {
   getAccount(accountId)
   return db()
     .select({
       symbol: holdings.symbol,
       name: holdings.name,
+      assetClass: holdings.assetClass,
       quantity: holdings.quantity,
       price: holdings.price,
       value: holdings.value,
+      costBasis: holdings.costBasis,
+      unrealizedPnl: holdings.unrealizedPnl,
       currency: holdings.currency,
       asOf: holdings.asOf,
     })
@@ -293,32 +300,95 @@ export function listHoldings(accountId: number): Holding[] {
     .all()
 }
 
+/** Checks a list of holdings for replaceHoldings (and the IBKR connector). */
+export function checkHoldings(positions: NewHolding[]): Holding[] {
+  return checkList(positions, "holdings").map((p) => {
+    checkObject(p, "each holding")
+    const assetClass = p.assetClass ?? "other"
+    if (!ASSET_CLASSES.includes(assetClass))
+      throw new InvalidInput(
+        `assetClass must be one of ${ASSET_CLASSES.join(", ")}`
+      )
+    if (typeof p.quantity !== "number" || !Number.isFinite(p.quantity))
+      throw new InvalidInput("quantity must be a number")
+    if (typeof p.price !== "number" || !Number.isFinite(p.price))
+      throw new InvalidInput("price must be a number")
+    return {
+      symbol: checkName(p.symbol, "symbol"),
+      name: typeof p.name === "string" ? p.name.trim() : "",
+      assetClass,
+      quantity: p.quantity,
+      price: p.price,
+      value: checkAmount(p.value, "value"),
+      costBasis:
+        p.costBasis == null ? null : checkAmount(p.costBasis, "costBasis"),
+      unrealizedPnl:
+        p.unrealizedPnl == null
+          ? null
+          : checkAmount(p.unrealizedPnl, "unrealizedPnl"),
+      currency: checkCurrency(p.currency),
+      asOf: checkDate(p.asOf, "asOf"),
+    }
+  })
+}
+
 /** Replaces an account's holdings with the given positions. */
 export function replaceHoldings(
   actor: Actor,
   accountId: number,
-  positions: Holding[]
+  positions: NewHolding[]
 ): Holding[] {
   const account = getAccount(accountId)
-  for (const p of checkList(positions, "holdings")) {
-    checkObject(p, "each holding")
-    checkName(p.symbol, "symbol")
-    checkAmount(p.value, "value")
-    checkDate(p.asOf, "asOf")
-  }
+  const rows = checkHoldings(positions)
   db().transaction((tx) => {
     tx.delete(holdings).where(eq(holdings.accountId, accountId)).run()
-    if (positions.length) {
+    if (rows.length) {
       tx.insert(holdings)
-        .values(positions.map((p) => ({ ...p, accountId })))
+        .values(rows.map((p) => ({ ...p, accountId })))
         .run()
     }
     logChange(tx, actor, {
       action: "update",
       entity: "account",
       entityId: accountId,
-      summary: `Updated ${account.name}'s holdings (${positions.length} positions)`,
+      summary: `Updated ${account.name}'s holdings (${rows.length} positions)`,
     })
   })
   return listHoldings(accountId)
+}
+
+/**
+ * Records many dated values at once (replacing those dates' values), with
+ * one line in the change log.
+ */
+export function setAccountValues(
+  actor: Actor,
+  accountId: number,
+  values: AccountValue[]
+): void {
+  const account = getAccount(accountId)
+  for (const v of checkList(values, "values")) {
+    checkObject(v, "each value")
+    checkDate(v.date)
+    checkAmount(v.value, "value")
+  }
+  if (!values.length) return
+  db().transaction((tx) => {
+    for (const { date, value } of values) {
+      tx.insert(accountValues)
+        .values({ accountId, date, value })
+        .onConflictDoUpdate({
+          target: [accountValues.accountId, accountValues.date],
+          set: { value },
+        })
+        .run()
+    }
+    const dates = values.map((v) => v.date).sort()
+    logChange(tx, actor, {
+      action: "update",
+      entity: "account",
+      entityId: accountId,
+      summary: `Recorded ${values.length} values of ${account.name} from ${dates[0]} to ${dates.at(-1)}`,
+    })
+  })
 }

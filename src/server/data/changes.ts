@@ -13,6 +13,7 @@ export function checkActor(actor: unknown): Actor {
   if (
     actor === "person" ||
     actor === "bank-sync" ||
+    actor === "ibkr" ||
     actor === "import" ||
     actor === "demo" ||
     (typeof actor === "string" && /^mcp:.{1,80}$/.test(actor))
@@ -20,7 +21,7 @@ export function checkActor(actor: unknown): Actor {
     return actor as Actor
   }
   throw new InvalidInput(
-    "actor must be person, bank-sync, import, demo or mcp:<client>"
+    "actor must be person, bank-sync, ibkr, import, demo or mcp:<client>"
   )
 }
 

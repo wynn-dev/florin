@@ -43,6 +43,8 @@ import { Route as ApiAccountsIdImportRouteImport } from './routes/api/accounts/$
 import { Route as ApiAccountsIdValuesRouteImport } from './routes/api/accounts/$id/values'
 import { Route as ApiBudgetMonthIndexRouteImport } from './routes/api/budget/$month/index'
 import { Route as ApiBudgetMonthCategoryIdRouteImport } from './routes/api/budget/$month/$categoryId'
+import { Route as ApiConnectionsIbkrIndexRouteImport } from './routes/api/connections/ibkr/index'
+import { Route as ApiConnectionsIbkrPullRouteImport } from './routes/api/connections/ibkr/pull'
 import { Route as ApiJobsNameRunRouteImport } from './routes/api/jobs/$name/run'
 import { Route as ApiPayeesIdIndexRouteImport } from './routes/api/payees/$id/index'
 import { Route as ApiPayeesIdMergeRouteImport } from './routes/api/payees/$id/merge'
@@ -218,6 +220,16 @@ const ApiBudgetMonthCategoryIdRoute =
     path: '/api/budget/$month/$categoryId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiConnectionsIbkrIndexRoute = ApiConnectionsIbkrIndexRouteImport.update({
+  id: '/api/connections/ibkr/',
+  path: '/api/connections/ibkr/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConnectionsIbkrPullRoute = ApiConnectionsIbkrPullRouteImport.update({
+  id: '/api/connections/ibkr/pull',
+  path: '/api/connections/ibkr/pull',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiJobsNameRunRoute = ApiJobsNameRunRouteImport.update({
   id: '/api/jobs/$name/run',
   path: '/api/jobs/$name/run',
@@ -266,10 +278,12 @@ export interface FileRoutesByFullPath {
   '/api/accounts/$id/import': typeof ApiAccountsIdImportRoute
   '/api/accounts/$id/values': typeof ApiAccountsIdValuesRoute
   '/api/budget/$month/$categoryId': typeof ApiBudgetMonthCategoryIdRoute
+  '/api/connections/ibkr/pull': typeof ApiConnectionsIbkrPullRoute
   '/api/jobs/$name/run': typeof ApiJobsNameRunRoute
   '/api/payees/$id/merge': typeof ApiPayeesIdMergeRoute
   '/api/accounts/$id/': typeof ApiAccountsIdIndexRoute
   '/api/budget/$month/': typeof ApiBudgetMonthIndexRoute
+  '/api/connections/ibkr/': typeof ApiConnectionsIbkrIndexRoute
   '/api/payees/$id/': typeof ApiPayeesIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -304,10 +318,12 @@ export interface FileRoutesByTo {
   '/api/accounts/$id/import': typeof ApiAccountsIdImportRoute
   '/api/accounts/$id/values': typeof ApiAccountsIdValuesRoute
   '/api/budget/$month/$categoryId': typeof ApiBudgetMonthCategoryIdRoute
+  '/api/connections/ibkr/pull': typeof ApiConnectionsIbkrPullRoute
   '/api/jobs/$name/run': typeof ApiJobsNameRunRoute
   '/api/payees/$id/merge': typeof ApiPayeesIdMergeRoute
   '/api/accounts/$id': typeof ApiAccountsIdIndexRoute
   '/api/budget/$month': typeof ApiBudgetMonthIndexRoute
+  '/api/connections/ibkr': typeof ApiConnectionsIbkrIndexRoute
   '/api/payees/$id': typeof ApiPayeesIdIndexRoute
 }
 export interface FileRoutesById {
@@ -344,10 +360,12 @@ export interface FileRoutesById {
   '/api/accounts/$id/import': typeof ApiAccountsIdImportRoute
   '/api/accounts/$id/values': typeof ApiAccountsIdValuesRoute
   '/api/budget/$month/$categoryId': typeof ApiBudgetMonthCategoryIdRoute
+  '/api/connections/ibkr/pull': typeof ApiConnectionsIbkrPullRoute
   '/api/jobs/$name/run': typeof ApiJobsNameRunRoute
   '/api/payees/$id/merge': typeof ApiPayeesIdMergeRoute
   '/api/accounts/$id/': typeof ApiAccountsIdIndexRoute
   '/api/budget/$month/': typeof ApiBudgetMonthIndexRoute
+  '/api/connections/ibkr/': typeof ApiConnectionsIbkrIndexRoute
   '/api/payees/$id/': typeof ApiPayeesIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -384,10 +402,12 @@ export interface FileRouteTypes {
     | '/api/accounts/$id/import'
     | '/api/accounts/$id/values'
     | '/api/budget/$month/$categoryId'
+    | '/api/connections/ibkr/pull'
     | '/api/jobs/$name/run'
     | '/api/payees/$id/merge'
     | '/api/accounts/$id/'
     | '/api/budget/$month/'
+    | '/api/connections/ibkr/'
     | '/api/payees/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -422,10 +442,12 @@ export interface FileRouteTypes {
     | '/api/accounts/$id/import'
     | '/api/accounts/$id/values'
     | '/api/budget/$month/$categoryId'
+    | '/api/connections/ibkr/pull'
     | '/api/jobs/$name/run'
     | '/api/payees/$id/merge'
     | '/api/accounts/$id'
     | '/api/budget/$month'
+    | '/api/connections/ibkr'
     | '/api/payees/$id'
   id:
     | '__root__'
@@ -461,10 +483,12 @@ export interface FileRouteTypes {
     | '/api/accounts/$id/import'
     | '/api/accounts/$id/values'
     | '/api/budget/$month/$categoryId'
+    | '/api/connections/ibkr/pull'
     | '/api/jobs/$name/run'
     | '/api/payees/$id/merge'
     | '/api/accounts/$id/'
     | '/api/budget/$month/'
+    | '/api/connections/ibkr/'
     | '/api/payees/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -496,10 +520,12 @@ export interface RootRouteChildren {
   ApiAccountsIdImportRoute: typeof ApiAccountsIdImportRoute
   ApiAccountsIdValuesRoute: typeof ApiAccountsIdValuesRoute
   ApiBudgetMonthCategoryIdRoute: typeof ApiBudgetMonthCategoryIdRoute
+  ApiConnectionsIbkrPullRoute: typeof ApiConnectionsIbkrPullRoute
   ApiJobsNameRunRoute: typeof ApiJobsNameRunRoute
   ApiPayeesIdMergeRoute: typeof ApiPayeesIdMergeRoute
   ApiAccountsIdIndexRoute: typeof ApiAccountsIdIndexRoute
   ApiBudgetMonthIndexRoute: typeof ApiBudgetMonthIndexRoute
+  ApiConnectionsIbkrIndexRoute: typeof ApiConnectionsIbkrIndexRoute
   ApiPayeesIdIndexRoute: typeof ApiPayeesIdIndexRoute
 }
 
@@ -743,6 +769,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBudgetMonthCategoryIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/connections/ibkr/': {
+      id: '/api/connections/ibkr/'
+      path: '/api/connections/ibkr'
+      fullPath: '/api/connections/ibkr/'
+      preLoaderRoute: typeof ApiConnectionsIbkrIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/connections/ibkr/pull': {
+      id: '/api/connections/ibkr/pull'
+      path: '/api/connections/ibkr/pull'
+      fullPath: '/api/connections/ibkr/pull'
+      preLoaderRoute: typeof ApiConnectionsIbkrPullRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/jobs/$name/run': {
       id: '/api/jobs/$name/run'
       path: '/api/jobs/$name/run'
@@ -813,22 +853,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAccountsIdImportRoute: ApiAccountsIdImportRoute,
   ApiAccountsIdValuesRoute: ApiAccountsIdValuesRoute,
   ApiBudgetMonthCategoryIdRoute: ApiBudgetMonthCategoryIdRoute,
+  ApiConnectionsIbkrPullRoute: ApiConnectionsIbkrPullRoute,
   ApiJobsNameRunRoute: ApiJobsNameRunRoute,
   ApiPayeesIdMergeRoute: ApiPayeesIdMergeRoute,
   ApiAccountsIdIndexRoute: ApiAccountsIdIndexRoute,
   ApiBudgetMonthIndexRoute: ApiBudgetMonthIndexRoute,
+  ApiConnectionsIbkrIndexRoute: ApiConnectionsIbkrIndexRoute,
   ApiPayeesIdIndexRoute: ApiPayeesIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
