@@ -59,6 +59,9 @@ function selectTransactions(
       importedPayee: transactions.importedPayee,
       bookedDate: transactions.bookedDate,
       transferAmount: transferLeg.amount,
+      transferImported: sql<boolean>`${transferLeg.importedId} is not null`.mapWith(
+        Boolean
+      ),
       ...(withBalance
         ? {
             // The account's balance after this row, in the list's own order (date, then id).
@@ -227,7 +230,7 @@ function checkCategory(
 }
 
 /** "−€42.50 at Lidl in Current account on 2026-03-02" */
-function describeTransaction(t: Transaction): string {
+export function describeTransaction(t: Transaction): string {
   const where = t.transferAccountName
     ? `from ${t.accountName} to ${t.transferAccountName}`
     : `${t.payeeName ? `at ${t.payeeName} ` : ""}in ${t.accountName}`
@@ -369,6 +372,27 @@ function addTransferLeg(
     .run()
 }
 
+/**
+ * The other leg of a transfer that is going away (deleted, or no longer a
+ * transfer): a leg florin made goes with it; a leg that came from a bank or
+ * an import stays, as a plain row, so nothing the bank sent is lost and the
+ * next sync adds nothing back.
+ */
+export function releaseLeg(tx: Tx, legId: number) {
+  const leg = tx
+    .select({ importedId: transactions.importedId })
+    .from(transactions)
+    .where(eq(transactions.id, legId))
+    .get()
+  if (!leg) return
+  if (leg.importedId)
+    tx.update(transactions)
+      .set({ transferId: null })
+      .where(eq(transactions.id, legId))
+      .run()
+  else tx.delete(transactions).where(eq(transactions.id, legId)).run()
+}
+
 function applyPatch(tx: Tx, id: number, patch: TransactionPatch): string[] {
   checkObject(patch, "patch")
   const current = getTransaction(id, tx)
@@ -420,8 +444,8 @@ function applyPatch(tx: Tx, id: number, patch: TransactionPatch): string[] {
 
   const legId = current.transferId
   if (patch.transferAccountId === null && legId) {
-    // No longer a transfer: drop the other leg.
-    tx.delete(transactions).where(eq(transactions.id, legId)).run()
+    // No longer a transfer: drop the other leg florin made, keep a bank's.
+    releaseLeg(tx, legId)
     tx.update(transactions)
       .set({ transferId: null })
       .where(eq(transactions.id, id))
@@ -429,21 +453,24 @@ function applyPatch(tx: Tx, id: number, patch: TransactionPatch): string[] {
   } else if (patch.transferAccountId && !legId) {
     addTransferLeg(tx, id, patch.transferAccountId, patch.transferAmount)
   } else if (legId) {
-    // Keep the other leg mirrored; across currencies only transferAmount moves its amount.
+    // Keep the other leg mirrored; across currencies only transferAmount
+    // moves its amount. A leg from a bank or an import keeps its own date,
+    // notes and status, as the bank gave them.
     const mirror: Partial<typeof transactions.$inferInsert> = {}
+    const own = !current.transferImported
     const legAccount = getAccount(
       patch.transferAccountId ?? current.transferAccountId!
     )
     const sameCurrency =
       legAccount.currency ===
       getAccount(set.accountId ?? current.accountId).currency
-    if (set.date !== undefined) mirror.date = set.date
+    if (set.date !== undefined && own) mirror.date = set.date
     if (patch.transferAmount !== undefined)
       mirror.amount = checkAmount(patch.transferAmount, "transferAmount")
     else if (set.amount !== undefined && sameCurrency)
       mirror.amount = -set.amount
-    if (set.notes !== undefined) mirror.notes = set.notes
-    if (set.status !== undefined) mirror.status = set.status
+    if (set.notes !== undefined && own) mirror.notes = set.notes
+    if (set.status !== undefined && own) mirror.status = set.status
     if (patch.transferAccountId) mirror.accountId = patch.transferAccountId
     if (Object.keys(mirror).length)
       tx.update(transactions)
@@ -572,7 +599,11 @@ export function deleteTransaction(actor: Actor, id: number): void {
   deleteTransactions(actor, [id])
 }
 
-/** Deletes transactions in one database transaction; deleting either leg of a transfer deletes both. */
+/**
+ * Deletes transactions in one database transaction. Deleting a leg of a
+ * transfer deletes the other leg too when florin made it; a leg from a bank
+ * or an import stays, as a plain row.
+ */
 export function deleteTransactions(actor: Actor, ids: number[]): void {
   const doomed = checkList(ids, "ids").map((id) => getTransaction(id))
   db().transaction((tx) => {
@@ -583,8 +614,7 @@ export function deleteTransactions(actor: Actor, ids: number[]): void {
           .values({ accountId: t.accountId, importedId: t.importedId })
           .onConflictDoNothing()
           .run()
-      if (t.transferId)
-        tx.delete(transactions).where(eq(transactions.id, t.transferId)).run()
+      if (t.transferId) releaseLeg(tx, t.transferId)
       logChange(tx, actor, {
         action: "delete",
         entity: "transaction",

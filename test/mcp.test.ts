@@ -362,6 +362,63 @@ describe("over HTTP", () => {
     expect(data.listPayees({ search: "Short lived" }).total).toBe(0)
   })
 
+  test("suggest_transfers finds a pair that link_transfers links, in one Activity entry", async () => {
+    const savings = data.createAccount("person", {
+      name: "Rainy day",
+      type: "savings",
+    })
+    data.importTransactions("import", checking, [
+      {
+        date: day(3),
+        amount: -25_000,
+        payee: "TO RAINY DAY",
+        importedId: "a1",
+      },
+    ])
+    data.importTransactions("import", savings.id, [
+      {
+        date: day(4),
+        amount: 25_000,
+        payee: "FROM CHECKING",
+        importedId: "b1",
+      },
+    ])
+    const suggested = await call(http.client, "suggest_transfers", {
+      accountId: savings.id,
+    })
+    expect(suggested.total).toBe(1)
+    const [{ out, into, days }] = suggested.items
+    expect(out).toMatchObject({ amount: -25_000, account: "Checking" })
+    expect(into).toMatchObject({ amount: 25_000, account: "Rainy day" })
+    expect(days).toBe(1)
+
+    const before = data.listActivity({ limit: 1 }).items[0].id
+    const linked = await call(http.client, "link_transfers", {
+      pairs: [[into.id, out.id]],
+    })
+    expect(linked.linked).toBe(1)
+    expect(linked.pairs[0].out).toMatchObject({
+      id: out.id,
+      transferAccount: "Rainy day",
+      bankText: "TO RAINY DAY",
+    })
+    const lines = data
+      .listActivity({ limit: 10 })
+      .items.filter((c) => c.id > before)
+    expect(new Set(lines.map((c) => c.batch)).size).toBe(1)
+
+    const found = await call(http.client, "search_transactions", {
+      accountId: savings.id,
+    })
+    expect(found.items[0]).toMatchObject({
+      transferId: out.id,
+      transferAccount: "Checking",
+    })
+    await expect(
+      call(http.client, "link_transfers", { pairs: [[into.id, out.id]] })
+    ).rejects.toThrow(/both are already transfers/)
+  })
+
   test("a revoked token is refused", async () => {
     const other = data.createMcpToken("person", "Old phone")
     data.deleteMcpToken("person", other.id)

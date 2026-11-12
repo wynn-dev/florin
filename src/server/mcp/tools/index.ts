@@ -34,7 +34,9 @@ import {
   addTransactions,
   deleteTransactionsTool,
   importTransactionsTool,
+  linkTransfersTool,
   searchTransactions,
+  suggestTransfersTool,
   updateTransactions,
 } from "./transactions"
 import type { FlorinTool } from "../tool"
@@ -47,6 +49,8 @@ export const tools: FlorinTool[] = [
   updateTransactions,
   deleteTransactionsTool,
   importTransactionsTool,
+  suggestTransfersTool,
+  linkTransfersTool,
   // Budget
   getBudgetMonthTool,
   setBudget,
