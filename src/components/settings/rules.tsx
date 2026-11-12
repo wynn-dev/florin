@@ -475,7 +475,11 @@ function ApplyDialog({
                     .filter(Boolean)
                     .join(
                       " and "
-                    )} on ${plural(changes, "transaction", "transactions")}. Edits made by hand stay.`}
+                    )} on ${plural(changes, "transaction", "transactions")}${
+                    result.payeesRemoved
+                      ? ` and removes ${plural(result.payeesRemoved, "payee", "payees")} left without transactions`
+                      : ""
+                  }. Edits made by hand stay.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

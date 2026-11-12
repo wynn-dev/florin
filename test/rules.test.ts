@@ -20,10 +20,11 @@ function categoryId(name: string): number {
 }
 
 let n = 0
-function account() {
+function account(onBudget = true) {
   return data.createAccount("person", {
     name: `Current ${++n}`,
     type: "checking",
+    onBudget,
   }).id
 }
 
@@ -80,6 +81,25 @@ describe("on import", () => {
     expect(t.payeeName).toBe("Bakery Lune (X12)")
   })
 
+  test("a captured name in capitals is tidied; text typed into the rule stays", () => {
+    data.saveRules("person", [
+      { pattern: String.raw`^BEA, [^,]*?Pay\s+(.+?)\s+NR:`, payee: "$1" },
+      { pattern: String.raw`^tikkie (\w+)`, payee: "TIKKIE from $1" },
+    ])
+    const a = account()
+    expect(
+      importOne(a, {
+        payee: APPLE_PAY,
+        notes: "BEA, Apple Pay CORNER SHOP 12 NR:AB123, 01.02.26/10:00",
+      }).payeeName
+    ).toBe("Corner Shop 12")
+    expect(importOne(a, { payee: "TIKKIE MARLOES" }).payeeName).toBe(
+      "TIKKIE from Marloes"
+    )
+    data.saveRules("person", [{ pattern: "^ns reizen", payee: "NS REIZEN" }])
+    expect(importOne(a, { payee: "NS REIZEN 22" }).payeeName).toBe("NS REIZEN")
+  })
+
   test("a later matching rule overrides an earlier one; case doesn't matter", () => {
     data.saveRules("person", [
       { pattern: "lidl", payee: "Lidl", categoryId: categoryId("Groceries") },
@@ -129,6 +149,28 @@ describe("on import", () => {
     expect(importOne(a, { payee: "Cafe Noord" }).categoryName).toBe(
       "Dining out"
     )
+  })
+
+  test("a row in an off-budget account gets the rule's payee, no category", () => {
+    const dining = categoryId("Dining out")
+    const broker = account(false)
+    const first = importOne(broker, { payee: "Cafe Noord" })
+    data.setPayeeCategory("person", first.payeeId!, dining)
+    data.saveRules("person", [
+      {
+        pattern: "nordbroker",
+        payee: "Nordbroker",
+        categoryId: categoryId("Shopping"),
+      },
+    ])
+    expect(
+      importOne(broker, { payee: "Interest", notes: "NORDBROKER credit" })
+    ).toMatchObject({ payeeName: "Nordbroker", categoryId: null })
+    expect(importOne(broker, { payee: "Cafe Noord" }).categoryId).toBeNull()
+    // A category given with the row is still kept.
+    expect(
+      importOne(broker, { payee: "Kiosk 9", categoryId: dining }).categoryName
+    ).toBe("Dining out")
   })
 })
 
@@ -321,7 +363,7 @@ describe("applying to existing transactions", () => {
       payee: "BEA, Apple Pay",
       notes: "BEA, Apple Pay JUMBO 1234 AMSTERDAM NR:XY12, 03.02.26/12:00",
     })
-    expect(t.payeeName).toBe("JUMBO 1234 AMSTERDAM")
+    expect(t.payeeName).toBe("Jumbo 1234 Amsterdam")
     data.saveRules("person", [
       { pattern: String.raw`^jumbo \d`, payee: "Jumbo" },
     ])
@@ -386,6 +428,48 @@ describe("applying to existing transactions", () => {
     ).toBe(1)
   })
 
+  test("a row in an off-budget account gets the payee, not the category; the dry run agrees", () => {
+    const broker = account(false)
+    data.importTransactions("import", broker, [
+      {
+        date: "2026-05-01",
+        amount: 120,
+        payee: "Interest",
+        notes: "NORDBROKER credit",
+      },
+      { date: "2026-05-02", amount: 300, payee: "Dividend" },
+    ])
+    data.saveRules("person", [
+      { pattern: "nordbroker", payee: "Nordbroker", categoryId: groceries() },
+      { pattern: "^dividend$", categoryId: groceries() },
+    ])
+    for (const overwrite of [false, true])
+      expect(
+        data.applyRules("person", {
+          accountId: broker,
+          overwrite,
+          dryRun: true,
+        })
+      ).toMatchObject({
+        matched: 2,
+        changed: 1,
+        payeesSet: 1,
+        categoriesSet: 0,
+      })
+    expect(data.applyRules("person", { accountId: broker })).toMatchObject({
+      changed: 1,
+      categoriesSet: 0,
+    })
+    expect(
+      data
+        .listTransactions({ accountId: broker })
+        .items.map((t) => [t.payeeName, t.categoryId])
+    ).toEqual([
+      ["Dividend", null],
+      ["Nordbroker", null],
+    ])
+  })
+
   test("a payee with a default category is kept", () => {
     const a = account()
     data.importTransactions("import", a, [
@@ -410,7 +494,7 @@ describe("testing one rule", () => {
         date: "2026-06-01",
         amount: -100,
         payee: "BEA, Google Pay",
-        notes: "BEA, Google Pay Tea House 3 NR:CD456, 01.06.26/09:00",
+        notes: "BEA, Google Pay TEA HOUSE 3 NR:CD456, 01.06.26/09:00",
       },
       { date: "2026-06-02", amount: -100, payee: "Bakery Lune" },
     ])
