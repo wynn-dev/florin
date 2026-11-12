@@ -24,6 +24,7 @@ export function listCategoryGroups(): CategoryGroup[] {
       groupId: categories.groupId,
       name: categories.name,
       hidden: categories.hidden,
+      outsideGoal: categories.outsideGoal,
     })
     .from(categories)
     .orderBy(asc(categories.sortOrder), asc(categories.id))
@@ -44,6 +45,7 @@ export function getCategory(id: number): Category {
         groupId: categories.groupId,
         name: categories.name,
         hidden: categories.hidden,
+        outsideGoal: categories.outsideGoal,
       })
       .from(categories)
       .where(eq(categories.id, id))
@@ -196,21 +198,43 @@ export function createCategory(
 export function updateCategory(
   actor: Actor,
   id: number,
-  patch: { name?: string; hidden?: boolean; groupId?: number }
+  patch: {
+    name?: string
+    hidden?: boolean
+    groupId?: number
+    outsideGoal?: boolean
+  }
 ): Category {
   const category = getCategory(id)
   const set: Partial<typeof categories.$inferInsert> = {}
   if (patch.name !== undefined) set.name = checkName(patch.name)
   if (patch.hidden !== undefined) set.hidden = Boolean(patch.hidden)
   if (patch.groupId !== undefined) set.groupId = getGroup(patch.groupId).id
+  if (patch.outsideGoal !== undefined) {
+    if (Boolean(patch.outsideGoal) !== category.outsideGoal)
+      set.outsideGoal = Boolean(patch.outsideGoal)
+  }
   if (!Object.keys(set).length) return category
+  const { outsideGoal, ...rest } = set
+  const summaries = [
+    ...(Object.keys(rest).length
+      ? [`Changed category ${category.name}: ${describe(rest)}`]
+      : []),
+    ...(outsideGoal === undefined
+      ? []
+      : [
+          outsideGoal
+            ? `Left ${category.name} out of the monthly goal`
+            : `Counted ${category.name} in the monthly goal`,
+        ]),
+  ]
   db().transaction((tx) => {
     tx.update(categories).set(set).where(eq(categories.id, id)).run()
     logChange(tx, actor, {
       action: "update",
       entity: "category",
       entityId: id,
-      summary: `Changed category ${category.name}: ${describe(set)}`,
+      summary: summaries.join("; "),
     })
   })
   return getCategory(id)

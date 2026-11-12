@@ -72,6 +72,10 @@ export const categories = sqliteTable(
       .references(() => categoryGroups.id, { onDelete: "cascade" }),
     name: text().notNull(),
     hidden: integer({ mode: "boolean" }).notNull().default(false),
+    /** Left out of the monthly goal's spending (investing, a company's costs, one-offs). */
+    outsideGoal: integer("outside_goal", { mode: "boolean" })
+      .notNull()
+      .default(false),
     sortOrder: integer("sort_order").notNull().default(0),
     /** A category florin itself relies on, found by this rather than its name: "starting-balances". */
     key: text(),

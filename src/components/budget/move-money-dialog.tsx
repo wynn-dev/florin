@@ -6,6 +6,7 @@ import { queries } from "@/lib/api"
 import {
   currencySymbol,
   currentMonth,
+  formatLeft,
   formatMoney,
   formatMonth,
   parseAmount,
@@ -36,7 +37,7 @@ const id = (choice: CategoryChoice | null) =>
 
 /**
  * Move money on its own (from ⌘K): from, to and an amount, for the current
- * month. Ready to assign is a choice on either side. Undo is in the toast.
+ * month. Not planned yet is a choice on either side. Undo is in the toast.
  */
 export function MoveMoneyDialog({
   open,
@@ -72,7 +73,7 @@ function MoveForm({ onDone }: { onDone: () => void }) {
       ? (budget?.groups
           .flatMap((g) => g.categories)
           .find((c) => c.id === choice.id)?.name ?? "")
-      : "Ready to assign"
+      : "money not planned yet"
   const available = (choice: CategoryChoice | null) =>
     choice?.type === "category"
       ? budget?.groups
@@ -120,7 +121,8 @@ function MoveForm({ onDone }: { onDone: () => void }) {
           />
           {left !== undefined && (
             <p className="text-sm text-muted-foreground tabular-nums">
-              {formatMoney(left, currency)} available
+              {formatLeft(left, currency)}
+              {left >= 0 && " left"}
             </p>
           )}
         </Field>

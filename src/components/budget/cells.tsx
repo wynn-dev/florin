@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import {
   firstDay,
   formatAmountInput,
+  formatLeft,
   formatMoney,
   lastDay,
   parseAmount,
@@ -89,7 +90,7 @@ export function InlineInput({
 }
 
 /**
- * What is assigned to a category this month: reads as text, click to edit in
+ * What is planned for a category this month: reads as text, click to edit in
  * a small input. Enter saves (optimistically), Esc cancels. Plain numbers.
  */
 export function AssignedCell({
@@ -112,7 +113,7 @@ export function AssignedCell({
   if (editing)
     return (
       <InlineInput
-        aria-label={`Assigned to ${category.name}`}
+        aria-label={`Planned for ${category.name}`}
         inputMode="decimal"
         initial={
           category.budgeted === 0
@@ -153,7 +154,7 @@ export function AssignedCell({
         e.stopPropagation()
         setEditing(true)
       }}
-      aria-label={`Assigned to ${category.name}: ${formatMoney(category.budgeted, currency)}. Edit`}
+      aria-label={`Planned for ${category.name}: ${formatMoney(category.budgeted, currency)}. Edit`}
       className={cn(
         "-mx-2 h-7 rounded-md px-2 text-right tabular-nums outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50",
         category.budgeted === 0 && "text-muted-foreground",
@@ -203,7 +204,7 @@ export function SpentLink({
   )
 }
 
-/** The Available figure: a muted pill when positive, plain muted at zero, a red pill when overspent. */
+/** The Left figure: a muted pill when positive, plain muted at zero, a red pill when over. */
 export function availableLook(available: number): string {
   // On a selected (muted) row the pill turns to the background colour.
   if (available > 0)
@@ -229,12 +230,12 @@ export function AvailablePillText({
         className
       )}
     >
-      {formatMoney(available, currency)}
+      {formatLeft(available, currency)}
     </span>
   )
 }
 
-/** The Available pill; clicking it opens Move money. */
+/** The Left pill; clicking it opens Move money (Cover, when over). */
 export function AvailablePill({
   month,
   category,
@@ -250,7 +251,7 @@ export function AvailablePill({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`${category.name}: ${formatMoney(category.available, currency)} available. Move money`}
+          aria-label={`${category.name}: ${category.available < 0 ? `${formatLeft(category.available, currency)}. Cover it` : `${formatLeft(category.available, currency)} left. Move money`}`}
           className="-my-1 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&>span]:transition-colors hover:[&>span]:ring-1 hover:[&>span]:ring-foreground/15 aria-expanded:[&>span]:ring-1 aria-expanded:[&>span]:ring-foreground/25"
         >
           <AvailablePillText

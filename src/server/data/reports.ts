@@ -168,6 +168,33 @@ export function netWorth(input?: Partial<DateRange>): NetWorthPoint[] {
   })
 }
 
+/**
+ * A month's spending toward the monthly goal (positive = money spent): what
+ * the spending report counts (on-budget, net of refunds, no transfers or
+ * opening balances, uncategorised included) without categories outside the
+ * goal.
+ */
+export function goalSpending(inMonth: string): number {
+  return (
+    db()
+      .select({
+        amount: sql<number>`-coalesce(sum(${transactions.amount}), 0)`,
+      })
+      .from(transactions)
+      .innerJoin(accounts, eq(transactions.accountId, accounts.id))
+      .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .leftJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
+      .where(
+        and(
+          flowConditions({ from: `${inMonth}-01`, to: monthEnd(inMonth) }),
+          sql`coalesce(${categoryGroups.isIncome}, 0) = 0`,
+          sql`coalesce(${categories.outsideGoal}, 0) = 0`
+        )
+      )
+      .get()?.amount ?? 0
+  )
+}
+
 /** Spending per expense category over the range (positive = money spent), largest first. */
 export function spendingByCategory(
   input?: Partial<DateRange>

@@ -10,16 +10,16 @@ import {
 import type { BudgetMonth } from "@/shared/types"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { formatMoney, formatMonth } from "@/lib/format"
+import { formatLeft, formatMoney, formatMonth } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 
 const COLUMNS =
-  "grid grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_8.5rem] items-center gap-x-4 px-2"
+  "grid grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_9.5rem] items-center gap-x-4 px-2"
 
 /**
- * The month's envelopes: groups (collapsible, with totals) and their
- * categories, headed Category · Assigned · Spent · Available. Clicking a row
- * selects it for the inspector.
+ * The month's plan: groups (collapsible, with totals) and their categories,
+ * headed Category · Planned · Spent · Left. Clicking a row selects it for the
+ * inspector.
  */
 export function BudgetTable({
   month,
@@ -60,13 +60,13 @@ export function BudgetTable({
           Category
         </span>
         <span role="columnheader" className="text-right">
-          Assigned
+          Planned
         </span>
         <span role="columnheader" className="text-right">
           Spent
         </span>
         <span role="columnheader" className="pr-2 text-right">
-          Available
+          Left
         </span>
       </div>
 
@@ -137,11 +137,17 @@ export function BudgetTable({
               </span>
               <GroupFigure value={group.budgeted} currency={currency} />
               <GroupFigure value={0 - group.activity} currency={currency} />
-              <GroupFigure
-                value={group.available}
-                currency={currency}
-                className={cn("pr-2", group.available < 0 && "text-negative")}
-              />
+              <span
+                role="cell"
+                className={cn(
+                  "pr-2 text-right whitespace-nowrap tabular-nums",
+                  group.available < 0 && "text-negative"
+                )}
+              >
+                {group.available < 0
+                  ? formatLeft(group.available, currency)
+                  : formatMoney(group.available, currency, { symbol: false })}
+              </span>
             </div>
 
             {open &&
@@ -182,11 +188,17 @@ export function BudgetTable({
                       ) : (
                         <span className="truncate">{category.name}</span>
                       )}
+                      {month.goal && category.outsideGoal && (
+                        <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+                          not in goal
+                        </span>
+                      )}
                       <span className="ml-1">
                         <CategoryMenu
                           category={category}
                           groups={month.groups}
                           groupId={group.id}
+                          goalSet={!!month.goal}
                           onRename={() => setRenaming(`c${category.id}`)}
                           onDelete={() =>
                             void del.start({

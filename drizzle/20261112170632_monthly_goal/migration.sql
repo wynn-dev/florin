@@ -1,0 +1,1 @@
+ALTER TABLE `categories` ADD `outside_goal` integer DEFAULT false NOT NULL;

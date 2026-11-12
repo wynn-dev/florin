@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { AssignedCell, AvailablePillText, Figure, SpentLink } from "./cells"
+import { CoverButton } from "./month-parts"
 import { MoveMoney } from "./move-money"
 import { budgetQueries } from "./queries"
 import type { BudgetCategoryDetail } from "@/shared/budget"
@@ -29,9 +30,10 @@ import {
 } from "@/components/ui/tooltip"
 
 /**
- * The month's totals, shown when no category is selected. Carried over is
- * last month's leftover; last month's overspending doesn't carry, it came
- * out of Ready to assign, and this month's will next month.
+ * The month's totals, shown when no category is selected: money in, planned,
+ * spent, and when not zero what was left from last month, what went over
+ * last month (it came out of the money not planned yet) and what is over
+ * plan now, with Cover what went over.
  */
 export function MonthSummary({
   month,
@@ -45,68 +47,80 @@ export function MonthSummary({
     <section className="flex flex-col gap-2">
       <h2 className="text-sm font-medium">{formatMonth(month.month)}</h2>
       <dl className="flex flex-col">
-        <Figure label="Income">{formatMoney(month.income, currency)}</Figure>
-        <Figure label="Assigned">
-          {formatMoney(month.budgeted, currency)}
-        </Figure>
+        <Figure label="Money in">{formatMoney(month.income, currency)}</Figure>
+        <Figure label="Planned">{formatMoney(month.budgeted, currency)}</Figure>
         <Figure label="Spent">
           {formatMoney(0 - month.activity, currency)}
         </Figure>
-        <Figure label="Carried over">{formatMoney(carried, currency)}</Figure>
+        {carried !== 0 && (
+          <Figure label="Left from last month">
+            {formatMoney(carried, currency)}
+          </Figure>
+        )}
         {month.lastMonthOverspent > 0 && (
-          <Figure label="Overspent last month">
+          <Figure label="Went over last month">
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="text-negative">
-                  {formatMoney(0 - month.lastMonthOverspent, currency)}
-                </span>
+                <span>{formatMoney(month.lastMonthOverspent, currency)}</span>
               </TooltipTrigger>
-              <TooltipContent>Taken from Ready to assign</TooltipContent>
+              <TooltipContent>
+                Came out of the money not planned yet
+              </TooltipContent>
             </Tooltip>
           </Figure>
         )}
         {month.overspent > 0 && (
-          <Figure label="Overspent">
+          <Figure label="Over plan">
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="text-negative">
-                  {formatMoney(0 - month.overspent, currency)}
+                  {formatMoney(month.overspent, currency)}
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                Cover it this month, or it comes out of Ready to assign in{" "}
-                {formatMonth(addMonths(month.month, 1))}
+                Cover it this month, or it comes out of the money not planned
+                yet in {formatMonth(addMonths(month.month, 1))}
               </TooltipContent>
             </Tooltip>
           </Figure>
         )}
       </dl>
+      {month.overspent > 0 && (
+        <CoverButton month={month} currency={currency} className="self-start" />
+      )}
     </section>
   )
 }
 
 /**
- * "Claude Desktop assigned €400.00", "You moved CHF 40.00 to Groceries", from
+ * "Claude Desktop planned €400.00", "You moved CHF 40.00 to Groceries", from
  * a change's summary. Whether money came in or went out is the server's
  * answer (by category id), not a guess from names; the amount is whatever
- * comes before " for " or " from ", spaces and all.
+ * comes before " for " or " from ", spaces and all. Reads the older wording
+ * (Budgeted, Ready to assign) the same way.
  */
 export function describeChange(
   change: NonNullable<BudgetCategoryDetail["lastChange"]>,
   month: string
 ): string {
   const inMonth = (m: string) => (m === month ? "" : ` in ${formatMonth(m)}`)
-  const assigned = /^Budgeted (.+?) for .+ in (\d{4}-\d{2})$/.exec(
-    change.summary
-  )
+  const planned =
+    /^(?:Planned|Budgeted) (.+?)( more| less)? for .+ in (\d{4}-\d{2})( to cover what went over)?$/.exec(
+      change.summary
+    )
   const moved = /^Moved (.+?) from (.+) to (.+) in (\d{4}-\d{2})$/.exec(
     change.summary
   )
-  const what = assigned
-    ? `assigned ${assigned[1]}${inMonth(assigned[2])}`
-    : moved
-      ? `moved ${moved[1]} ${change.into ? `from ${moved[2]}` : `to ${moved[3]}`}${inMonth(moved[4])}`
-      : change.summary.charAt(0).toLowerCase() + change.summary.slice(1)
+  const unplanned = "Ready to assign"
+  const what = planned
+    ? planned[4]
+      ? `covered ${planned[1]} over${inMonth(planned[3])}`
+      : `planned ${planned[1]}${planned[2] ?? ""}${inMonth(planned[3])}`
+    : moved && (moved[2] === unplanned || moved[3] === unplanned)
+      ? `planned ${moved[1]} ${moved[2] === unplanned ? "more" : "less"}${inMonth(moved[4])}`
+      : moved
+        ? `moved ${moved[1]} ${change.into ? `from ${moved[2]}` : `to ${moved[3]}`}${inMonth(moved[4])}`
+        : change.summary.charAt(0).toLowerCase() + change.summary.slice(1)
   return `${sourceName(change.actor)} ${what}`
 }
 
@@ -171,7 +185,7 @@ export function SpendingHistory({
   )
 }
 
-/** A selected category: its three numbers, Last change, 12 months of spending and Move money. */
+/** A selected category: Planned, Spent and Left, Last change, 12 months of spending and Move money. */
 export function CategoryInspector({
   month,
   category,
@@ -190,7 +204,7 @@ export function CategoryInspector({
         <LastChange detail={detail.data} month={month.month} />
       </div>
       <dl className="flex flex-col">
-        <Figure label="Assigned">
+        <Figure label="Planned">
           <AssignedCell
             month={month.month}
             category={category}
@@ -207,7 +221,7 @@ export function CategoryInspector({
             symbol
           />
         </Figure>
-        <Figure label="Available">
+        <Figure label="Left">
           <AvailablePillText
             available={category.available}
             currency={currency}

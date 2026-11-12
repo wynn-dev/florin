@@ -1,7 +1,7 @@
 // The budget page's reads and writes. The person's edits are optimistic: the
 // month is patched at once, rolled back with an error toast if the server
 // refuses, and every budget month is refetched once it settles (an amount
-// assigned in one month changes what carries into the next).
+// planned in one month changes what carries into the next).
 import {
   queryOptions,
   useMutation,
@@ -37,7 +37,7 @@ export const budgetQueries = {
     }),
 }
 
-/** Adds `delta` to what is assigned to a category, as the server will. */
+/** Adds `delta` to what is planned for a category, as the server will. */
 export function assignDelta(
   month: BudgetMonth,
   categoryId: number,
@@ -108,23 +108,23 @@ export function useAssign(month: string) {
     }),
     onError: (error, _v, context) => {
       context?.rollback()
-      toast.error(`Couldn't assign: ${error.message}`)
+      toast.error(`Couldn't change the plan: ${error.message}`)
     },
     onSettled: () => invalidateBudget(client),
   })
 }
 
-/** A move of money; null is Ready to assign. */
+/** A move of money; null is the money not planned yet. */
 export type Move = {
   fromCategoryId: number | null
   toCategoryId: number | null
   amount: number
 }
 
-function postMove(month: string, move: Move) {
+function postMove(month: string, move: Move | Move[]) {
   return api<BudgetMonth>(`/budget/${month}/move`, {
     method: "POST",
-    body: { moves: [move] },
+    body: { moves: Array.isArray(move) ? move : [move] },
   })
 }
 
@@ -169,6 +169,84 @@ export function useMoveMoney(month: string) {
       context?.rollback()
       toast.error(`Couldn't move money: ${error.message}`)
     },
+    onSettled: () => invalidateBudget(client),
+  })
+}
+
+/** What covering a month's overspending did, as the server answers it. */
+type Covered = {
+  month: BudgetMonth
+  covered: { categoryId: number; name: string; amount: number }[]
+}
+
+/**
+ * Cover what went over: raises every category over plan by what it is over,
+ * from the money not planned yet, then "Covered what went over in Groceries
+ * and Rent · Undo"; Undo moves each amount back.
+ */
+export function useCoverOverspending(month: string) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api<Covered>(`/budget/${month}/cover`, { method: "POST" }),
+    onSuccess: ({ covered }) => {
+      const names = covered.map((c) => c.name)
+      toast(
+        `Covered what went over in ${
+          names.length < 3 ? names.join(" and ") : `${names.length} categories`
+        }`,
+        {
+          action: {
+            label: "Undo",
+            onClick: () =>
+              void postMove(
+                month,
+                covered.map((c) => ({
+                  fromCategoryId: c.categoryId,
+                  toCategoryId: null,
+                  amount: c.amount,
+                }))
+              )
+                .catch((error: Error) =>
+                  toast.error(`Couldn't undo: ${error.message}`)
+                )
+                .finally(() => invalidateBudget(client)),
+          },
+        }
+      )
+    },
+    onError: (error) => toast.error(`Couldn't cover it: ${error.message}`),
+    onSettled: () => invalidateBudget(client),
+  })
+}
+
+/**
+ * Sets the monthly goal, or removes it with null: "Removed the monthly goal ·
+ * Undo" puts it back.
+ */
+export function useSetGoal() {
+  const client = useQueryClient()
+  const put = (amount: number | null) =>
+    api(`/budget/goal`, { method: "PUT", body: { amount } })
+  return useMutation({
+    mutationFn: (v: { amount: number | null; previous: number | null }) =>
+      put(v.amount),
+    onSuccess: (_result, v) => {
+      if (v.amount !== null || v.previous === null) return
+      const previous = v.previous
+      toast("Removed the monthly goal", {
+        action: {
+          label: "Undo",
+          onClick: () =>
+            void put(previous)
+              .catch((error: Error) =>
+                toast.error(`Couldn't undo: ${error.message}`)
+              )
+              .finally(() => invalidateBudget(client)),
+        },
+      })
+    },
+    onError: (error) => toast.error(`Couldn't set the goal: ${error.message}`),
     onSettled: () => invalidateBudget(client),
   })
 }

@@ -255,7 +255,7 @@ const PLURALS: Record<string, [string, string]> = {
   payee: ["payee", "payees"],
   category: ["category", "categories"],
   "category group": ["category group", "category groups"],
-  budget: ["budget amount", "budget amounts"],
+  budget: ["planned amount", "planned amounts"],
   settings: ["setting", "settings"],
   "fx rate": ["exchange rate", "exchange rates"],
   "mcp token": ["MCP token", "MCP tokens"],
@@ -286,7 +286,7 @@ export function isCategorising(change: Pick<Change, "detail">): boolean {
 /**
  * What a batch did, to follow its source's name: one change reads as its own
  * summary; several as counts ("categorised 23 transactions", "added 8 and
- * changed 2 transactions", "budgeted 12 categories").
+ * changed 2 transactions", "planned 12 categories").
  */
 export function entrySummary(list: Change[]): string {
   if (list.length === 1) return lowerFirst(list[0].summary)
@@ -301,9 +301,14 @@ export function entrySummary(list: Change[]): string {
       return `categorised ${noun(entity, group.length)}`
     if (
       entity === "budget" &&
-      group.every((c) => c.summary.startsWith("Budgeted"))
+      group.every((c) => c.summary.endsWith(" to cover what went over"))
     )
-      return `budgeted ${noun("category", group.length)}`
+      return `covered what went over in ${noun("category", group.length)}`
+    if (
+      entity === "budget" &&
+      group.every((c) => /^(Planned|Budgeted) /.test(c.summary))
+    )
+      return `planned ${noun("category", group.length)}`
     if (
       entity === "budget" &&
       group.every((c) => c.summary.startsWith("Moved"))

@@ -99,7 +99,7 @@ describe("needs attention", () => {
     ])
   })
 
-  test("an overspent category, since it went over; unassigned money, since it arrived", () => {
+  test("an overspent category, since it went over; money not planned yet, since it arrived", () => {
     const month = today().slice(0, 7)
     data.createTransaction("person", {
       accountId: account,
@@ -122,12 +122,14 @@ describe("needs attention", () => {
     expect(items).toHaveLength(3)
     expect(items[0].id).toBe("uncategorized")
     expect(byId("unassigned")).toMatchObject({
-      text: expect.stringMatching(/^€970 unassigned since (yesterday|\w+day)$/),
-      action: { label: "Assign", to: `/budget/${month}` },
+      text: expect.stringMatching(
+        /^€970 not planned yet since (yesterday|\w+day)$/
+      ),
+      action: { label: "Plan", to: `/budget/${month}` },
     })
     expect(byId(`overspent:${categoryId("Dining out")}`)).toMatchObject({
       text: expect.stringMatching(
-        /^Dining out has been €42.10 over since (yesterday|\w+day)$/
+        /^Dining out has been €42.10 over plan since (yesterday|\w+day)$/
       ),
       action: { label: "Cover", to: `/budget/${month}` },
     })

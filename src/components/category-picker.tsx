@@ -33,17 +33,17 @@ type ListOptions = {
   recent?: number[]
   /** Adds a last "Transfer" group listing open accounts, except this one. */
   transfers?: boolean | { excludeAccountId?: number }
-  /** Adds "Ready to assign" as the first option. */
+  /** Adds "Not planned yet" (the money no category has) as the first option. */
   readyToAssign?: boolean
   /** Lists hidden categories too. */
   includeHidden?: boolean
   /** Category ids to leave out, e.g. the one money moves from. */
   exclude?: number[]
-  /** Something to show at the right of an option, e.g. a category's available money. */
+  /** Something to show at the right of an option, e.g. what a category has left. */
   trailing?: (choice: CategoryChoice) => ReactNode
   /** Focuses the search field when the list mounts. */
   autoFocus?: boolean
-  /** Leaves out income groups, e.g. for moving budgeted money. */
+  /** Leaves out income groups, e.g. for moving planned money. */
   expensesOnly?: boolean
 }
 
@@ -171,7 +171,7 @@ export function CategoryList({
         <CommandEmpty>No category matches.</CommandEmpty>
         {readyToAssign && (
           <CommandGroup>
-            {item("ready", "Ready to assign", { type: "ready-to-assign" })}
+            {item("ready", "Not planned yet", { type: "ready-to-assign" })}
           </CommandGroup>
         )}
         {search === "" && recentCategories.length > 0 && (
@@ -218,7 +218,7 @@ export function useCategoryLabel(choice: CategoryChoice | null): string | null {
     enabled: choice?.type === "transfer",
   }).data
   if (!choice) return null
-  if (choice.type === "ready-to-assign") return "Ready to assign"
+  if (choice.type === "ready-to-assign") return "Not planned yet"
   if (choice.type === "transfer") {
     const account = accounts?.find((a) => a.id === choice.accountId)
     return account ? `→ ${account.name}` : null
@@ -232,7 +232,7 @@ export function useCategoryLabel(choice: CategoryChoice | null): string | null {
 
 /**
  * Picks a category: Popover + Command with search, Recent first, then groups,
- * and optionally a Transfer group of accounts and "Ready to assign". The
+ * and optionally a Transfer group of accounts and "Not planned yet". The
  * "field" look is a form control; "inline" reads as plain text in a table
  * cell, muted "Categorise" when empty. It loads categories (and accounts for
  * transfers) itself.

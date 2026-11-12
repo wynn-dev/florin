@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -40,10 +41,19 @@ export function useCategoryActions() {
     "Couldn't rename"
   )
   const update = useCategoryEdit(
-    (v: { id: number; hidden?: boolean; groupId?: number }) =>
+    (v: {
+      id: number
+      hidden?: boolean
+      groupId?: number
+      outsideGoal?: boolean
+    }) =>
       api(`/categories/${v.id}`, {
         method: "PATCH",
-        body: { hidden: v.hidden, groupId: v.groupId },
+        body: {
+          hidden: v.hidden,
+          groupId: v.groupId,
+          outsideGoal: v.outsideGoal,
+        },
       }),
     "Couldn't change the category"
   )
@@ -95,17 +105,19 @@ export function useCategoryActions() {
 const menuButton =
   "size-7 text-muted-foreground opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100 pointer-coarse:opacity-100"
 
-/** A category row's ⋯: Rename, Move to group…, Hide, Delete. */
+/** A category row's ⋯: Rename, Move to group…, Hide, Counts toward goal (with a goal set), Delete. */
 export function CategoryMenu({
   category,
   groups,
   groupId,
+  goalSet,
   onRename,
   onDelete,
 }: {
   category: BudgetCategory
   groups: BudgetGroup[]
   groupId: number
+  goalSet: boolean
   onRename: () => void
   onDelete: () => void
 }) {
@@ -126,7 +138,7 @@ export function CategoryMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="w-44"
+        className="w-52"
         onCloseAutoFocus={after.onCloseAutoFocus}
       >
         <DropdownMenuItem onSelect={after.later(onRename)}>
@@ -156,6 +168,16 @@ export function CategoryMenu({
         >
           {category.hidden ? "Show" : "Hide"}
         </DropdownMenuItem>
+        {goalSet && (
+          <DropdownMenuCheckboxItem
+            checked={!category.outsideGoal}
+            onCheckedChange={(counts) =>
+              update.mutate({ id: category.id, outsideGoal: !counts })
+            }
+          >
+            Counts toward goal
+          </DropdownMenuCheckboxItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onSelect={onDelete}>
           Delete

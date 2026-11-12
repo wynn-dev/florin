@@ -133,6 +133,13 @@ export function formatMoney(
   return format.format(cents / 10 ** digits).replace(/-/g, MINUS)
 }
 
+/** What is left: "€120.00", or for a category that went over "€618.60 over". */
+export function formatLeft(available: number, currency: string): string {
+  return available < 0
+    ? `${formatMoney(-available, currency)} over`
+    : formatMoney(available, currency)
+}
+
 /** "46%" from 0.46; signed gives "+12%" / "−3%". */
 export function formatPercent(
   ratio: number,

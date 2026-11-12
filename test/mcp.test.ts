@@ -215,6 +215,56 @@ describe("over HTTP", () => {
     expect(data.listMcpTokens()[0].lastUsedAt).not.toBeNull()
   })
 
+  test("cover_overspending plans what went over from the money not planned yet", async () => {
+    const { client } = http
+    const dining = categoryId("Dining out")
+    await expect(
+      call(client, "cover_overspending", { month: MONTH })
+    ).rejects.toThrow(/nothing is over plan/)
+    const card = data.createAccount("person", { name: "Card", type: "credit" })
+    data.createTransaction("person", {
+      accountId: card.id,
+      date: day(3),
+      amount: -6_000,
+      categoryId: dining,
+    })
+    const result = await call(client, "cover_overspending", { month: MONTH })
+    expect(result).toMatchObject({
+      overspent: 0,
+      toBudget: 69_000 - 890,
+      covered: [{ categoryId: dining, name: "Dining out", amount: 890 }],
+    })
+  })
+
+  test("the monthly goal: set, read in overview and get_budget_month, categories left out", async () => {
+    const { client } = http
+    const rent = categoryId("Rent")
+    expect((await call(client, "overview")).budget.goal).toBeNull()
+    const set = await call(client, "set_monthly_goal", { amount: 500_000 })
+    expect(set.goal).toMatchObject({ amount: 500_000 })
+    const spent = set.goal.spent
+    await call(client, "save_category", { id: rent, outsideGoal: true })
+    const listed = await call(client, "list_categories")
+    expect(
+      listed
+        .flatMap((g: { categories: { id: number }[] }) => g.categories)
+        .find((c: { id: number }) => c.id === rent)
+    ).toMatchObject({ outsideGoal: true })
+    const month = await call(client, "get_budget_month", { month: MONTH })
+    expect(month.goal).toMatchObject({
+      amount: 500_000,
+      spent: spent - 95_000,
+      left: 500_000 - (spent - 95_000),
+    })
+    expect((await call(client, "overview")).budget.goal.spent).toBe(
+      spent - 95_000
+    )
+    await call(client, "save_category", { id: rent, outsideGoal: false })
+    expect(
+      (await call(client, "set_monthly_goal", { amount: null })).goal
+    ).toBeNull()
+  })
+
   test("bulk writes are all or nothing, and the error names the item", async () => {
     const before = data.listTransactions({ accountId: checking }).items
     await expect(

@@ -1,16 +1,18 @@
-// Envelope budgeting. Each month the person assigns money to expense
-// categories. Per category, month by month from its first month with an
-// assignment or a transaction: available = last month's available if it was
-// positive + assigned + activity. Leftover carries into the next month;
-// overspending shows in its own month and then resets to zero, taken out of
-// Ready to assign instead. Money arrives through income categories; "to
-// budget" for a month is all income to date minus all amounts assigned to
-// date minus the overspending of every earlier month.
+// Envelope budgeting. Each month the person plans money for expense
+// categories (in the code: assigned or budgeted). Per category, month by
+// month from its first month with a plan or a transaction: available ("left"
+// on the dashboard) = last month's available if it was positive + assigned +
+// activity. Leftover carries into the next month; overspending ("over plan")
+// shows in its own month and then resets to zero, taken out of "to budget"
+// instead. Money arrives through income categories; "to budget" ("not
+// planned yet") for a month is all income to date minus all amounts assigned
+// to date minus the overspending of every earlier month.
 import { and, desc, eq, or, sql } from "drizzle-orm"
 import { db, schema } from "../db"
 import { getCategory, listCategoryGroups } from "./categories"
 import { logChange, money } from "./changes"
-import { getSettings } from "./settings"
+import { goalSpending } from "./reports"
+import { getMonthlyGoal, getSettings } from "./settings"
 import {
   checkAmount,
   checkList,
@@ -154,6 +156,7 @@ export function getBudgetMonth(month: string): BudgetMonth {
         id: c.id,
         name: c.name,
         hidden: c.hidden,
+        outsideGoal: c.outsideGoal,
         budgeted,
         activity: spent,
         available: before.carried + budgeted + spent,
@@ -169,6 +172,8 @@ export function getBudgetMonth(month: string): BudgetMonth {
     })
   }
   const all = groups.flatMap((g) => g.categories)
+  const goal = getMonthlyGoal()
+  const spent = goal === null ? 0 : goalSpending(month)
   return {
     month,
     income,
@@ -179,6 +184,17 @@ export function getBudgetMonth(month: string): BudgetMonth {
     lastMonthOverspent,
     toBudget: incomeToDate - assignedToDate - overspentBefore,
     firstMonth: firstBudgetMonth(),
+    goal:
+      goal === null
+        ? null
+        : {
+            amount: goal,
+            spent,
+            left: goal - spent,
+            planned: sum(
+              all.filter((c) => !c.outsideGoal).map((c) => c.budgeted)
+            ),
+          },
     groups,
   }
 }
@@ -250,7 +266,7 @@ export function setBudgetAmounts(
         action: "update",
         entity: "budget",
         entityId: category.id,
-        summary: `Budgeted ${money(amount, currency)} for ${category.name} in ${month}`,
+        summary: `Planned ${money(amount, currency)} for ${category.name} in ${month}`,
       })
     }
   })
@@ -259,8 +275,8 @@ export function setBudgetAmounts(
 
 /**
  * Money moved from one category's envelope to another's in a month. A null
- * side is Ready to assign: moving from it assigns more to `to`, moving to it
- * takes money back from `from`.
+ * side is the money not planned yet: moving from it plans more for `to`,
+ * moving to it plans less for `from`.
  */
 export type BudgetMove = {
   fromCategoryId: number | null
@@ -271,7 +287,7 @@ export type BudgetMove = {
 /**
  * Moves money between categories in a month: lowers what is assigned to each
  * `from` category and raises its `to` category by the same amount, so "to
- * budget" is unchanged unless one side is Ready to assign (null). All moves
+ * budget" is unchanged unless one side is not planned yet (null). All moves
  * happen together or not at all.
  */
 export function moveBudgetAmounts(
@@ -340,13 +356,71 @@ export function moveBudgetAmounts(
         action: "update",
         entity: "budget",
         entityId: (to ?? from)!.id,
-        // The category money left: also the entity itself when it went back to Ready to assign.
+        // The category money left: also the entity itself when it went back to not planned yet.
         relatedId: from ? from.id : null,
-        summary: `Moved ${money(amount, currency)} from ${from?.name ?? "Ready to assign"} to ${to?.name ?? "Ready to assign"} in ${month}`,
+        summary:
+          from && to
+            ? `Moved ${money(amount, currency)} from ${from.name} to ${to.name} in ${month}`
+            : `Planned ${money(amount, currency)} ${to ? "more" : "less"} for ${(to ?? from)!.name} in ${month}`,
       })
     }
   })
   return getBudgetMonth(month)
+}
+
+/** What covering a month's overspending did: each category and the amount its plan rose by. */
+export type Covered = {
+  month: BudgetMonth
+  covered: { categoryId: number; name: string; amount: number }[]
+}
+
+/**
+ * Covers a month's overspending from the money not planned yet: raises each
+ * category over plan by what it is over, so it ends the month at zero. All or
+ * none, one Activity entry. Refuses, changing nothing, when nothing is over
+ * or when the money not planned yet is short, saying by how much.
+ */
+export function coverOverspending(actor: Actor, month: string): Covered {
+  checkMonth(month)
+  const before = getBudgetMonth(month)
+  const over = before.groups
+    .flatMap((g) => g.categories)
+    .filter((c) => c.available < 0)
+  if (!over.length) throw new InvalidInput(`nothing is over plan in ${month}`)
+  const total = sum(over.map((c) => -c.available))
+  if (before.toBudget < total) {
+    const currency = getSettings().currency
+    throw new InvalidInput(
+      `${money(total, currency)} went over plan in ${month} but only ${money(Math.max(0, before.toBudget), currency)} is not planned yet: ${money(total - Math.max(0, before.toBudget), currency)} short`
+    )
+  }
+  const currency = getSettings().currency
+  db().transaction((tx) => {
+    for (const c of over) {
+      const amount = c.budgeted - c.available
+      tx.insert(budgets)
+        .values({ month, categoryId: c.id, amount })
+        .onConflictDoUpdate({
+          target: [budgets.month, budgets.categoryId],
+          set: { amount },
+        })
+        .run()
+      logChange(tx, actor, {
+        action: "update",
+        entity: "budget",
+        entityId: c.id,
+        summary: `Planned ${money(-c.available, currency)} more for ${c.name} in ${month} to cover what went over`,
+      })
+    }
+  })
+  return {
+    month: getBudgetMonth(month),
+    covered: over.map((c) => ({
+      categoryId: c.id,
+      name: c.name,
+      amount: -c.available,
+    })),
+  }
 }
 
 /**
