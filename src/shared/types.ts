@@ -259,6 +259,14 @@ export type Transaction = {
   bookedDate: string | null
   /** For a transfer: the other leg's amount, in its account's currency. */
   transferAmount: number | null
+  /**
+   * For a transfer: the other leg stays, as a plain row, when this one is
+   * deleted or stops being a transfer, and keeps its own date, notes and
+   * status when this one is edited: it came from a bank or an import, or the
+   * two were linked, each a transaction of its own. False when florin made
+   * the transfer and the other leg goes with this one, and for non-transfers.
+   */
+  transferKept: boolean
   /** The account's balance after this transaction; only when listing one account. */
   balance?: number
 }
@@ -362,7 +370,11 @@ export type BudgetCategory = {
   budgeted: number
   /** Net of this month's transactions in the category (spending is negative). */
   activity: number
-  /** Left to spend: last month's available carried over + budgeted + activity. */
+  /**
+   * Left to spend: last month's available when it was positive (leftover
+   * carries, overspending doesn't) + budgeted + activity. Negative = overspent
+   * this month; at month end that comes out of next month's toBudget.
+   */
   available: number
 }
 
@@ -382,7 +394,14 @@ export type BudgetMonth = {
   budgeted: number
   activity: number
   available: number
-  /** All income to date minus everything budgeted to date; negative means over-assigned. */
+  /** This month's overspending: the overspent categories' available, as a positive amount. */
+  overspent: number
+  /** Last month's overspending, as a positive amount: taken out of this month's toBudget. */
+  lastMonthOverspent: number
+  /**
+   * Ready to assign: all income to date minus everything budgeted to date
+   * minus the overspending of every earlier month; negative means over-assigned.
+   */
   toBudget: number
   /** The first month with a transaction in an on-budget account; null before any. */
   firstMonth: string | null
@@ -413,6 +432,9 @@ export type CashFlowPoint = {
   month: string
   inflow: number
   outflow: number
+  /** Net of transfers to and from the person's other accounts. */
+  transfers: number
+  /** inflow − outflow + transfers. */
   net: number
 }
 

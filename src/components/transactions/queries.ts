@@ -193,8 +193,13 @@ export function useUpdateTransactions() {
   return mutation
 }
 
-/** What re-creates a deleted transaction, bank fields included so a later sync still skips it. */
+/**
+ * What re-creates a deleted transaction, bank fields included so a later sync
+ * still skips it. A transfer whose other leg stayed comes back as a plain row,
+ * linked again afterwards; one florin made comes back with its other leg.
+ */
 function recreate(t: Transaction): NewTransaction {
+  const made = t.transferId !== null && !t.transferKept
   return {
     accountId: t.accountId,
     date: t.date,
@@ -203,20 +208,77 @@ function recreate(t: Transaction): NewTransaction {
     categoryId: t.categoryId,
     notes: t.notes,
     status: t.status,
-    transferAccountId: t.transferAccountId ?? undefined,
-    transferAmount: t.transferAmount ?? undefined,
+    transferAccountId: made ? (t.transferAccountId ?? undefined) : undefined,
+    transferAmount: made ? (t.transferAmount ?? undefined) : undefined,
     importedId: t.importedId,
     importedPayee: t.importedPayee,
     bookedDate: t.bookedDate,
   }
 }
 
+/** Re-creates deleted transactions, linking again the transfers whose other leg stayed (or came back too). */
+async function restoreRows(rows: Transaction[]): Promise<void> {
+  const created = await api<Transaction[]>("/transactions", {
+    method: "POST",
+    body: rows.map(recreate),
+  })
+  const now = new Map(rows.map((t, i) => [t.id, created[i].id]))
+  const pairs: [number, number][] = []
+  const linked = new Set<number>()
+  rows.forEach((t, i) => {
+    if (!t.transferId || !t.transferKept || linked.has(t.id)) return
+    linked.add(t.transferId)
+    pairs.push([created[i].id, now.get(t.transferId) ?? t.transferId])
+  })
+  if (pairs.length)
+    await api("/transactions/link", { method: "POST", body: { pairs } })
+}
+
+/**
+ * Links two transactions as one transfer, with "Linked as a transfer · Undo".
+ * Linking clears their payees (and categories, as transfers have none); Undo
+ * unlinks them and puts back what each row had. Every step of it can run
+ * again, so Retry repeats the whole undo.
+ */
+export function useLinkTransfer() {
+  const client = useQueryClient()
+  const unlink = useMutation({
+    mutationFn: async (rows: [Transaction, Transaction]) => {
+      for (const [i, t] of rows.entries())
+        await api<Transaction>(`/transactions/${t.id}`, {
+          method: "PATCH",
+          body: {
+            ...(i === 0 ? { transferAccountId: null } : {}),
+            payeeId: t.payeeId,
+            categoryId: t.categoryId,
+          },
+        })
+    },
+    onError: (error, rows) => errorToast(error, () => unlink.mutate(rows)),
+    onSettled: () => invalidateAfterEdit(client),
+  })
+  const mutation = useMutation({
+    mutationFn: (rows: [Transaction, Transaction]) =>
+      api<[Transaction, Transaction][]>("/transactions/link", {
+        method: "POST",
+        body: { pairs: [rows.map((t) => t.id)] },
+      }),
+    onError: (error, rows) => errorToast(error, () => mutation.mutate(rows)),
+    onSuccess: (_linked, rows) => {
+      toast("Linked as a transfer", {
+        action: { label: "Undo", onClick: () => unlink.mutate(rows) },
+      })
+    },
+    onSettled: () => invalidateAfterEdit(client),
+  })
+  return mutation
+}
+
 /** Deletes at once, with "Deleted 3 transactions · Undo" re-creating them. */
 export function useDeleteTransactions() {
   const client = useQueryClient()
   const restore = useMutation({
-    mutationFn: (rows: NewTransaction[]) =>
-      api<Transaction[]>("/transactions", { method: "POST", body: rows }),
+    mutationFn: restoreRows,
     onError: (error, rows) => errorToast(error, () => restore.mutate(rows)),
     onSettled: () => invalidateAfterEdit(client),
   })
@@ -228,7 +290,12 @@ export function useDeleteTransactions() {
       }),
     onMutate: async (rows) => {
       await client.cancelQueries({ queryKey: ["transactions", "list"] })
-      const gone = new Set(rows.flatMap((t) => [t.id, t.transferId ?? 0]))
+      // A transfer florin made goes as a whole; a leg of its own stays.
+      const gone = new Set(
+        rows.flatMap((t) =>
+          t.transferId && !t.transferKept ? [t.id, t.transferId] : [t.id]
+        )
+      )
       return {
         rollback: patchLists(client, (t) => (gone.has(t.id) ? null : t)),
       }
@@ -238,12 +305,12 @@ export function useDeleteTransactions() {
       errorToast(error, () => mutation.mutate(rows))
     },
     onSuccess: (_data, rows) => {
-      // Deleting either leg of a transfer deletes both; re-create each transfer once.
+      // Deleting a leg of a transfer florin made deletes both; re-create each such transfer once.
       const seen = new Set<number>()
       const again = rows.filter((t) => {
         if (seen.has(t.id)) return false
         seen.add(t.id)
-        if (t.transferId) seen.add(t.transferId)
+        if (t.transferId && !t.transferKept) seen.add(t.transferId)
         return true
       })
       toast(
@@ -253,7 +320,7 @@ export function useDeleteTransactions() {
         {
           action: {
             label: "Undo",
-            onClick: () => restore.mutate(again.map(recreate)),
+            onClick: () => restore.mutate(again),
           },
         }
       )

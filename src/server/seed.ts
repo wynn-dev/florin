@@ -260,7 +260,7 @@ function seedHistory() {
         // The first month also assigns the opening balances.
         amount:
           amount +
-          (month === first && name === "Emergency fund" ? 1_000_000 : 0) +
+          (month === first && name === "Emergency fund" ? 900_000 : 0) +
           (name !== "Holidays" && rand() < 0.2 ? 2_000 : 0),
       }))
     )
@@ -300,6 +300,31 @@ function seedHistory() {
       status: "pending",
       categoryId: cat("Dining out"),
     },
+  ]).added
+
+  // Last month: a sofa that took Shopping past what it had (red in that
+  // month, back to zero this month, taken from Ready to assign instead), and
+  // a move to savings whose two sides the bank sent as two plain rows, for
+  // suggest_transfers to find.
+  const last = addMonths(thisMonth, -1)
+  const shopping = data
+    .getBudgetMonth(last)
+    .groups.flatMap((g) => g.categories)
+    .find((c) => c.name === "Shopping")!
+  transactions += data.importTransactions("bank-sync:Revolut", card.id, [
+    {
+      date: `${last}-20`,
+      amount: -(Math.max(0, shopping.available) + 6_490),
+      payee: "IKEA",
+      notes: "Sofa",
+      categoryId: cat("Shopping"),
+    },
+  ]).added
+  transactions += data.importTransactions("bank-sync:Revolut", current.id, [
+    { date: `${last}-14`, amount: -50_000, payee: "To savings" },
+  ]).added
+  transactions += data.importTransactions("bank-sync:Revolut", savings.id, [
+    { date: `${last}-15`, amount: 50_000, payee: "From current account" },
   ]).added
 
   // The brokerage (USD): a value per weekday that grows with the monthly

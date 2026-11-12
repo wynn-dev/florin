@@ -4,8 +4,10 @@ import {
   deleteTransactions,
   importCsv,
   importTransactions,
+  linkTransfers,
   listTransactions,
   patchTransactions,
+  suggestTransfers,
 } from "../../data"
 import { InvalidInput } from "../../data/validate"
 import { defineTool } from "../tool"
@@ -32,7 +34,7 @@ export const searchTransactions = defineTool({
   name: "search_transactions",
   title: "Search transactions",
   description:
-    "Finds transactions, newest first, with paging (use nextOffset for the next page). Filters combine: account, category, payee, uncategorized (on-budget transactions that still need a category), status, date range, text (matches payee, bank text, notes and category) and amount range. Amounts are integer minor units in each row's currency; negative = money out, so spending over €50 is maxAmount: -5000. Rows leave out empty fields; status shows only when pending; bankText is the bank's own description when it differs from the payee.",
+    "Finds transactions, newest first, with paging (use nextOffset for the next page). Filters combine: account, category, payee, uncategorized (on-budget transactions that still need a category), status, date range, text (matches payee, bank text, notes and category) and amount range. Amounts are integer minor units in each row's currency; negative = money out, so spending over €50 is maxAmount: -5000. Rows leave out empty fields; status shows only when pending; bankText is the bank's own description when it differs from the payee; a transfer shows transferId (the other leg's id) and transferAccount, the account the money moved to or came from.",
   input: {
     accountId: zId.optional(),
     categoryId: zId.optional(),
@@ -80,7 +82,7 @@ export const addTransactions = defineTool({
   name: "add_transactions",
   title: "Add transactions",
   description:
-    "Adds up to 500 transactions in one call, all or none (an error names the item to fix). amount is integer minor units in the account's currency; negative = money out. Give a payee by name (created when new) or payeeId. A transfer between two accounts is one item with transferAccountId: amount leaves or enters accountId and the mirrored leg is created; between currencies also give transferAmount, what the other account receives in its own currency (e.g. amount -10000 EUR, transferAmount 10850 USD). Transfers need no payee, and none between two on-budget accounts needs a category.",
+    "Adds up to 500 transactions in one call, all or none (an error names the item to fix). amount is integer minor units in the account's currency; negative = money out. Give a payee by name (created when new) or payeeId. A transfer between two accounts is one item with transferAccountId: amount leaves or enters accountId and the mirrored leg is created; between currencies also give transferAmount, what the other account receives in its own currency (e.g. amount -10000 EUR, transferAmount 10850 USD). Transfers need no payee, and none between two on-budget accounts needs a category. When both sides are already in florin (each bank or the broker sent its own row), don't add a transfer, which would duplicate the other side: link the two rows with link_transfers.",
   input: { transactions: z.array(newTransaction).min(1).max(500) },
   kind: "write",
   run: ({ transactions }, { actor }) => {
@@ -106,7 +108,7 @@ const update = z.object({
     .nullable()
     .optional()
     .describe(
-      "Turns it into a transfer to this account, or null to make it a plain transaction"
+      "Turns it into a transfer to this account by creating the other leg there, or null to make it a plain transaction: the other leg stays as a plain transaction when it came from a bank or an import or the two were linked with link_transfers, and is deleted when florin created it"
     ),
   transferAmount: zAmount.optional(),
 })
@@ -115,7 +117,7 @@ export const updateTransactions = defineTool({
   name: "update_transactions",
   title: "Update transactions",
   description:
-    "Changes up to 500 transactions in one call, each with its own fields (e.g. a different categoryId per transaction when categorising), all or none; an error names the item to fix. Only the fields given change. Changing one leg of a transfer keeps the other leg mirrored.",
+    "Changes up to 500 transactions in one call, each with its own fields (e.g. a different categoryId per transaction when categorising), all or none; an error names the item to fix. Only the fields given change. Changing one leg of a transfer keeps the other leg mirrored, except that a leg from a bank or an import, or one linked with link_transfers, keeps its own date, notes and status. transferAccountId creates the other leg; when that row already exists (the other bank sent it), use link_transfers instead.",
   input: { updates: z.array(update).min(1).max(500) },
   kind: "write",
   run: ({ updates }, { actor }) => {
@@ -134,12 +136,69 @@ export const deleteTransactionsTool = defineTool({
   name: "delete_transactions",
   title: "Delete transactions",
   description:
-    "Deletes transactions by id, all or none; deleting either leg of a transfer deletes both.",
+    "Deletes transactions by id, all or none. Deleting a leg of a transfer deletes the other leg too when florin created it; a leg from a bank or an import, or one linked with link_transfers, stays as a plain transaction.",
   input: { ids: z.array(zId).min(1).max(500) },
   kind: "destructive",
   run: ({ ids }, { actor }) => {
     deleteTransactions(actor(), ids)
     return { deleted: ids.length }
+  },
+})
+
+export const linkTransfersTool = defineTool({
+  name: "link_transfers",
+  title: "Link transactions as transfers",
+  description:
+    "Links pairs of transactions already in florin as transfers, for money moved between two of the person's accounts when each side arrived on its own (two banks' syncs, or the bank and the broker). Up to 100 pairs, all or none, one Activity entry. Each pair: two transactions in different accounts, neither already a transfer, one money out and one money in; in one currency the amounts must mirror exactly (the error says by how much they differ), across currencies each leg keeps its own amount. Linked, they behave like any transfer: no payee, no category between two on-budget accounts (the on-budget leg keeps its category when the other account is off budget), and they leave spending and income reports. Each keeps its date, status, notes, bank text and bank id, so later syncs add nothing. Unlink with update_transactions transferAccountId: null, which keeps both rows but not the payees and categories linking cleared: give those back in the same update_transactions call (each row's payeeId and categoryId as search_transactions showed them before linking). Find pairs with suggest_transfers. Example: { pairs: [[812, 815], [901, 977]] }.",
+  input: {
+    pairs: z
+      .array(z.array(zId).length(2))
+      .min(1)
+      .max(100)
+      .describe("Each a pair of transaction ids, in either order"),
+  },
+  kind: "write",
+  run: ({ pairs }, { actor }) => {
+    const linked = linkTransfers(
+      actor(),
+      pairs.map(([a, b]) => [a, b])
+    )
+    const currencies = accountCurrencies()
+    return {
+      linked: linked.length,
+      pairs: linked.map(([out, into]) => ({
+        out: compactTransaction(out, currencies),
+        into: compactTransaction(into, currencies),
+      })),
+    }
+  },
+})
+
+export const suggestTransfersTool = defineTool({
+  name: "suggest_transfers",
+  title: "Suggest transfers to link",
+  description:
+    'Likely transfers among transactions that aren\'t linked yet: money out of one account and into another within 4 days, for the same amount in one currency, or within 3% at that day\'s exchange rate between two currencies. Each transaction is in at most one suggestion (the closest dates win); newest first, each with both rows (out, into) and how many days apart they are. Check that a pair is really the person\'s own money moving (not a payment to someone with the same amount), then pass the ids to link_transfers. from/to bound the dates; accountId keeps pairs with a side in that account. Example: { from: "2026-10-01", accountId: 3 } → [{ out: { id: 812, account: "Current account", amount: -100000, … }, into: { id: 815, account: "Broker", amount: 116740, currency: "USD", … }, days: 2 }].',
+  input: {
+    from: zDate.optional(),
+    to: zDate.optional(),
+    accountId: zId.optional(),
+    limit: zLimit(50, 500),
+    offset: zOffset,
+  },
+  kind: "read",
+  run: ({ limit = 50, offset = 0, ...filter }) => {
+    const all = suggestTransfers(filter)
+    const currencies = accountCurrencies()
+    return page(
+      all.slice(offset, offset + limit).map((s) => ({
+        out: compactTransaction(s.out, currencies),
+        into: compactTransaction(s.into, currencies),
+        days: s.days,
+      })),
+      all.length,
+      offset
+    )
   },
 })
 

@@ -16,7 +16,14 @@
 import { createHash } from "node:crypto"
 import { and, eq, inArray, isNotNull, sql } from "drizzle-orm"
 import { db, schema } from "../db"
-import { getAccount, importTransactions, inBatch, logChange } from "../data"
+import {
+  getAccount,
+  getTransaction,
+  importTransactions,
+  inBatch,
+  logChange,
+  releaseLeg,
+} from "../data"
 import { startingBalanceCategoryId } from "../data/categories"
 import { minorDigits } from "../data/fx"
 import { InvalidInput, NotFound, today } from "../data/validate"
@@ -407,7 +414,9 @@ export function applyRows(
           .run()
         unmatched++
       } else {
+        const { transferKept } = getTransaction(p.id, tx)
         tx.delete(transactions).where(eq(transactions.id, p.id)).run()
+        if (p.transferId) releaseLeg(tx, p.transferId, transferKept)
         removed++
       }
     }

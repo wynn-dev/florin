@@ -22,6 +22,8 @@ function compactMonth(
     budgeted: m.budgeted,
     activity: m.activity,
     available: m.available,
+    overspent: m.overspent,
+    lastMonthOverspent: m.lastMonthOverspent,
     toBudget: m.toBudget,
     groups: m.groups.map((g) => ({
       id: g.id,
@@ -54,7 +56,7 @@ export const getBudgetMonthTool = defineTool({
   name: "get_budget_month",
   title: "Read a budget month",
   description:
-    "The envelope budget for a month (default this month), in the budget's currency as integer minor units. Per category: budgeted (assigned this month), activity (this month's transactions, spending negative) and available (everything assigned to date plus all activity to date, so leftovers and overspending carry over; negative = overspent). toBudget is all income to date minus all assigned to date; negative means more is assigned than has come in. Hidden categories show only when they hold money unless includeHidden; onlyActive leaves out categories that are all zero.",
+    "The envelope budget for a month (default this month), in the budget's currency as integer minor units. Per category: budgeted (assigned this month), activity (this month's transactions, spending negative) and available (last month's available if positive + budgeted + activity: leftover carries over, overspending does not; negative = overspent this month). overspent is the month's total overspending; at month end it resets to zero in each category and comes out of the next month's toBudget instead (lastMonthOverspent is what the month before took). toBudget (Ready to assign) is all income to date minus all assigned to date minus every earlier month's overspending; negative means more is assigned than has come in. To keep an overspent category from lowering next month's toBudget, cover it this month with move_money. Hidden categories show only when they hold money unless includeHidden; onlyActive leaves out categories that are all zero. Example: Groceries budgeted 40000, activity -45000 → available -5000, overspent 5000; next month it starts at 0 and toBudget is 5000 lower.",
   input: {
     month: zMonth.optional(),
     includeHidden: z.boolean().optional(),
@@ -69,6 +71,7 @@ const summary = (m: BudgetMonth) => ({
   currency: getSettings().currency,
   month: m.month,
   budgeted: m.budgeted,
+  overspent: m.overspent,
   toBudget: m.toBudget,
 })
 
@@ -76,7 +79,7 @@ export const setBudget = defineTool({
   name: "set_budget",
   title: "Set budget amounts",
   description:
-    "Sets what is assigned to expense categories in a month, many in one call, all or none. Each amount replaces the category's assigned amount for that month (0 clears it); it is integer minor units in the budget's currency. To shift money from one envelope to another without touching 'to budget', use move_money. Returns the month's totals and toBudget; read get_budget_month for per-category detail.",
+    "Sets what is assigned to expense categories in a month, many in one call, all or none. Each amount replaces the category's assigned amount for that month (0 clears it); it is integer minor units in the budget's currency. To shift money from one envelope to another without touching 'to budget', use move_money. Assigning in a month changes toBudget for that month and every later one. Returns the month's budgeted, overspent and toBudget; read get_budget_month for per-category detail.",
   input: {
     month: zMonth,
     amounts: z
@@ -99,7 +102,7 @@ export const moveMoney = defineTool({
   name: "move_money",
   title: "Move money between categories",
   description:
-    "Moves budgeted money between expense categories in a month, e.g. to cover an overspent category from one with money left: each move lowers fromCategoryId's assigned amount and raises toCategoryId's by amount (positive integer minor units). 'To budget' is unchanged, except that null on either side is 'to budget' itself (Ready to assign): from null assigns more to toCategoryId, to null gives money back. Several moves in one call, all or none. Returns the affected categories' new numbers.",
+    "Moves budgeted money between expense categories in a month, e.g. to cover an overspent category from one with money left (covered within its month, overspending never reaches the next month's toBudget): each move lowers fromCategoryId's assigned amount and raises toCategoryId's by amount (positive integer minor units). 'To budget' is unchanged, except that null on either side is 'to budget' itself (Ready to assign): from null assigns more to toCategoryId, to null gives money back. Several moves in one call, all or none. Returns the month's totals and the affected categories' new numbers. Example: cover Groceries (available -5000) from Dining out: { fromCategoryId: <Dining out>, toCategoryId: <Groceries>, amount: 5000 }.",
   input: {
     month: zMonth,
     moves: z

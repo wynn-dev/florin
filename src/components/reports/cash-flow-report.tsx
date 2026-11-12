@@ -8,7 +8,11 @@ import { Money } from "@/components/money"
 import { queries } from "@/lib/api"
 import { formatDate, formatMoney, formatMonth } from "@/lib/format"
 
-/** Net money into the cash accounts per month, above or below zero, with their balances. */
+/**
+ * Net money into the cash accounts per month, above or below zero, with their
+ * balances. In and Out leave out transfers to and from the other accounts
+ * (paying a card, investing), which have their own column.
+ */
 export function CashFlowReport({
   query,
   currency,
@@ -44,6 +48,16 @@ export function CashFlowReport({
               tooltipExtra={(row) => [
                 { label: "In", value: formatMoney(row.inflow, currency) },
                 { label: "Out", value: formatMoney(row.outflow, currency) },
+                ...(row.transfers
+                  ? [
+                      {
+                        label: "Transfers",
+                        value: formatMoney(row.transfers, currency, {
+                          signed: true,
+                        }),
+                      },
+                    ]
+                  : []),
                 {
                   label: "Ending balance",
                   value: formatMoney(row.ending, currency),
@@ -96,6 +110,12 @@ function columns(currency: string): ReportColumn<CashFlowMonth>[] {
     money("starting", "Starting", (rows) => byMonth(rows)[0].starting),
     money("inflow", "In", (rows) => sum(rows.map((r) => r.inflow))),
     money("outflow", "Out", (rows) => sum(rows.map((r) => r.outflow))),
+    money(
+      "transfers",
+      "Transfers",
+      (rows) => sum(rows.map((r) => r.transfers)),
+      true
+    ),
     money("net", "Net", (rows) => sum(rows.map((r) => r.net)), true),
     money("ending", "Ending", (rows) => byMonth(rows).at(-1)!.ending),
   ]
