@@ -501,5 +501,26 @@ function recentActivity(
       { categoryId: cat("Shopping"), amount: assigned("Shopping") - 4_000 },
     ])
   })
+  at(ago(0, "09:20"), () => {
+    data.saveRules("mcp:Claude Desktop", [
+      { pattern: String.raw`^BEA, [^,]*?Pay\s+(.+?)\s+NR:`, payee: "$1" },
+      {
+        pattern: String.raw`albert heijn|^ah \d`,
+        payee: "Albert Heijn",
+        categoryId: cat("Groceries"),
+      },
+      { pattern: "^(jumbo|lidl|ekoplaza)", categoryId: cat("Groceries") },
+      {
+        pattern: "^(ns reizen|metro transit|uber)",
+        categoryId: cat("Transport"),
+      },
+      { pattern: "spotify|netflix|audible", categoryId: cat("Subscriptions") },
+      {
+        pattern: String.raw`^steam\b`,
+        payee: "Steam",
+        categoryId: cat("Shopping"),
+      },
+    ])
+  })
   return 9
 }

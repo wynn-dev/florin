@@ -49,6 +49,10 @@ import { Route as ApiReportsIncomeExpensesRouteImport } from './routes/api/repor
 import { Route as ApiReportsNetWorthRouteImport } from './routes/api/reports/net-worth'
 import { Route as ApiReportsSpendingRouteImport } from './routes/api/reports/spending'
 import { Route as ApiReportsSpendingByDayRouteImport } from './routes/api/reports/spending-by-day'
+import { Route as ApiRulesIndexRouteImport } from './routes/api/rules/index'
+import { Route as ApiRulesIdRouteImport } from './routes/api/rules/$id'
+import { Route as ApiRulesApplyRouteImport } from './routes/api/rules/apply'
+import { Route as ApiRulesTestRouteImport } from './routes/api/rules/test'
 import { Route as ApiSetupIndexRouteImport } from './routes/api/setup/index'
 import { Route as ApiSetupCategoriesRouteImport } from './routes/api/setup/categories'
 import { Route as ApiTransactionsIndexRouteImport } from './routes/api/transactions/index'
@@ -280,6 +284,26 @@ const ApiReportsSpendingByDayRoute = ApiReportsSpendingByDayRouteImport.update({
   path: '/api/reports/spending-by-day',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRulesIndexRoute = ApiRulesIndexRouteImport.update({
+  id: '/api/rules/',
+  path: '/api/rules/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRulesIdRoute = ApiRulesIdRouteImport.update({
+  id: '/api/rules/$id',
+  path: '/api/rules/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRulesApplyRoute = ApiRulesApplyRouteImport.update({
+  id: '/api/rules/apply',
+  path: '/api/rules/apply',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRulesTestRoute = ApiRulesTestRouteImport.update({
+  id: '/api/rules/test',
+  path: '/api/rules/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSetupIndexRoute = ApiSetupIndexRouteImport.update({
   id: '/api/setup/',
   path: '/api/setup/',
@@ -475,6 +499,9 @@ export interface FileRoutesByFullPath {
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
   '/api/reports/spending': typeof ApiReportsSpendingRoute
   '/api/reports/spending-by-day': typeof ApiReportsSpendingByDayRoute
+  '/api/rules/$id': typeof ApiRulesIdRoute
+  '/api/rules/apply': typeof ApiRulesApplyRoute
+  '/api/rules/test': typeof ApiRulesTestRoute
   '/api/setup/categories': typeof ApiSetupCategoriesRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
   '/connect/enable-banking/callback': typeof ConnectEnableBankingCallbackRoute
@@ -488,6 +515,7 @@ export interface FileRoutesByFullPath {
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/mcp-tokens/': typeof ApiMcpTokensIndexRoute
   '/api/payees/': typeof ApiPayeesIndexRoute
+  '/api/rules/': typeof ApiRulesIndexRoute
   '/api/setup/': typeof ApiSetupIndexRoute
   '/api/transactions/': typeof ApiTransactionsIndexRoute
   '/api/accounts/$id/balances': typeof ApiAccountsIdBalancesRoute
@@ -546,6 +574,9 @@ export interface FileRoutesByTo {
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
   '/api/reports/spending': typeof ApiReportsSpendingRoute
   '/api/reports/spending-by-day': typeof ApiReportsSpendingByDayRoute
+  '/api/rules/$id': typeof ApiRulesIdRoute
+  '/api/rules/apply': typeof ApiRulesApplyRoute
+  '/api/rules/test': typeof ApiRulesTestRoute
   '/api/setup/categories': typeof ApiSetupCategoriesRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
   '/connect/enable-banking/callback': typeof ConnectEnableBankingCallbackRoute
@@ -559,6 +590,7 @@ export interface FileRoutesByTo {
   '/api/jobs': typeof ApiJobsIndexRoute
   '/api/mcp-tokens': typeof ApiMcpTokensIndexRoute
   '/api/payees': typeof ApiPayeesIndexRoute
+  '/api/rules': typeof ApiRulesIndexRoute
   '/api/setup': typeof ApiSetupIndexRoute
   '/api/transactions': typeof ApiTransactionsIndexRoute
   '/api/accounts/$id/balances': typeof ApiAccountsIdBalancesRoute
@@ -619,6 +651,9 @@ export interface FileRoutesById {
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
   '/api/reports/spending': typeof ApiReportsSpendingRoute
   '/api/reports/spending-by-day': typeof ApiReportsSpendingByDayRoute
+  '/api/rules/$id': typeof ApiRulesIdRoute
+  '/api/rules/apply': typeof ApiRulesApplyRoute
+  '/api/rules/test': typeof ApiRulesTestRoute
   '/api/setup/categories': typeof ApiSetupCategoriesRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
   '/connect/enable-banking/callback': typeof ConnectEnableBankingCallbackRoute
@@ -632,6 +667,7 @@ export interface FileRoutesById {
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/mcp-tokens/': typeof ApiMcpTokensIndexRoute
   '/api/payees/': typeof ApiPayeesIndexRoute
+  '/api/rules/': typeof ApiRulesIndexRoute
   '/api/setup/': typeof ApiSetupIndexRoute
   '/api/transactions/': typeof ApiTransactionsIndexRoute
   '/api/accounts/$id/balances': typeof ApiAccountsIdBalancesRoute
@@ -692,6 +728,9 @@ export interface FileRouteTypes {
     | '/api/reports/net-worth'
     | '/api/reports/spending'
     | '/api/reports/spending-by-day'
+    | '/api/rules/$id'
+    | '/api/rules/apply'
+    | '/api/rules/test'
     | '/api/setup/categories'
     | '/api/transactions/$id'
     | '/connect/enable-banking/callback'
@@ -705,6 +744,7 @@ export interface FileRouteTypes {
     | '/api/jobs/'
     | '/api/mcp-tokens/'
     | '/api/payees/'
+    | '/api/rules/'
     | '/api/setup/'
     | '/api/transactions/'
     | '/api/accounts/$id/balances'
@@ -763,6 +803,9 @@ export interface FileRouteTypes {
     | '/api/reports/net-worth'
     | '/api/reports/spending'
     | '/api/reports/spending-by-day'
+    | '/api/rules/$id'
+    | '/api/rules/apply'
+    | '/api/rules/test'
     | '/api/setup/categories'
     | '/api/transactions/$id'
     | '/connect/enable-banking/callback'
@@ -776,6 +819,7 @@ export interface FileRouteTypes {
     | '/api/jobs'
     | '/api/mcp-tokens'
     | '/api/payees'
+    | '/api/rules'
     | '/api/setup'
     | '/api/transactions'
     | '/api/accounts/$id/balances'
@@ -835,6 +879,9 @@ export interface FileRouteTypes {
     | '/api/reports/net-worth'
     | '/api/reports/spending'
     | '/api/reports/spending-by-day'
+    | '/api/rules/$id'
+    | '/api/rules/apply'
+    | '/api/rules/test'
     | '/api/setup/categories'
     | '/api/transactions/$id'
     | '/connect/enable-banking/callback'
@@ -848,6 +895,7 @@ export interface FileRouteTypes {
     | '/api/jobs/'
     | '/api/mcp-tokens/'
     | '/api/payees/'
+    | '/api/rules/'
     | '/api/setup/'
     | '/api/transactions/'
     | '/api/accounts/$id/balances'
@@ -901,6 +949,9 @@ export interface RootRouteChildren {
   ApiReportsNetWorthRoute: typeof ApiReportsNetWorthRoute
   ApiReportsSpendingRoute: typeof ApiReportsSpendingRoute
   ApiReportsSpendingByDayRoute: typeof ApiReportsSpendingByDayRoute
+  ApiRulesIdRoute: typeof ApiRulesIdRoute
+  ApiRulesApplyRoute: typeof ApiRulesApplyRoute
+  ApiRulesTestRoute: typeof ApiRulesTestRoute
   ApiSetupCategoriesRoute: typeof ApiSetupCategoriesRoute
   ApiTransactionsIdRoute: typeof ApiTransactionsIdRoute
   ConnectEnableBankingCallbackRoute: typeof ConnectEnableBankingCallbackRoute
@@ -911,6 +962,7 @@ export interface RootRouteChildren {
   ApiJobsIndexRoute: typeof ApiJobsIndexRoute
   ApiMcpTokensIndexRoute: typeof ApiMcpTokensIndexRoute
   ApiPayeesIndexRoute: typeof ApiPayeesIndexRoute
+  ApiRulesIndexRoute: typeof ApiRulesIndexRoute
   ApiSetupIndexRoute: typeof ApiSetupIndexRoute
   ApiTransactionsIndexRoute: typeof ApiTransactionsIndexRoute
   ApiAccountsIdBalancesRoute: typeof ApiAccountsIdBalancesRoute
@@ -1222,6 +1274,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiReportsSpendingByDayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/rules/': {
+      id: '/api/rules/'
+      path: '/api/rules'
+      fullPath: '/api/rules/'
+      preLoaderRoute: typeof ApiRulesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/rules/$id': {
+      id: '/api/rules/$id'
+      path: '/api/rules/$id'
+      fullPath: '/api/rules/$id'
+      preLoaderRoute: typeof ApiRulesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/rules/apply': {
+      id: '/api/rules/apply'
+      path: '/api/rules/apply'
+      fullPath: '/api/rules/apply'
+      preLoaderRoute: typeof ApiRulesApplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/rules/test': {
+      id: '/api/rules/test'
+      path: '/api/rules/test'
+      fullPath: '/api/rules/test'
+      preLoaderRoute: typeof ApiRulesTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/setup/': {
       id: '/api/setup/'
       path: '/api/setup'
@@ -1487,6 +1567,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiReportsNetWorthRoute: ApiReportsNetWorthRoute,
   ApiReportsSpendingRoute: ApiReportsSpendingRoute,
   ApiReportsSpendingByDayRoute: ApiReportsSpendingByDayRoute,
+  ApiRulesIdRoute: ApiRulesIdRoute,
+  ApiRulesApplyRoute: ApiRulesApplyRoute,
+  ApiRulesTestRoute: ApiRulesTestRoute,
   ApiSetupCategoriesRoute: ApiSetupCategoriesRoute,
   ApiTransactionsIdRoute: ApiTransactionsIdRoute,
   ConnectEnableBankingCallbackRoute: ConnectEnableBankingCallbackRoute,
@@ -1497,6 +1580,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiJobsIndexRoute: ApiJobsIndexRoute,
   ApiMcpTokensIndexRoute: ApiMcpTokensIndexRoute,
   ApiPayeesIndexRoute: ApiPayeesIndexRoute,
+  ApiRulesIndexRoute: ApiRulesIndexRoute,
   ApiSetupIndexRoute: ApiSetupIndexRoute,
   ApiTransactionsIndexRoute: ApiTransactionsIndexRoute,
   ApiAccountsIdBalancesRoute: ApiAccountsIdBalancesRoute,

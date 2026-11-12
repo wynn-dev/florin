@@ -12,6 +12,7 @@ export const INSTRUCTIONS = `florin is an envelope budget. Start with the overvi
 - On-budget accounts feed the budget and their transactions need a category. Tracking accounts (off budget: investments, other currencies) only count in net worth and need no categories.
 - A transfer is a linked pair of transactions in two accounts, made in one call; between currencies each side has its own amount. A transfer between on-budget accounts takes no category.
 - Pending transactions are not yet settled by the bank; cleared ones are.
+- Rules (list_rules, save_rules) name and categorise every imported row from the bank's text; to keep a kind of row categorised, add a rule rather than fixing each one.
 - Bulk tools take lists and apply all of them or none; an error names the item to fix. Every change is recorded with who made it.`
 
 /** A server with every tool; `actor` names whoever is calling, for the change log. */

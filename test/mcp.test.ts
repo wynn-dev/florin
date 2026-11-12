@@ -254,6 +254,114 @@ describe("over HTTP", () => {
     expect(leg.amount).toBe(10_850)
   })
 
+  test("rules: saved in order, applied with a dry run first, then on import", async () => {
+    const { client } = http
+    const shopping = categoryId("Shopping")
+    const account = data.createAccount("person", {
+      name: "Rules account",
+      type: "checking",
+    }).id
+    data.importTransactions("import", account, [
+      {
+        date: day(2),
+        amount: -2_000,
+        payee: "BEA, Apple Pay",
+        notes: "BEA, Apple Pay Corner Shop 12 NR:AB123, 01.02.26/10:00",
+      },
+    ])
+
+    await expect(
+      call(client, "save_rules", { rules: [{ pattern: "(oops", payee: "X" }] })
+    ).rejects.toThrow(/rule \/\(oops\/ has a pattern that is not a valid/)
+    const saved = await call(client, "save_rules", {
+      rules: [
+        {
+          pattern: "^corner shop \\d",
+          payee: "Corner Shop",
+          categoryId: shopping,
+        },
+        {
+          pattern: "^BEA, [^,]*?Pay\\s+(.+?)\\s+NR:",
+          payee: "$1",
+          position: 1,
+        },
+      ],
+    })
+    expect(saved.rules).toEqual([
+      expect.objectContaining({ position: 1, payee: "$1" }),
+      expect.objectContaining({
+        position: 2,
+        payee: "Corner Shop",
+        categoryId: shopping,
+        category: "Shopping",
+      }),
+    ])
+    expect((await call(client, "list_rules")).rules).toEqual(saved.rules)
+
+    const dry = await call(client, "apply_rules", {
+      accountId: account,
+      dryRun: true,
+    })
+    expect(dry).toMatchObject({ checked: 1, changed: 1, payeesRemoved: 1 })
+    expect(dry.sample).toEqual([
+      expect.objectContaining({
+        bankText: "BEA, Apple Pay",
+        payee: { from: "BEA, Apple Pay", to: "Corner Shop" },
+        category: { from: null, to: "Shopping" },
+      }),
+    ])
+    const applied = await call(client, "apply_rules", { accountId: account })
+    expect(applied.change).toEqual(expect.any(Number))
+    expect(data.listPayees({ search: "Apple Pay" }).total).toBe(0)
+
+    const imported = await call(client, "import_transactions", {
+      accountId: account,
+      rows: [
+        {
+          date: day(3),
+          amount: -900,
+          payee: "BEA, Google Pay",
+          notes: "BEA, Google Pay CORNER SHOP 7 NR:CD9, 02.02.26/11:00",
+        },
+      ],
+    })
+    expect(imported.added).toBe(1)
+    expect(
+      data
+        .listTransactions({ accountId: account })
+        .items.map((t) => [t.payeeName, t.categoryName])
+    ).toEqual([
+      ["Corner Shop", "Shopping"],
+      ["Corner Shop", "Shopping"],
+    ])
+
+    await call(client, "delete_rules", {
+      ids: saved.rules.map((r: { id: number }) => r.id),
+    })
+    expect(data.listRules()).toEqual([])
+    const log = data.listActivity({
+      actor: "mcp:Claude laptop",
+      limit: 2,
+    }).items
+    expect(log.map((c) => c.summary)).toEqual([
+      "Deleted rule /^corner shop \\d/ → Corner Shop · Shopping",
+      "Deleted rule /^BEA, [^,]*?Pay\\s+(.+?)\\s+NR:/ → $1",
+    ])
+  })
+
+  test("delete_payees is all or none and keeps the transactions", async () => {
+    const payee = data.createPayee("person", "Short lived")
+    await expect(
+      call(http.client, "delete_payees", { ids: [payee.id, 999_999] })
+    ).rejects.toThrow(/payee 999999 not found/)
+    expect(
+      await call(http.client, "delete_payees", { ids: [payee.id] })
+    ).toEqual({
+      deleted: 1,
+    })
+    expect(data.listPayees({ search: "Short lived" }).total).toBe(0)
+  })
+
   test("a revoked token is refused", async () => {
     const other = data.createMcpToken("person", "Old phone")
     data.deleteMcpToken("person", other.id)

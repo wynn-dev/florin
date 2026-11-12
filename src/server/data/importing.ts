@@ -1,6 +1,6 @@
-// The one path for bringing outside transactions in, used by CSV import and by
-// the bank connector: rows carry the source's own id, and a row whose id the
-// account already has is skipped.
+// The one path for bringing outside transactions in, used by CSV import, the
+// bank connector and the MCP: rows carry the source's own id, a row whose id
+// the account already has is skipped, and the rules name and categorise the rest.
 import { createHash } from "node:crypto"
 import { and, eq, inArray } from "drizzle-orm"
 import { db, schema } from "../db"
@@ -8,6 +8,7 @@ import { getAccount } from "./accounts"
 import { logChange, money } from "./changes"
 import { payeeCategory, payeeIdForName } from "./payees"
 import { getCategory } from "./categories"
+import { loadRules, runRules } from "./rules"
 import { minorDigits } from "./fx"
 import {
   checkAmount,
@@ -27,8 +28,11 @@ const { transactions } = schema
  * Adds rows to an account, skipping any whose importedId is already there.
  * Rows without an importedId get one derived from date, amount and payee
  * (with a counter for identical rows), so importing the same file twice adds
- * nothing the second time. Each added row is logged on its own, all in one
- * Activity entry, so a transaction's history starts with who brought it in.
+ * nothing the second time. Each new row goes through the rules, which may set
+ * its payee and category; a category given with the row wins over theirs,
+ * and the payee's default category is the fallback. Each added row is logged
+ * on its own, all in one Activity entry, so a transaction's history starts
+ * with who brought it in.
  */
 export function importTransactions(
   actor: Actor,
@@ -39,12 +43,20 @@ export function importTransactions(
   const prepared = prepareRows(rows)
   return db().transaction((tx) => {
     const existing = existingIds(tx, accountId, prepared)
+    const rules = loadRules(tx)
     let added = 0
     let change: number | undefined
     for (const row of prepared) {
       if (existing.has(row.importedId)) continue
       existing.add(row.importedId)
-      const payee = row.payee ? cleanPayee(row.payee) : null
+      // Only the final name becomes a payee: a bank name a rule always
+      // replaces never does.
+      const ruled = runRules(rules, {
+        bankText: row.payee || null,
+        notes: row.notes ?? "",
+        payee: row.payee ? cleanPayee(row.payee) : null,
+      })
+      const payee = ruled.payee
       const payeeId = payee ? payeeIdForName(payee, tx) : null
       const { id } = tx
         .insert(transactions)
@@ -53,8 +65,9 @@ export function importTransactions(
           date: row.date,
           amount: row.amount,
           payeeId,
-          // No category given: the payee's default, if it has one.
-          categoryId: row.categoryId ?? payeeCategory(payeeId, tx),
+          // No category given: the rules', else the payee's default.
+          categoryId:
+            row.categoryId ?? ruled.categoryId ?? payeeCategory(payeeId, tx),
           notes: row.notes ?? "",
           status: row.status ?? "cleared",
           importedId: row.importedId,

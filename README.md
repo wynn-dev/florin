@@ -16,7 +16,8 @@ More: [budget](docs/screenshots/budget-light.png) ·
 [transactions](docs/screenshots/transactions-light.png) ·
 [investment account](docs/screenshots/investment-light.png) ·
 [reports](docs/screenshots/reports-light.png) ·
-[activity](docs/screenshots/activity-dark.png) (all from the built-in demo data).
+[activity](docs/screenshots/activity-dark.png) ·
+[rules](docs/screenshots/rules-light.png) (all from the built-in demo data).
 
 ## Install
 
@@ -179,22 +180,48 @@ florin says so in Settings; generate a new one in step 2 and Change it there.
 If the query lacks a section, florin names the section to tick. Disconnecting
 forgets the token and keeps the account and its history.
 
+## Rules
+
+Rules name and categorise transactions from the bank's text. Each has a
+pattern (a JavaScript regular expression, always case-insensitive) and sets a
+payee, a category or both; the payee may use `$1`…`$9` for parts of the match.
+They run top to bottom on every new row, from a bank sync, a CSV file or an
+agent's import: a rule matches when its pattern is found in the bank's text,
+the notes, or the payee name as it stands, and a later match overrides an
+earlier one. So a generic rule first can pull the shop out of the notes, and
+rules after it name and categorise that shop:
+
+| Pattern                         | Payee        | Category  |
+| ------------------------------- | ------------ | --------- |
+| `^BEA, [^,]*?Pay\s+(.+?)\s+NR:` | `$1`         |           |
+| `albert heijn \d\|^ah \d`       | Albert Heijn | Groceries |
+
+A category that comes with the row wins; with no rule category, the payee's
+default category applies. Only the final name becomes a payee. Applying the
+rules to existing transactions only fills what is untouched (no category, or
+the bank's own name as payee) unless told to overwrite, and removes payees it
+leaves empty. Manage them in Settings › Rules or with the MCP tools
+`list_rules`, `save_rules`, `delete_rules` and `apply_rules`.
+
 ## Connecting an MCP client
 
 florin's MCP server lets agents read and work the whole budget: accounts,
 transactions (including bulk categorising, transfers and imports), budgets,
-categories, payees, reports, investments, the change log, and syncing banks
+categories, payees, rules, reports, investments, the change log, and syncing banks
 and IBKR. Every change an agent makes is recorded under its name. Start an
 agent with the `overview` tool. It is HTTP only: there is no stdio mode and no
 `florin mcp` command.
 
 The MCP is served over streamable HTTP by the running florin, at its public
 address (set in Settings) plus `/mcp`: `http://127.0.0.1:4680/mcp` locally, or
-e.g. `https://florin.example.com/mcp` behind your own domain. Create an access token
-in Settings › Connections › MCP (or in the last first-run step; it is shown
-once, with the client config filled in), then give your client the URL and the
-token as a bearer header, e.g. in Claude Code's `.mcp.json`: Changes are recorded as `mcp:<token name>`; deleting the token
-cuts the client off.
+e.g. `https://florin.example.com/mcp` behind your own domain. Create an access
+token in Settings › Connections › MCP (or in the last first-run step; it is
+shown once, with the client config filled in). An agent on the same machine can
+make its own with `florin token <name>`, which prints only the token (so
+`florin token Assistant > token.txt` works) and lists it in Settings like the
+others. Changes are recorded as `mcp:<token name>`; deleting the token cuts the
+client off. Give your client the URL and the token as a bearer header, e.g. in
+Claude Code's `.mcp.json`:
 
 ```json
 {
@@ -304,7 +331,7 @@ tarball with `install.sh` in a clean Debian container with no Node; CI runs it
 on every pull request.
 
 To release, set `version` in `package.json`, merge, then push a matching tag:
-`git tag v0.1.0 && git push origin v0.1.0`. The release workflow checks, builds,
+`git tag v0.2.0 && git push origin v0.2.0`. The release workflow checks, builds,
 packages, tests the installer and publishes the GitHub Release that
 `install.sh` downloads from.
 

@@ -137,6 +137,22 @@ export const transactions = sqliteTable(
   ]
 )
 
+/**
+ * Rules that name and categorise transactions from the bank's text, run in
+ * sortOrder on every imported row and on demand over existing ones.
+ */
+export const rules = sqliteTable("rules", {
+  id: integer().primaryKey(),
+  /** JavaScript regular expression source, matched case-insensitively. */
+  pattern: text().notNull(),
+  /** The payee name to set; $1…$9 are the match's captured parts. */
+  payee: text(),
+  categoryId: integer("category_id").references(() => categories.id, {
+    onDelete: "set null",
+  }),
+  sortOrder: integer("sort_order").notNull().default(0),
+})
+
 /** Envelope budget: the amount assigned to a category in a month. */
 export const budgets = sqliteTable(
   "budgets",

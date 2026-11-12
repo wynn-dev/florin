@@ -3,6 +3,7 @@ import { Page } from "@/components/page"
 import { ConnectionsSettings } from "@/components/settings/connections"
 import { GeneralSettings } from "@/components/settings/general"
 import { PayeesSettings } from "@/components/settings/payees"
+import { RulesSettings } from "@/components/settings/rules"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 
@@ -10,11 +11,12 @@ const SECTIONS = [
   { value: "general", label: "General" },
   { value: "connections", label: "Connections" },
   { value: "payees", label: "Payees" },
+  { value: "rules", label: "Rules" },
 ] as const
 
 type Section = (typeof SECTIONS)[number]["value"]
 
-/** /settings?section=general|connections|payees */
+/** /settings?section=general|connections|payees|rules */
 export const Route = createFileRoute("/_app/settings")({
   validateSearch: (search: Record<string, unknown>): { section?: Section } =>
     SECTIONS.some((s) => s.value === search.section)
@@ -64,6 +66,7 @@ function SettingsPage() {
           {section === "general" && <GeneralSettings />}
           {section === "connections" && <ConnectionsSettings />}
           {section === "payees" && <PayeesSettings />}
+          {section === "rules" && <RulesSettings />}
         </div>
       </div>
     </Page>

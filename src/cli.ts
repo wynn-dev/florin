@@ -24,6 +24,7 @@ Usage: florin <command>
   seed-demo             Fill an empty florin with sample data
   password              Set or reset the dashboard password
   setup-code            Print the code the first-run page asks for
+  token <name>          Create an MCP access token; prints only the token
   service <action>      Manage the background service: install, uninstall, start, stop, status
 
 Data lives in ${homeDir()} (set FLORIN_HOME to move it). FLORIN_PORT overrides the port.`
@@ -35,6 +36,7 @@ const commands: Record<string, (args: string[]) => Promise<void> | void> = {
   "seed-demo": seed,
   password,
   "setup-code": setupCode,
+  token: async (args) => (await import("./cli/token")).token(args),
   service: async (args) => (await import("./cli/service")).service(args),
   help: () => console.log(HELP),
 }

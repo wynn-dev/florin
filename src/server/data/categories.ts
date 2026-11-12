@@ -1,6 +1,7 @@
 import { asc, eq, sql } from "drizzle-orm"
 import { STARTING_BALANCES, db, schema } from "../db"
 import { describe, logChange } from "./changes"
+import { rulesLeaveCategory } from "./rules"
 import { checkName, found, InvalidInput } from "./validate"
 import type { Database } from "../db"
 import type { Actor, Category, CategoryGroup } from "@/shared/types"
@@ -125,6 +126,8 @@ export function deleteCategoryGroup(
   db().transaction((tx) => {
     if (target)
       for (const c of group.categories) moveCategoryData(tx, c.id, target.id)
+    for (const c of group.categories)
+      rulesLeaveCategory(tx, actor, c.id, target?.id)
     tx.delete(categoryGroups).where(eq(categoryGroups.id, id)).run()
     logChange(tx, actor, {
       action: "delete",
@@ -233,6 +236,7 @@ export function deleteCategory(
   }
   db().transaction((tx) => {
     if (transferTo !== undefined) moveCategoryData(tx, id, transferTo)
+    rulesLeaveCategory(tx, actor, id, transferTo)
     tx.delete(categories).where(eq(categories.id, id)).run()
     logChange(tx, actor, {
       action: "delete",

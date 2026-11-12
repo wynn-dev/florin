@@ -17,6 +17,7 @@ import type {
   CategoryGroup,
   Page,
   Payee,
+  Rule,
   Settings,
   TransactionFilter,
   TransactionPage,
@@ -95,6 +96,11 @@ export const queries = {
     queryOptions({
       queryKey: ["payees", options],
       queryFn: () => api<Page<Payee>>(`/payees${search(options)}`),
+    }),
+  rules: () =>
+    queryOptions({
+      queryKey: ["rules"],
+      queryFn: () => api<Rule[]>("/rules"),
     }),
   budget: (month: string) =>
     queryOptions({
