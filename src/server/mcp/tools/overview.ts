@@ -32,7 +32,7 @@ export const overview = defineTool({
   name: "overview",
   title: "Overview",
   description:
-    "Start here. The lay of the land in one call: the budget's currency and settings, today's date, open accounts with balances, net worth (netWorthLeavesOut lists accounts in another currency left out of it because no exchange rate is stored yet), this month's budget (income, budgeted, activity, available, toBudget), overspent categories, how many transactions need a category or are still pending, and the last few changes. Amounts are integer minor units; negative = money out.",
+    "Start here. The lay of the land in one call: the budget's currency and settings, today's date, open accounts with balances, net worth (netWorthLeavesOut lists accounts in another currency left out of it because no exchange rate is stored yet), this month's budget (income, budgeted, activity, available, overspent, toBudget), overspent categories (covered this month with move_money, or their overspending comes out of next month's toBudget), how many transactions need a category or are still pending, and the last few changes. Amounts are integer minor units; negative = money out.",
   input: {},
   kind: "read",
   run: () => {
@@ -60,6 +60,7 @@ export const overview = defineTool({
         budgeted: budget.budgeted,
         activity: budget.activity,
         available: budget.available,
+        overspent: budget.overspent,
         toBudget: budget.toBudget,
       },
       overspent: budget.groups.flatMap((g) =>

@@ -362,7 +362,11 @@ export type BudgetCategory = {
   budgeted: number
   /** Net of this month's transactions in the category (spending is negative). */
   activity: number
-  /** Left to spend: last month's available carried over + budgeted + activity. */
+  /**
+   * Left to spend: last month's available when it was positive (leftover
+   * carries, overspending doesn't) + budgeted + activity. Negative = overspent
+   * this month; at month end that comes out of next month's toBudget.
+   */
   available: number
 }
 
@@ -382,7 +386,14 @@ export type BudgetMonth = {
   budgeted: number
   activity: number
   available: number
-  /** All income to date minus everything budgeted to date; negative means over-assigned. */
+  /** This month's overspending: the overspent categories' available, as a positive amount. */
+  overspent: number
+  /** Last month's overspending, as a positive amount: taken out of this month's toBudget. */
+  lastMonthOverspent: number
+  /**
+   * Ready to assign: all income to date minus everything budgeted to date
+   * minus the overspending of every earlier month; negative means over-assigned.
+   */
   toBudget: number
   /** The first month with a transaction in an on-budget account; null before any. */
   firstMonth: string | null

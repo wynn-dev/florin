@@ -7,6 +7,7 @@ import { budgetQueries } from "./queries"
 import type { BudgetCategoryDetail } from "@/shared/budget"
 import type { BudgetCategory, BudgetMonth } from "@/shared/types"
 import {
+  addMonths,
   formatDate,
   formatDateTime,
   formatMoney,
@@ -27,7 +28,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-/** The month's totals, shown when no category is selected. */
+/**
+ * The month's totals, shown when no category is selected. Carried over is
+ * last month's leftover; last month's overspending doesn't carry, it came
+ * out of Ready to assign, and this month's will next month.
+ */
 export function MonthSummary({
   month,
   currency,
@@ -48,6 +53,33 @@ export function MonthSummary({
           {formatMoney(0 - month.activity, currency)}
         </Figure>
         <Figure label="Carried over">{formatMoney(carried, currency)}</Figure>
+        {month.lastMonthOverspent > 0 && (
+          <Figure label="Overspent last month">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-negative">
+                  {formatMoney(0 - month.lastMonthOverspent, currency)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Taken from Ready to assign</TooltipContent>
+            </Tooltip>
+          </Figure>
+        )}
+        {month.overspent > 0 && (
+          <Figure label="Overspent">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-negative">
+                  {formatMoney(0 - month.overspent, currency)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Cover it this month, or it comes out of Ready to assign in{" "}
+                {formatMonth(addMonths(month.month, 1))}
+              </TooltipContent>
+            </Tooltip>
+          </Figure>
+        )}
       </dl>
     </section>
   )

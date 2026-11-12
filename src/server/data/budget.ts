@@ -1,9 +1,11 @@
 // Envelope budgeting. Each month the person assigns money to expense
-// categories. A category's available amount is everything ever assigned to it
-// plus everything ever spent from it, up to that month: leftover carries into
-// the next month, and so does overspending until it is covered. Money arrives
-// through income categories; "to budget" is all income to date minus all
-// amounts assigned to date.
+// categories. Per category, month by month from its first month with an
+// assignment or a transaction: available = last month's available if it was
+// positive + assigned + activity. Leftover carries into the next month;
+// overspending shows in its own month and then resets to zero, taken out of
+// Ready to assign instead. Money arrives through income categories; "to
+// budget" for a month is all income to date minus all amounts assigned to
+// date minus the overspending of every earlier month.
 import { and, desc, eq, or, sql } from "drizzle-orm"
 import { db, schema } from "../db"
 import { getCategory, listCategoryGroups } from "./categories"
@@ -29,72 +31,127 @@ import type { BudgetCategoryDetail } from "@/shared/budget"
 
 const { budgets, transactions, accounts, changes: changeLog } = schema
 
-type Sums = Map<number, { total: number; month: number }>
+/** Per category, per month ("YYYY-MM"): an amount. */
+type ByMonth = Map<number, Map<string, number>>
 
-function budgetedSums(month: string): Sums {
-  const rows = db()
-    .select({
-      categoryId: budgets.categoryId,
-      total: sql<number>`sum(${budgets.amount})`,
-      month: sql<number>`sum(case when ${budgets.month} = ${month} then ${budgets.amount} else 0 end)`,
-    })
-    .from(budgets)
-    .where(sql`${budgets.month} <= ${month}`)
-    .groupBy(budgets.categoryId)
-    .all()
-  return new Map(rows.map((r) => [r.categoryId, r]))
+function byMonth(
+  rows: { categoryId: number | null; month: string; amount: number }[]
+): ByMonth {
+  const out: ByMonth = new Map()
+  for (const r of rows) {
+    if (r.categoryId === null) continue
+    const months = out.get(r.categoryId) ?? new Map<string, number>()
+    months.set(r.month, r.amount)
+    out.set(r.categoryId, months)
+  }
+  return out
 }
 
-function activitySums(month: string): Sums {
-  const rows = db()
-    .select({
-      categoryId: transactions.categoryId,
-      total: sql<number>`sum(${transactions.amount})`,
-      month: sql<number>`sum(case when substr(${transactions.date}, 1, 7) = ${month} then ${transactions.amount} else 0 end)`,
-    })
-    .from(transactions)
-    .innerJoin(
-      accounts,
-      and(eq(transactions.accountId, accounts.id), eq(accounts.onBudget, true))
-    )
-    .where(
-      sql`${transactions.date} <= ${monthEnd(month)} and ${transactions.categoryId} is not null`
-    )
-    .groupBy(transactions.categoryId)
-    .all()
-  return new Map(rows.map((r) => [r.categoryId!, r]))
+/** What was assigned to each category in each month up to `month`. */
+function assignedByMonth(month: string): ByMonth {
+  return byMonth(
+    db()
+      .select({
+        categoryId: budgets.categoryId,
+        month: budgets.month,
+        amount: budgets.amount,
+      })
+      .from(budgets)
+      .where(sql`${budgets.month} <= ${month}`)
+      .all()
+  )
+}
+
+/** Each category's activity (on-budget accounts) in each month up to `month`. */
+function activityByMonth(month: string): ByMonth {
+  const m = sql<string>`substr(${transactions.date}, 1, 7)`
+  return byMonth(
+    db()
+      .select({
+        categoryId: transactions.categoryId,
+        month: m,
+        amount: sql<number>`sum(${transactions.amount})`,
+      })
+      .from(transactions)
+      .innerJoin(
+        accounts,
+        and(
+          eq(transactions.accountId, accounts.id),
+          eq(accounts.onBudget, true)
+        )
+      )
+      .where(
+        sql`${transactions.date} <= ${monthEnd(month)} and ${transactions.categoryId} is not null`
+      )
+      .groupBy(transactions.categoryId, m)
+      .all()
+  )
+}
+
+/**
+ * One expense category's envelope before `month`: what carries in (last
+ * month's available when positive), and as positive amounts last month's
+ * overspending and that of every month before `month`, which Ready to
+ * assign covers.
+ */
+function envelope(
+  month: string,
+  assigned: Map<string, number> | undefined,
+  activity: Map<string, number> | undefined
+): { carried: number; lastMonth: number; overspentBefore: number } {
+  const months = [...(assigned?.keys() ?? []), ...(activity?.keys() ?? [])]
+  const previous = addMonths(month, -1)
+  let available = 0
+  let overspentBefore = 0
+  let lastMonth = 0
+  if (months.length) {
+    for (const m of monthsBetween(months.sort()[0], previous)) {
+      available =
+        Math.max(0, available) +
+        (assigned?.get(m) ?? 0) +
+        (activity?.get(m) ?? 0)
+      overspentBefore += Math.max(0, -available)
+    }
+    lastMonth = Math.max(0, -available)
+  }
+  return { carried: Math.max(0, available), lastMonth, overspentBefore }
 }
 
 export function getBudgetMonth(month: string): BudgetMonth {
   checkMonth(month)
-  const budgeted = budgetedSums(month)
-  const activity = activitySums(month)
-  const zero = { total: 0, month: 0 }
+  const assigned = assignedByMonth(month)
+  const activity = activityByMonth(month)
+  const total = (months: Map<string, number> | undefined) =>
+    sum([...(months?.values() ?? [])])
 
   let incomeToDate = 0
   let income = 0
-  let budgetedToDate = 0
+  let assignedToDate = 0
+  let overspentBefore = 0
+  let lastMonthOverspent = 0
   const groups: BudgetGroup[] = []
   for (const group of listCategoryGroups()) {
     if (group.isIncome) {
       for (const c of group.categories) {
-        const a = activity.get(c.id) ?? zero
-        incomeToDate += a.total
-        income += a.month
+        incomeToDate += total(activity.get(c.id))
+        income += activity.get(c.id)?.get(month) ?? 0
       }
       continue
     }
     const categories = group.categories.map((c) => {
-      const b = budgeted.get(c.id) ?? zero
-      const a = activity.get(c.id) ?? zero
-      budgetedToDate += b.total
+      const before = envelope(month, assigned.get(c.id), activity.get(c.id))
+      const budgeted = assigned.get(c.id)?.get(month) ?? 0
+      const spent = activity.get(c.id)?.get(month) ?? 0
+      assignedToDate += total(assigned.get(c.id))
+      overspentBefore += before.overspentBefore
+      lastMonthOverspent += before.lastMonth
       return {
         id: c.id,
         name: c.name,
         hidden: c.hidden,
-        budgeted: b.month,
-        activity: a.month,
-        available: b.total + a.total,
+        budgeted,
+        activity: spent,
+        available: before.carried + budgeted + spent,
       }
     })
     groups.push({
@@ -106,13 +163,16 @@ export function getBudgetMonth(month: string): BudgetMonth {
       categories,
     })
   }
+  const all = groups.flatMap((g) => g.categories)
   return {
     month,
     income,
     budgeted: sum(groups.map((g) => g.budgeted)),
     activity: sum(groups.map((g) => g.activity)),
     available: sum(groups.map((g) => g.available)),
-    toBudget: incomeToDate - budgetedToDate,
+    overspent: sum(all.map((c) => Math.max(0, -c.available))),
+    lastMonthOverspent,
+    toBudget: incomeToDate - assignedToDate - overspentBefore,
     firstMonth: firstBudgetMonth(),
     groups,
   }

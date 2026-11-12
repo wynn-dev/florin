@@ -43,12 +43,7 @@ export function assignDelta(
   categoryId: number,
   delta: number
 ): BudgetMonth {
-  return {
-    ...month,
-    budgeted: month.budgeted + delta,
-    available: month.available + delta,
-    toBudget: month.toBudget - delta,
-    groups: month.groups.map((group) =>
+  const groups = month.groups.map((group) =>
       group.categories.some((c) => c.id === categoryId)
         ? {
             ...group,
@@ -65,7 +60,16 @@ export function assignDelta(
             ),
           }
         : group
-    ),
+  )
+  return {
+    ...month,
+    budgeted: month.budgeted + delta,
+    available: month.available + delta,
+    overspent: groups
+      .flatMap((g) => g.categories)
+      .reduce((sum, c) => sum + Math.max(0, -c.available), 0),
+    toBudget: month.toBudget - delta,
+    groups,
   }
 }
 

@@ -224,7 +224,7 @@ describe("import", () => {
 })
 
 describe("budget", () => {
-  test("leftover and overspending carry into the next month", () => {
+  test("leftover carries into the next month", () => {
     const acct = data.createAccount("person", {
       name: "Budget test",
       type: "cash",
