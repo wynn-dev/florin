@@ -25,6 +25,9 @@ import { Route as ApiCategoriesIndexRouteImport } from './routes/api/categories/
 import { Route as ApiCategoriesIdRouteImport } from './routes/api/categories/$id'
 import { Route as ApiCategoryGroupsIndexRouteImport } from './routes/api/category-groups/index'
 import { Route as ApiCategoryGroupsIdRouteImport } from './routes/api/category-groups/$id'
+import { Route as ApiFxRefreshRouteImport } from './routes/api/fx/refresh'
+import { Route as ApiFxStatusRouteImport } from './routes/api/fx/status'
+import { Route as ApiJobsIndexRouteImport } from './routes/api/jobs/index'
 import { Route as ApiPayeesIndexRouteImport } from './routes/api/payees/index'
 import { Route as ApiReportsCashFlowRouteImport } from './routes/api/reports/cash-flow'
 import { Route as ApiReportsIncomeExpensesRouteImport } from './routes/api/reports/income-expenses'
@@ -38,6 +41,7 @@ import { Route as ApiAccountsIdImportRouteImport } from './routes/api/accounts/$
 import { Route as ApiAccountsIdValuesRouteImport } from './routes/api/accounts/$id/values'
 import { Route as ApiBudgetMonthIndexRouteImport } from './routes/api/budget/$month/index'
 import { Route as ApiBudgetMonthCategoryIdRouteImport } from './routes/api/budget/$month/$categoryId'
+import { Route as ApiJobsNameRunRouteImport } from './routes/api/jobs/$name/run'
 import { Route as ApiPayeesIdIndexRouteImport } from './routes/api/payees/$id/index'
 import { Route as ApiPayeesIdMergeRouteImport } from './routes/api/payees/$id/merge'
 
@@ -120,6 +124,21 @@ const ApiCategoryGroupsIdRoute = ApiCategoryGroupsIdRouteImport.update({
   path: '/api/category-groups/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFxRefreshRoute = ApiFxRefreshRouteImport.update({
+  id: '/api/fx/refresh',
+  path: '/api/fx/refresh',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFxStatusRoute = ApiFxStatusRouteImport.update({
+  id: '/api/fx/status',
+  path: '/api/fx/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiJobsIndexRoute = ApiJobsIndexRouteImport.update({
+  id: '/api/jobs/',
+  path: '/api/jobs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPayeesIndexRoute = ApiPayeesIndexRouteImport.update({
   id: '/api/payees/',
   path: '/api/payees/',
@@ -187,6 +206,11 @@ const ApiBudgetMonthCategoryIdRoute =
     path: '/api/budget/$month/$categoryId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiJobsNameRunRoute = ApiJobsNameRunRouteImport.update({
+  id: '/api/jobs/$name/run',
+  path: '/api/jobs/$name/run',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPayeesIdIndexRoute = ApiPayeesIdIndexRouteImport.update({
   id: '/api/payees/$id/',
   path: '/api/payees/$id/',
@@ -211,6 +235,8 @@ export interface FileRoutesByFullPath {
   '/api/settings': typeof ApiSettingsRoute
   '/api/categories/$id': typeof ApiCategoriesIdRoute
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
+  '/api/fx/refresh': typeof ApiFxRefreshRoute
+  '/api/fx/status': typeof ApiFxStatusRoute
   '/api/reports/cash-flow': typeof ApiReportsCashFlowRoute
   '/api/reports/income-expenses': typeof ApiReportsIncomeExpensesRoute
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
@@ -219,12 +245,14 @@ export interface FileRoutesByFullPath {
   '/api/accounts/': typeof ApiAccountsIndexRoute
   '/api/categories/': typeof ApiCategoriesIndexRoute
   '/api/category-groups/': typeof ApiCategoryGroupsIndexRoute
+  '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/payees/': typeof ApiPayeesIndexRoute
   '/api/transactions/': typeof ApiTransactionsIndexRoute
   '/api/accounts/$id/holdings': typeof ApiAccountsIdHoldingsRoute
   '/api/accounts/$id/import': typeof ApiAccountsIdImportRoute
   '/api/accounts/$id/values': typeof ApiAccountsIdValuesRoute
   '/api/budget/$month/$categoryId': typeof ApiBudgetMonthCategoryIdRoute
+  '/api/jobs/$name/run': typeof ApiJobsNameRunRoute
   '/api/payees/$id/merge': typeof ApiPayeesIdMergeRoute
   '/api/accounts/$id/': typeof ApiAccountsIdIndexRoute
   '/api/budget/$month/': typeof ApiBudgetMonthIndexRoute
@@ -243,6 +271,8 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/api/categories/$id': typeof ApiCategoriesIdRoute
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
+  '/api/fx/refresh': typeof ApiFxRefreshRoute
+  '/api/fx/status': typeof ApiFxStatusRoute
   '/api/reports/cash-flow': typeof ApiReportsCashFlowRoute
   '/api/reports/income-expenses': typeof ApiReportsIncomeExpensesRoute
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
@@ -251,12 +281,14 @@ export interface FileRoutesByTo {
   '/api/accounts': typeof ApiAccountsIndexRoute
   '/api/categories': typeof ApiCategoriesIndexRoute
   '/api/category-groups': typeof ApiCategoryGroupsIndexRoute
+  '/api/jobs': typeof ApiJobsIndexRoute
   '/api/payees': typeof ApiPayeesIndexRoute
   '/api/transactions': typeof ApiTransactionsIndexRoute
   '/api/accounts/$id/holdings': typeof ApiAccountsIdHoldingsRoute
   '/api/accounts/$id/import': typeof ApiAccountsIdImportRoute
   '/api/accounts/$id/values': typeof ApiAccountsIdValuesRoute
   '/api/budget/$month/$categoryId': typeof ApiBudgetMonthCategoryIdRoute
+  '/api/jobs/$name/run': typeof ApiJobsNameRunRoute
   '/api/payees/$id/merge': typeof ApiPayeesIdMergeRoute
   '/api/accounts/$id': typeof ApiAccountsIdIndexRoute
   '/api/budget/$month': typeof ApiBudgetMonthIndexRoute
@@ -277,6 +309,8 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/api/categories/$id': typeof ApiCategoriesIdRoute
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
+  '/api/fx/refresh': typeof ApiFxRefreshRoute
+  '/api/fx/status': typeof ApiFxStatusRoute
   '/api/reports/cash-flow': typeof ApiReportsCashFlowRoute
   '/api/reports/income-expenses': typeof ApiReportsIncomeExpensesRoute
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
@@ -285,12 +319,14 @@ export interface FileRoutesById {
   '/api/accounts/': typeof ApiAccountsIndexRoute
   '/api/categories/': typeof ApiCategoriesIndexRoute
   '/api/category-groups/': typeof ApiCategoryGroupsIndexRoute
+  '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/payees/': typeof ApiPayeesIndexRoute
   '/api/transactions/': typeof ApiTransactionsIndexRoute
   '/api/accounts/$id/holdings': typeof ApiAccountsIdHoldingsRoute
   '/api/accounts/$id/import': typeof ApiAccountsIdImportRoute
   '/api/accounts/$id/values': typeof ApiAccountsIdValuesRoute
   '/api/budget/$month/$categoryId': typeof ApiBudgetMonthCategoryIdRoute
+  '/api/jobs/$name/run': typeof ApiJobsNameRunRoute
   '/api/payees/$id/merge': typeof ApiPayeesIdMergeRoute
   '/api/accounts/$id/': typeof ApiAccountsIdIndexRoute
   '/api/budget/$month/': typeof ApiBudgetMonthIndexRoute
@@ -311,6 +347,8 @@ export interface FileRouteTypes {
     | '/api/settings'
     | '/api/categories/$id'
     | '/api/category-groups/$id'
+    | '/api/fx/refresh'
+    | '/api/fx/status'
     | '/api/reports/cash-flow'
     | '/api/reports/income-expenses'
     | '/api/reports/net-worth'
@@ -319,12 +357,14 @@ export interface FileRouteTypes {
     | '/api/accounts/'
     | '/api/categories/'
     | '/api/category-groups/'
+    | '/api/jobs/'
     | '/api/payees/'
     | '/api/transactions/'
     | '/api/accounts/$id/holdings'
     | '/api/accounts/$id/import'
     | '/api/accounts/$id/values'
     | '/api/budget/$month/$categoryId'
+    | '/api/jobs/$name/run'
     | '/api/payees/$id/merge'
     | '/api/accounts/$id/'
     | '/api/budget/$month/'
@@ -343,6 +383,8 @@ export interface FileRouteTypes {
     | '/'
     | '/api/categories/$id'
     | '/api/category-groups/$id'
+    | '/api/fx/refresh'
+    | '/api/fx/status'
     | '/api/reports/cash-flow'
     | '/api/reports/income-expenses'
     | '/api/reports/net-worth'
@@ -351,12 +393,14 @@ export interface FileRouteTypes {
     | '/api/accounts'
     | '/api/categories'
     | '/api/category-groups'
+    | '/api/jobs'
     | '/api/payees'
     | '/api/transactions'
     | '/api/accounts/$id/holdings'
     | '/api/accounts/$id/import'
     | '/api/accounts/$id/values'
     | '/api/budget/$month/$categoryId'
+    | '/api/jobs/$name/run'
     | '/api/payees/$id/merge'
     | '/api/accounts/$id'
     | '/api/budget/$month'
@@ -376,6 +420,8 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/api/categories/$id'
     | '/api/category-groups/$id'
+    | '/api/fx/refresh'
+    | '/api/fx/status'
     | '/api/reports/cash-flow'
     | '/api/reports/income-expenses'
     | '/api/reports/net-worth'
@@ -384,12 +430,14 @@ export interface FileRouteTypes {
     | '/api/accounts/'
     | '/api/categories/'
     | '/api/category-groups/'
+    | '/api/jobs/'
     | '/api/payees/'
     | '/api/transactions/'
     | '/api/accounts/$id/holdings'
     | '/api/accounts/$id/import'
     | '/api/accounts/$id/values'
     | '/api/budget/$month/$categoryId'
+    | '/api/jobs/$name/run'
     | '/api/payees/$id/merge'
     | '/api/accounts/$id/'
     | '/api/budget/$month/'
@@ -405,6 +453,8 @@ export interface RootRouteChildren {
   ApiSettingsRoute: typeof ApiSettingsRoute
   ApiCategoriesIdRoute: typeof ApiCategoriesIdRoute
   ApiCategoryGroupsIdRoute: typeof ApiCategoryGroupsIdRoute
+  ApiFxRefreshRoute: typeof ApiFxRefreshRoute
+  ApiFxStatusRoute: typeof ApiFxStatusRoute
   ApiReportsCashFlowRoute: typeof ApiReportsCashFlowRoute
   ApiReportsIncomeExpensesRoute: typeof ApiReportsIncomeExpensesRoute
   ApiReportsNetWorthRoute: typeof ApiReportsNetWorthRoute
@@ -413,12 +463,14 @@ export interface RootRouteChildren {
   ApiAccountsIndexRoute: typeof ApiAccountsIndexRoute
   ApiCategoriesIndexRoute: typeof ApiCategoriesIndexRoute
   ApiCategoryGroupsIndexRoute: typeof ApiCategoryGroupsIndexRoute
+  ApiJobsIndexRoute: typeof ApiJobsIndexRoute
   ApiPayeesIndexRoute: typeof ApiPayeesIndexRoute
   ApiTransactionsIndexRoute: typeof ApiTransactionsIndexRoute
   ApiAccountsIdHoldingsRoute: typeof ApiAccountsIdHoldingsRoute
   ApiAccountsIdImportRoute: typeof ApiAccountsIdImportRoute
   ApiAccountsIdValuesRoute: typeof ApiAccountsIdValuesRoute
   ApiBudgetMonthCategoryIdRoute: typeof ApiBudgetMonthCategoryIdRoute
+  ApiJobsNameRunRoute: typeof ApiJobsNameRunRoute
   ApiPayeesIdMergeRoute: typeof ApiPayeesIdMergeRoute
   ApiAccountsIdIndexRoute: typeof ApiAccountsIdIndexRoute
   ApiBudgetMonthIndexRoute: typeof ApiBudgetMonthIndexRoute
@@ -539,6 +591,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCategoryGroupsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/fx/refresh': {
+      id: '/api/fx/refresh'
+      path: '/api/fx/refresh'
+      fullPath: '/api/fx/refresh'
+      preLoaderRoute: typeof ApiFxRefreshRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/fx/status': {
+      id: '/api/fx/status'
+      path: '/api/fx/status'
+      fullPath: '/api/fx/status'
+      preLoaderRoute: typeof ApiFxStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/jobs/': {
+      id: '/api/jobs/'
+      path: '/api/jobs'
+      fullPath: '/api/jobs/'
+      preLoaderRoute: typeof ApiJobsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/payees/': {
       id: '/api/payees/'
       path: '/api/payees'
@@ -630,6 +703,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBudgetMonthCategoryIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/jobs/$name/run': {
+      id: '/api/jobs/$name/run'
+      path: '/api/jobs/$name/run'
+      fullPath: '/api/jobs/$name/run'
+      preLoaderRoute: typeof ApiJobsNameRunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/payees/$id/': {
       id: '/api/payees/$id/'
       path: '/api/payees/$id'
@@ -674,6 +754,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSettingsRoute: ApiSettingsRoute,
   ApiCategoriesIdRoute: ApiCategoriesIdRoute,
   ApiCategoryGroupsIdRoute: ApiCategoryGroupsIdRoute,
+  ApiFxRefreshRoute: ApiFxRefreshRoute,
+  ApiFxStatusRoute: ApiFxStatusRoute,
   ApiReportsCashFlowRoute: ApiReportsCashFlowRoute,
   ApiReportsIncomeExpensesRoute: ApiReportsIncomeExpensesRoute,
   ApiReportsNetWorthRoute: ApiReportsNetWorthRoute,
@@ -682,12 +764,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAccountsIndexRoute: ApiAccountsIndexRoute,
   ApiCategoriesIndexRoute: ApiCategoriesIndexRoute,
   ApiCategoryGroupsIndexRoute: ApiCategoryGroupsIndexRoute,
+  ApiJobsIndexRoute: ApiJobsIndexRoute,
   ApiPayeesIndexRoute: ApiPayeesIndexRoute,
   ApiTransactionsIndexRoute: ApiTransactionsIndexRoute,
   ApiAccountsIdHoldingsRoute: ApiAccountsIdHoldingsRoute,
   ApiAccountsIdImportRoute: ApiAccountsIdImportRoute,
   ApiAccountsIdValuesRoute: ApiAccountsIdValuesRoute,
   ApiBudgetMonthCategoryIdRoute: ApiBudgetMonthCategoryIdRoute,
+  ApiJobsNameRunRoute: ApiJobsNameRunRoute,
   ApiPayeesIdMergeRoute: ApiPayeesIdMergeRoute,
   ApiAccountsIdIndexRoute: ApiAccountsIdIndexRoute,
   ApiBudgetMonthIndexRoute: ApiBudgetMonthIndexRoute,

@@ -56,8 +56,11 @@ export function convert(
   return Math.round((major / fromRate) * toRate * 10 ** minorDigits(to))
 }
 
-/** Stores rates (replacing any for the same currency and date). */
-export function saveFxRates(actor: Actor, rates: FxRate[]): void {
+/**
+ * Stores rates (replacing any for the same currency and date). A null actor
+ * (the ECB refresh) leaves no line in the change log.
+ */
+export function saveFxRates(actor: Actor | null, rates: FxRate[]): void {
   db().transaction((tx) => {
     for (const r of rates) {
       checkDate(r.date)
@@ -72,7 +75,7 @@ export function saveFxRates(actor: Actor, rates: FxRate[]): void {
         })
         .run()
     }
-    if (rates.length) {
+    if (actor && rates.length) {
       const currencies = [...new Set(rates.map((r) => r.currency))].join(", ")
       logChange(tx, actor, {
         action: "update",

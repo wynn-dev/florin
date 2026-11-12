@@ -9,7 +9,8 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     tanstackStart(),
-    nitro({ preset: "node-server" }),
+    // The jobs plugin starts the background jobs when the server boots.
+    nitro({ preset: "node-server", plugins: ["./src/server/plugins/jobs.ts"] }),
     viteReact(),
   ],
 })

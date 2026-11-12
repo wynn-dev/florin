@@ -24,6 +24,8 @@ export type Config = {
    */
   setupCode?: string
   sessionSecret: string
+  /** Connector credentials, by key (src/server/secrets.ts). */
+  secrets?: Record<string, { value: string; setAt: string }>
 }
 
 export const DEFAULT_PORT = 4680

@@ -39,6 +39,11 @@ in a temporary folder) and `pnpm build`. CI runs all four on every pull request.
   (`person`, `mcp:<client>`, `bank-sync`, `import`, `demo`) and records a line
   in the change log.
 - `src/shared/types.ts` – the API types, shared by the server and the web app.
+- `src/server/jobs.ts` – background jobs (a plain in-process scheduler, state in
+  the `jobs` table); `src/server/job-list.ts` registers them, one line each.
+  `src/server/ecb.ts` is one: it keeps ECB rates for the currencies in use.
+- `src/server/secrets.ts` – connector credentials, kept in `config.json` (0600),
+  never in the database or any API answer.
 - `src/routes/api/` – the REST API; `src/routes/mcp.ts` – the MCP endpoint.
 - `src/routes/_app/` – dashboard pages; `src/components/ui/` – shadcn/ui components.
 - `src/cli.ts` – the `florin` command.
