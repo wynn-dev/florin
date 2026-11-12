@@ -1,0 +1,6 @@
+export { AreaTrend } from "./area-trend"
+export { Bars } from "./bars"
+export { SegmentedBar } from "./segmented-bar"
+export type { Segment } from "./segmented-bar"
+export { CHART_SLOTS } from "./common"
+export type { Series, TooltipRow, XFormat } from "./common"

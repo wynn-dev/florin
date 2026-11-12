@@ -114,6 +114,11 @@ in a temporary folder) and `pnpm build`. CI runs all four on every pull request.
   never in the database or any API answer.
 - `src/routes/api/` – the REST API; `src/routes/mcp.ts` – the MCP endpoint.
 - `src/routes/_app/` – dashboard pages; `src/components/ui/` – shadcn/ui components.
+- `src/lib/format.ts` – every amount and date the dashboard shows; pages
+  never call Intl themselves. `src/components/` – the shared parts pages build
+  from: `Money`, `AmountInput`, the category and payee pickers, `SourceLabel`,
+  the empty/error/skeleton states and `charts/` (`AreaTrend`, `Bars`,
+  `SegmentedBar`).
 - `src/cli.ts` – the `florin` command.
 - `test/` – tests (Vitest).
 
