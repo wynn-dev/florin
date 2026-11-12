@@ -85,13 +85,18 @@ function ImportFlow({
 
   const undo = useMutation({
     mutationFn: async (change: number) => {
-      const page = await api<TransactionPage>(
-        `/transactions${qs({ change, limit: 1000 })}`
-      )
-      await api<void>("/transactions", {
-        method: "DELETE",
-        body: { ids: page.items.map((t) => t.id) },
-      })
+      // Pages are at most 1000 rows; an import can be far bigger.
+      const ids: number[] = []
+      for (let total = Infinity; ids.length < total;) {
+        const page = await api<TransactionPage>(
+          `/transactions${qs({ change, limit: 1000, offset: ids.length })}`
+        )
+        if (!page.items.length) break
+        ids.push(...page.items.map((t) => t.id))
+        total = page.total
+      }
+      if (ids.length)
+        await api<void>("/transactions", { method: "DELETE", body: { ids } })
     },
     onError: (e) => toast.error(e.message),
     onSettled: () => invalidateAfterEdit(client),

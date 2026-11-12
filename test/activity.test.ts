@@ -254,6 +254,33 @@ describe("CSV preview and import", () => {
     })
   })
 
+  test("a large import pages out whole by its change, so Undo can remove all of it", () => {
+    const account = data.createAccount("person", {
+      name: "History",
+      type: "checking",
+    }).id
+    const rows = Array.from({ length: 1500 }, (_, i) => ({
+      date: `2025-${String((i % 12) + 1).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}`,
+      amount: -(100 + i),
+      payee: `Shop ${i % 40}`,
+    }))
+    const { change } = data.importTransactions("import:all.csv", account, rows)
+    const ids = new Set<number>()
+    for (let total = Infinity; ids.size < total;) {
+      const page = data.listTransactions({
+        change,
+        limit: 1000,
+        offset: ids.size,
+      })
+      if (!page.items.length) break
+      page.items.forEach((t) => ids.add(t.id))
+      total = page.total
+    }
+    expect(ids.size).toBe(1500)
+    data.deleteTransactions("person", [...ids])
+    expect(data.listTransactions({ accountId: account }).total).toBe(0)
+  })
+
   test("a mapping that can't read the file says why", () => {
     const preview = data.previewCsv(checking, csv, {
       date: "Date",
