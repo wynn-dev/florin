@@ -2,15 +2,20 @@
 // options built on them. Types come from src/shared/types.ts, the same ones
 // the server returns.
 import { queryOptions } from "@tanstack/react-query"
+import type { Attention } from "@/shared/attention"
+import type {
+  CashFlowReport,
+  IncomeExpenseReport,
+  NetWorthReport,
+  ReportQuery,
+  SpendingByDay,
+  SpendingReport,
+} from "@/shared/reports"
 import type {
   Account,
   BudgetMonth,
-  CashFlowPoint,
   CategoryGroup,
-  CategorySpending,
-  DateRange,
-  IncomeExpensePoint,
-  NetWorthPoint,
+  Change,
   Page,
   Payee,
   Settings,
@@ -94,26 +99,53 @@ export const queries = {
       queryKey: ["budget", month],
       queryFn: () => api<BudgetMonth>(`/budget/${month}`),
     }),
-  netWorth: (range: Partial<DateRange> = {}) =>
+  netWorth: (query: ReportQuery & { step?: NetWorthReport["step"] } = {}) =>
     queryOptions({
-      queryKey: ["reports", "net-worth", range],
-      queryFn: () => api<NetWorthPoint[]>(`/reports/net-worth${search(range)}`),
-    }),
-  spending: (range: Partial<DateRange> = {}) =>
-    queryOptions({
-      queryKey: ["reports", "spending", range],
+      queryKey: ["reports", "net-worth", query],
       queryFn: () =>
-        api<CategorySpending[]>(`/reports/spending${search(range)}`),
+        api<NetWorthReport>(`/reports/net-worth${reportSearch(query)}`),
     }),
-  incomeExpenses: (range: Partial<DateRange> = {}) =>
+  spending: (query: ReportQuery = {}) =>
     queryOptions({
-      queryKey: ["reports", "income-expenses", range],
+      queryKey: ["reports", "spending", query],
       queryFn: () =>
-        api<IncomeExpensePoint[]>(`/reports/income-expenses${search(range)}`),
+        api<SpendingReport>(`/reports/spending${reportSearch(query)}`),
     }),
-  cashFlow: (range: Partial<DateRange> = {}) =>
+  incomeExpenses: (query: ReportQuery = {}) =>
     queryOptions({
-      queryKey: ["reports", "cash-flow", range],
-      queryFn: () => api<CashFlowPoint[]>(`/reports/cash-flow${search(range)}`),
+      queryKey: ["reports", "income-expenses", query],
+      queryFn: () =>
+        api<IncomeExpenseReport>(
+          `/reports/income-expenses${reportSearch(query)}`
+        ),
     }),
+  cashFlow: (query: ReportQuery = {}) =>
+    queryOptions({
+      queryKey: ["reports", "cash-flow", query],
+      queryFn: () =>
+        api<CashFlowReport>(`/reports/cash-flow${reportSearch(query)}`),
+    }),
+  spendingByDay: (month?: string) =>
+    queryOptions({
+      queryKey: ["reports", "spending-by-day", month],
+      queryFn: () =>
+        api<SpendingByDay>(`/reports/spending-by-day${search({ month })}`),
+    }),
+  attention: () =>
+    queryOptions({
+      queryKey: ["attention"],
+      queryFn: () => api<Attention>("/attention"),
+    }),
+  activity: (limit = 8) =>
+    queryOptions({
+      queryKey: ["activity", { limit }],
+      queryFn: () => api<Page<Change>>(`/activity${search({ limit })}`),
+    }),
+}
+
+function reportSearch({
+  accountIds,
+  ...rest
+}: ReportQuery & { step?: string }) {
+  return search({ ...rest, accounts: accountIds?.join(",") })
 }
