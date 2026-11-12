@@ -1,7 +1,9 @@
 // `florin seed-demo`: fills an empty florin with about eighteen months of
 // believable data (EUR budget, five accounts including a USD brokerage with
 // holdings and value history) for UI work and screenshots.
+import { gt, max } from "drizzle-orm"
 import * as data from "./data"
+import { db, schema } from "./db"
 import { addMonths, monthEnd, today } from "./data/validate"
 import type { ImportRow } from "@/shared/types"
 
@@ -24,6 +26,16 @@ export function seedDemo(): {
     throw new data.InvalidInput(
       "florin already has accounts; seed-demo only fills an empty one"
     )
+  // The history is one Activity entry ("Demo data added …"); the last few days follow as agents would make them.
+  const { accountId, cat, transactions } = data.inBatch(seedHistory)
+  return {
+    accounts: data.listAccounts().length,
+    transactions: transactions + recentActivity(accountId, cat),
+    months: MONTHS,
+  }
+}
+
+function seedHistory() {
   const rand = random(42)
   const between = (lo: number, hi: number) =>
     Math.round((lo + rand() * (hi - lo)) * 100)
@@ -353,5 +365,114 @@ export function seedDemo(): {
     },
   ])
 
-  return { accounts: data.listAccounts().length, transactions, months: MONTHS }
+  return { accountId: current.id, cat, transactions }
+}
+
+/**
+ * The last few days as Activity shows them when agents do the work: bank
+ * syncs bring transactions in, an MCP client categorises most of them and
+ * assigns money, the person fixes a memo. A few stay uncategorised.
+ */
+function recentActivity(
+  accountId: number,
+  cat: (name: string) => number
+): number {
+  const { changes } = schema
+  const ago = (days: number, time: string) => {
+    const d = new Date()
+    d.setDate(d.getDate() - days)
+    const [h, m] = time.split(":").map(Number)
+    d.setHours(h, m, 0, 0)
+    return d
+  }
+  const date = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  // Everything seeded so far happened before these days.
+  db()
+    .update(changes)
+    .set({ at: ago(4, "08:00").toISOString() })
+    .run()
+  const lastId = () =>
+    db()
+      .select({ id: max(changes.id) })
+      .from(changes)
+      .get()?.id ?? 0
+  const at = (when: Date, fn: () => void) => {
+    const before = lastId()
+    fn()
+    db()
+      .update(changes)
+      .set({ at: when.toISOString() })
+      .where(gt(changes.id, before))
+      .run()
+  }
+  const sync = (when: Date, rows: [number, string, number][]) =>
+    at(when, () => {
+      data.importTransactions(
+        "bank-sync:Revolut",
+        accountId,
+        rows.map(([days, payee, amount]) => ({
+          date: date(ago(days, "12:00")),
+          payee,
+          amount,
+        }))
+      )
+    })
+
+  const synced = (payees: string[]) =>
+    data
+      .listTransactions({ accountId, uncategorized: true, limit: 50 })
+      .items.filter((t) => payees.includes(t.payeeName ?? ""))
+      .map((t) => t.id)
+
+  sync(ago(2, "06:12"), [
+    [3, "ALBERT HEIJN 1043", -4_812],
+    [3, "NS GROEP", -1_420],
+    [2, "SPOTIFY AB", -1_199],
+    [2, "CAFE LUNE", -2_350],
+    [2, "BOL.COM", -3_999],
+  ])
+  at(ago(2, "09:30"), () =>
+    data.inBatch(() => {
+      data.updateTransactions(
+        "mcp:Claude Desktop",
+        synced(["Albert Heijn 1043"]),
+        { categoryId: cat("Groceries") }
+      )
+      data.updateTransactions("mcp:Claude Desktop", synced(["Ns Groep"]), {
+        categoryId: cat("Transport"),
+      })
+    })
+  )
+  at(ago(2, "09:31"), () => {
+    data.updateTransactions(
+      "mcp:Claude Desktop",
+      synced(["Spotify Ab", "Cafe Lune"]),
+      { categoryId: cat("Dining out") }
+    )
+  })
+  at(ago(1, "18:40"), () => {
+    data.updateTransaction("person", synced(["Bol.com"])[0], {
+      notes: "Desk lamp",
+      categoryId: cat("Shopping"),
+    })
+  })
+  sync(ago(0, "06:10"), [
+    [1, "JUMBO 221", -2_766],
+    [1, "UBER *TRIP", -1_830],
+    [0, "TICKETMASTER NL", -8_600],
+    [0, "PAYPAL *STEAM", -1_999],
+  ])
+  at(ago(0, "09:05"), () => {
+    const month = date(new Date()).slice(0, 7)
+    const budget = data.getBudgetMonth(month)
+    const assigned = (name: string) =>
+      budget.groups.flatMap((g) => g.categories).find((c) => c.name === name)!
+        .budgeted
+    data.setBudgetAmounts("mcp:Claude Desktop", month, [
+      { categoryId: cat("Dining out"), amount: assigned("Dining out") + 4_000 },
+      { categoryId: cat("Shopping"), amount: assigned("Shopping") - 4_000 },
+    ])
+  })
+  return 9
 }

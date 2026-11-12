@@ -93,10 +93,20 @@ describe("spending report", () => {
       data.incomeExpenseReport().months.map((m) => m.expenses)
     )
     expect(report.total).toBe(expenses)
-    // Transfers between on-budget accounts (to savings, paying the card) aren't spending.
+    // Transfers between on-budget accounts (to savings, paying the card) aren't
+    // spending: Uncategorised is only the demo's few uncategorised purchases.
     const names = report.groups.flatMap((g) => g.categories.map((c) => c.name))
-    expect(names).not.toContain("Uncategorised")
     expect(names).toContain("Rent")
+    const uncategorised = data.listTransactions({
+      uncategorized: true,
+      from: report.from,
+      to: report.to,
+      limit: 1000,
+    })
+    expect(uncategorised.total).toBeGreaterThan(0)
+    expect(report.groups.find((g) => g.name === "Uncategorised")?.amount).toBe(
+      -sum(uncategorised.items.map((t) => t.amount))
+    )
   })
 
   test("the previous period is the same stretch, as many months earlier", () => {

@@ -5,10 +5,18 @@
 
 /**
  * Who makes a change: the person in the dashboard, an MCP client (by its
- * name), the bank connector, the IBKR connector, a file import, or the demo seed.
+ * name), a bank's sync, IBKR, a file import (by the file's name), or the
+ * demo seed.
  */
 export type Actor =
-  "person" | "bank-sync" | "ibkr" | "import" | "demo" | `mcp:${string}`
+  | "person"
+  | "bank-sync"
+  | "import"
+  | "ibkr"
+  | "demo"
+  | `mcp:${string}`
+  | `bank-sync:${string}`
+  | `import:${string}`
 
 export type Change = {
   id: number
@@ -29,6 +37,10 @@ export type Change = {
   entityId: number | null
   /** One readable line, e.g. "Added −€42.50 at Lidl to Current account". */
   summary: string
+  /** The id of the first change of the same call or run; one batch is one Activity entry. */
+  batch: number
+  /** What changed on the entity alone, e.g. "Category set to Groceries". */
+  detail: string | null
 }
 
 /** A page of a list, with the total number of matches. */
@@ -157,11 +169,17 @@ export type Transaction = {
   importedId: string | null
   importedPayee: string | null
   bookedDate: string | null
+  /** For a transfer: the other leg's amount, in its account's currency. */
+  transferAmount: number | null
+  /** The account's balance after this transaction; only when listing one account. */
+  balance?: number
 }
 
 export type TransactionFilter = {
   accountId?: number
   categoryId?: number
+  /** Any of these categories. */
+  categoryIds?: number[]
   payeeId?: number
   /** Only transactions in on-budget accounts without a category (transfers excluded). */
   uncategorized?: boolean
@@ -171,13 +189,18 @@ export type TransactionFilter = {
   /** Amount bounds in minor units, inclusive; money out is negative. */
   minAmount?: number
   maxAmount?: number
-  /** Matches payee, notes, imported payee text and category name. */
+  /** Matches payee, notes, imported payee text, category name and an exact amount ("42.10"). */
   search?: string
+  /** Only the transactions an Activity entry (a change batch) added or changed. */
+  change?: number
   limit?: number
   offset?: number
 }
 
-export type TransactionPage = Page<Transaction>
+export type TransactionPage = Page<Transaction> & {
+  /** The sum of every match, per currency (one entry unless accounts differ in currency). */
+  sums: { currency: string; amount: number }[]
+}
 
 export type NewTransaction = {
   accountId: number
@@ -193,10 +216,17 @@ export type NewTransaction = {
   transferAccountId?: number
   /** What arrives in the other account, for transfers between currencies. Defaults to -amount. */
   transferAmount?: number
+  /** The bank's fields, for putting back a deleted bank transaction (Undo) so a later sync still skips it. */
+  importedId?: string | null
+  importedPayee?: string | null
+  bookedDate?: string | null
 }
 
 export type TransactionPatch = Partial<
-  Omit<NewTransaction, "transferAccountId"> & {
+  Omit<
+    NewTransaction,
+    "transferAccountId" | "importedId" | "importedPayee" | "bookedDate"
+  > & {
     transferAccountId: number | null
   }
 >
@@ -215,7 +245,12 @@ export type ImportRow = {
   categoryId?: number | null
 }
 
-export type ImportResult = { added: number; skipped: number }
+export type ImportResult = {
+  added: number
+  skipped: number
+  /** The Activity entry (change batch) of what was added; absent when nothing was. */
+  change?: number
+}
 
 export type BudgetAmount = { categoryId: number; amount: number }
 
