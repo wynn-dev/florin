@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router"
 import type { QueryClient } from "@tanstack/react-query"
 import type { ReactNode } from "react"
+import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { themeScript } from "@/lib/theme"
 import appCss from "../styles.css?url"
@@ -40,6 +41,7 @@ function Root() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Outlet />
+        <Toaster position="bottom-center" />
       </TooltipProvider>
     </QueryClientProvider>
   )

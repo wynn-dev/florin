@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/chart"
 import { Skeleton } from "@/components/ui/skeleton"
 import { queries } from "@/lib/api"
-import { formatMoney, formatMonth } from "@/lib/format"
+import { formatMoney, formatMonth, formatMonthTick } from "@/lib/format"
 
 export const Route = createFileRoute("/_app/")({ component: Overview })
 
@@ -50,11 +50,11 @@ function Overview() {
           )}
         </Stat>
         <Stat
-          label={`To budget in ${formatMonth(month, true)}`}
+          label={`To budget in ${formatMonthTick(month)}`}
           value={budget.data && formatMoney(budget.data.toBudget, currency)}
         />
         <Stat
-          label={`Spent in ${formatMonth(month, true)}`}
+          label={`Spent in ${formatMonthTick(month)}`}
           value={budget.data && formatMoney(-budget.data.activity, currency)}
         />
       </div>
@@ -93,7 +93,7 @@ function Overview() {
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  tickFormatter={(m: string) => formatMonth(m, true)}
+                  tickFormatter={(m: string) => formatMonthTick(m)}
                 />
                 <YAxis
                   tickLine={false}
