@@ -14,10 +14,17 @@ function apply(theme: Theme) {
   document.documentElement.classList.toggle("dark", dark)
 }
 
+/** Tells every useTheme on the page (sidebar menu, settings) about a change. */
+const CHANGE = "florin-theme-change"
+
 export function useTheme(): [Theme, (theme: Theme) => void] {
   const [theme, setTheme] = useState<Theme>("system")
   useEffect(() => {
-    setTheme((localStorage.getItem(KEY) as Theme | null) ?? "system")
+    const read = () =>
+      setTheme((localStorage.getItem(KEY) as Theme | null) ?? "system")
+    read()
+    window.addEventListener(CHANGE, read)
+    return () => window.removeEventListener(CHANGE, read)
   }, [])
   useEffect(() => {
     if (theme !== "system") return
@@ -32,6 +39,7 @@ export function useTheme(): [Theme, (theme: Theme) => void] {
       localStorage.setItem(KEY, next)
       setTheme(next)
       apply(next)
+      window.dispatchEvent(new Event(CHANGE))
     },
   ]
 }

@@ -4,7 +4,7 @@ import { db, schema } from "../db"
 import { getAccount } from "./accounts"
 import { getCategory } from "./categories"
 import { logChange, money } from "./changes"
-import { payeeIdForName } from "./payees"
+import { payeeCategory, payeeIdForName } from "./payees"
 import {
   checkAmount,
   checkDate,
@@ -233,14 +233,19 @@ function insertTransaction(tx: Tx, input: NewTransaction): number {
       )
     }
   }
+  const payeeId = isTransfer ? null : (resolvePayee(tx, input) ?? null)
   const row = tx
     .insert(transactions)
     .values({
       accountId: input.accountId,
       date,
       amount,
-      payeeId: isTransfer ? null : (resolvePayee(tx, input) ?? null),
-      categoryId,
+      payeeId,
+      // No category given: the payee's default, if it has one.
+      categoryId:
+        input.categoryId === undefined && !isTransfer
+          ? payeeCategory(payeeId, tx)
+          : categoryId,
       notes: input.notes ?? "",
       status: input.status === "pending" ? "pending" : "cleared",
       importedId: input.importedId || null,

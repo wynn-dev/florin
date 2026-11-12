@@ -31,7 +31,7 @@ function Activity() {
   const set = (next: ActivitySearch) =>
     void navigate({ search: next, replace: true })
   return (
-    <Page title="Activity">
+    <Page title="Activity" parent={{ label: "Overview", to: "/" }}>
       <ActivityFilters search={search} onChange={set} />
       <ActivityLog search={search} onClear={() => set({})} />
     </Page>

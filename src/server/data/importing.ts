@@ -6,7 +6,7 @@ import { and, eq, inArray } from "drizzle-orm"
 import { db, schema } from "../db"
 import { getAccount } from "./accounts"
 import { logChange, money } from "./changes"
-import { payeeIdForName } from "./payees"
+import { payeeCategory, payeeIdForName } from "./payees"
 import { getCategory } from "./categories"
 import { minorDigits } from "./fx"
 import {
@@ -45,14 +45,16 @@ export function importTransactions(
       if (existing.has(row.importedId)) continue
       existing.add(row.importedId)
       const payee = row.payee ? cleanPayee(row.payee) : null
+      const payeeId = payee ? payeeIdForName(payee, tx) : null
       const { id } = tx
         .insert(transactions)
         .values({
           accountId,
           date: row.date,
           amount: row.amount,
-          payeeId: payee ? payeeIdForName(payee, tx) : null,
-          categoryId: row.categoryId ?? null,
+          payeeId,
+          // No category given: the payee's default, if it has one.
+          categoryId: row.categoryId ?? payeeCategory(payeeId, tx),
           notes: row.notes ?? "",
           status: row.status ?? "cleared",
           importedId: row.importedId,

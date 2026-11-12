@@ -40,8 +40,15 @@ export const setSyncHours = (hours: SyncHours) =>
     body: { hours },
   })
 
-/** The page to come back to after the bank: where the person is now. */
-const here = () => window.location.pathname
+/**
+ * The page to come back to after the bank: where the person is now, query
+ * included (setup's ?step=2), without a previous return's link params.
+ */
+const here = () => {
+  const url = new URL(window.location.href)
+  for (const p of ["link", "linkError", "linked"]) url.searchParams.delete(p)
+  return url.pathname + url.search
+}
 
 /** Starts linking a bank and sends the browser to it. */
 export async function startLink(

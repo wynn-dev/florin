@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { queries } from "@/lib/api"
+import { useCommand } from "@/lib/commands"
 import { Page } from "@/components/page"
 import { ImportCsvDialog } from "@/components/transactions/import-csv-dialog"
 import { validateTransactionSearch } from "@/components/transactions/search"
@@ -26,6 +27,9 @@ function Transactions() {
   const navigate = Route.useNavigate()
   const [adding, setAdding] = useState(false)
   const [importing, setImporting] = useState(false)
+  // ⌘K › New transaction and Import CSV land here.
+  useCommand("new-transaction", () => setAdding(true))
+  useCommand("import-csv", () => setImporting(true))
 
   return (
     <Page

@@ -21,6 +21,9 @@ import type {
   TransactionFilter,
   TransactionPage,
 } from "@/shared/types"
+import type { FxStatus, Job } from "@/shared/jobs"
+import type { McpTokenList } from "@/shared/mcp"
+import type { SetupStatus } from "@/shared/setup"
 
 export class ApiError extends Error {
   constructor(
@@ -134,6 +137,26 @@ export const queries = {
     queryOptions({
       queryKey: ["attention"],
       queryFn: () => api<Attention>("/attention"),
+    }),
+  jobs: () =>
+    queryOptions({
+      queryKey: ["jobs"],
+      queryFn: () => api<Job[]>("/jobs"),
+    }),
+  fxStatus: () =>
+    queryOptions({
+      queryKey: ["fx-status"],
+      queryFn: () => api<FxStatus>("/fx/status"),
+    }),
+  mcpTokens: () =>
+    queryOptions({
+      queryKey: ["mcp-tokens"],
+      queryFn: () => api<McpTokenList>("/mcp-tokens"),
+    }),
+  setup: () =>
+    queryOptions({
+      queryKey: ["setup"],
+      queryFn: () => api<SetupStatus>("/setup"),
     }),
 }
 

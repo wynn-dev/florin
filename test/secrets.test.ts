@@ -63,7 +63,11 @@ describe("secrets", () => {
     setSecret("enablebanking.privateKey", KEY)
     const res = await call("GET")
     const text = await res.text()
-    expect(JSON.parse(text)).toEqual({ currency: "EUR", publicUrl: "" })
+    expect(JSON.parse(text)).toEqual({
+      currency: "EUR",
+      publicUrl: "",
+      locale: "",
+    })
     expect(text).not.toContain("not-a-real-key")
 
     const patched = await (
@@ -90,6 +94,7 @@ describe("public address", () => {
     expect(await res.json()).toEqual({
       currency: "EUR",
       publicUrl: "https://florin.example.com",
+      locale: "",
     })
     expect(data.publicUrl()).toBe("https://florin.example.com")
     expect(data.listActivity().items[0]).toMatchObject({

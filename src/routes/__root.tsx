@@ -5,15 +5,33 @@ import {
   Scripts,
   createRootRouteWithContext,
 } from "@tanstack/react-router"
+import { createServerFn } from "@tanstack/react-start"
+import { getCookie } from "@tanstack/react-start/server"
 import type { QueryClient } from "@tanstack/react-query"
 import type { ReactNode } from "react"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { setLocale } from "@/lib/format"
 import { themeScript } from "@/lib/theme"
+import { getSettings } from "@/server/data"
 import appCss from "../styles.css?url"
+
+/**
+ * What the first render needs before any query runs: the locale every amount
+ * and date is formatted in (the same on the server and in the browser, so the
+ * server's HTML matches), and whether the sidebar was left collapsed.
+ */
+const getPreferences = createServerFn({ method: "GET" }).handler(() => {
+  const locale = getSettings().locale || "en-GB"
+  setLocale(locale)
+  return { locale, sidebarOpen: getCookie("sidebar_state") !== "false" }
+})
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
+    loader: () => getPreferences(),
+    // Loaded once; Settings invalidates the router when the locale changes.
+    shouldReload: false,
     head: () => ({
       meta: [
         { charSet: "utf-8" },
@@ -37,10 +55,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function Root() {
   const { queryClient } = Route.useRouteContext()
+  const { locale } = Route.useLoaderData()
+  setLocale(locale)
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Outlet />
+        {/* A new locale re-renders every page's figures from scratch. */}
+        <Outlet key={locale} />
         <Toaster position="bottom-center" />
       </TooltipProvider>
     </QueryClientProvider>

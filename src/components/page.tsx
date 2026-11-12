@@ -1,24 +1,28 @@
 import type { ReactNode } from "react"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+import { SiteHeader } from "@/components/site-header"
 
-/** A page's header and body inside the app shell. */
+/**
+ * A page inside the app shell: the site header (title, optional breadcrumb
+ * parent, actions at the right) and the page's content under it, padded p-6
+ * on desktop and p-4 on a phone, clear of the phone's bottom bar.
+ *
+ *   <Page title="Transactions" actions={<Button>New transaction</Button>}>
+ */
 export function Page({
   title,
+  parent,
   actions,
   children,
 }: {
   title: string
+  parent?: { label: string; to: string }
   actions?: ReactNode
   children: ReactNode
 }) {
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center gap-2 px-4 md:px-6">
-        <SidebarTrigger className="-ml-1 md:hidden" />
-        <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-        <div className="ml-auto flex items-center gap-2">{actions}</div>
-      </header>
-      <div className="flex flex-1 flex-col gap-4 px-4 pb-6 md:px-6">
+      <SiteHeader title={title} parent={parent} actions={actions} />
+      <div className="flex flex-1 flex-col gap-6 px-4 pt-2 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:px-6 md:pt-2 md:pb-6">
         {children}
       </div>
     </>

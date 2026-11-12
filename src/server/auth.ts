@@ -30,11 +30,15 @@ export function needsSetup(): boolean {
   return !loadConfig().passwordHash
 }
 
-/** Sets (or replaces) the dashboard password and drops the setup code. */
-export function setPassword(password: string): void {
+export function checkPassword(password: unknown): asserts password is string {
   if (typeof password !== "string" || password.length < 8) {
     throw new InvalidInput("the password needs at least 8 characters")
   }
+}
+
+/** Sets (or replaces) the dashboard password and drops the setup code. */
+export function setPassword(password: string): void {
+  checkPassword(password)
   const config = loadConfig()
   delete config.setupCode
   saveConfig({ ...config, passwordHash: hashPassword(password) })

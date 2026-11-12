@@ -1,6 +1,7 @@
 import { asc, eq, sql } from "drizzle-orm"
 import { db, schema } from "../db"
 import { logChange } from "./changes"
+import { getCategory } from "./categories"
 import { checkName, found, InvalidInput } from "./validate"
 import type { Database } from "../db"
 import type { Actor, Page, Payee } from "@/shared/types"
@@ -8,6 +9,12 @@ import type { Actor, Page, Payee } from "@/shared/types"
 const { payees, transactions } = schema
 
 const transactionCount = sql<number>`(select count(*) from ${transactions} where ${transactions.payeeId} = ${payees.id})`
+const columns = {
+  id: payees.id,
+  name: payees.name,
+  transactionCount,
+  defaultCategoryId: payees.defaultCategoryId,
+}
 
 /** Payees by name, optionally only those whose name contains `search`. */
 export function listPayees(
@@ -17,7 +24,7 @@ export function listPayees(
     ? sql`${payees.name} like ${"%" + options.search.trim() + "%"}`
     : undefined
   const items = db()
-    .select({ id: payees.id, name: payees.name, transactionCount })
+    .select(columns)
     .from(payees)
     .where(where)
     .orderBy(asc(sql`lower(${payees.name})`))
@@ -34,11 +41,7 @@ export function listPayees(
 
 export function getPayee(id: number): Payee {
   return found(
-    db()
-      .select({ id: payees.id, name: payees.name, transactionCount })
-      .from(payees)
-      .where(eq(payees.id, id))
-      .get(),
+    db().select(columns).from(payees).where(eq(payees.id, id)).get(),
     `payee ${id}`
   )
 }
@@ -97,6 +100,49 @@ export function renamePayee(actor: Actor, id: number, name: string): Payee {
     })
   })
   return getPayee(id)
+}
+
+/**
+ * Sets the category new transactions from this payee get when they arrive
+ * without one (from a bank, a file or an agent); null clears it.
+ */
+export function setPayeeCategory(
+  actor: Actor,
+  id: number,
+  categoryId: number | null
+): Payee {
+  const payee = getPayee(id)
+  const category = categoryId === null ? null : getCategory(categoryId)
+  db().transaction((tx) => {
+    tx.update(payees)
+      .set({ defaultCategoryId: category?.id ?? null })
+      .where(eq(payees.id, id))
+      .run()
+    logChange(tx, actor, {
+      action: "update",
+      entity: "payee",
+      entityId: id,
+      summary: category
+        ? `Set ${payee.name}'s default category to ${category.name}`
+        : `Cleared ${payee.name}'s default category`,
+    })
+  })
+  return getPayee(id)
+}
+
+/** The default category of the payee with this id, if it has one. */
+export function payeeCategory(
+  payeeId: number | null | undefined,
+  tx: Pick<Database, "select"> = db()
+): number | null {
+  if (payeeId === null || payeeId === undefined) return null
+  return (
+    tx
+      .select({ id: payees.defaultCategoryId })
+      .from(payees)
+      .where(eq(payees.id, payeeId))
+      .get()?.id ?? null
+  )
 }
 
 /** Deletes a payee; its transactions keep their data but lose the payee. */
