@@ -8,6 +8,7 @@ import {
   saveCategory,
   saveCategoryGroup,
 } from "./categories"
+import { ibkrPull, ibkrStatus } from "./ibkr"
 import { overview } from "./overview"
 import { listPayeesTool, mergePayeesTool, renamePayeeTool } from "./payees"
 import {
@@ -55,4 +56,7 @@ export const tools: FlorinTool[] = [
   getInvestments,
   getExchangeRates,
   getActivity,
+  // Connections
+  ibkrStatus,
+  ibkrPull,
 ]

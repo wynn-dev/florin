@@ -147,11 +147,20 @@ export const holdings = sqliteTable(
       .references(() => accounts.id, { onDelete: "cascade" }),
     symbol: text().notNull(),
     name: text().notNull(),
+    assetClass: text("asset_class", {
+      enum: ["stock", "etf", "bond", "cash", "other"],
+    })
+      .notNull()
+      .default("other"),
     quantity: real().notNull(),
     /** Price per unit in the holding's own currency. */
     price: real().notNull(),
     /** Market value in the account's currency, minor units. */
     value: integer().notNull(),
+    /** What the position cost, account currency, minor units. */
+    costBasis: integer("cost_basis"),
+    /** Unrealised profit or loss, account currency, minor units. */
+    unrealizedPnl: integer("unrealized_pnl"),
     currency: text().notNull(),
     asOf: text("as_of").notNull(),
   },
@@ -177,7 +186,7 @@ export const changes = sqliteTable(
     at: text()
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
-    /** "person", "mcp:<client name>", "bank-sync", "import" or "demo". */
+    /** "person", "mcp:<client name>", "bank-sync", "ibkr", "import" or "demo". */
     actor: text().notNull(),
     action: text({ enum: ["create", "update", "delete"] }).notNull(),
     entity: text().notNull(),
@@ -188,3 +197,4 @@ export const changes = sqliteTable(
 )
 export * from "./schema-jobs"
 export * from "./schema-tokens"
+export * from "./schema-ibkr"
