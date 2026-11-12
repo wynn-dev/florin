@@ -1,5 +1,10 @@
 import { z } from "zod"
-import { listPayees, mergePayees, renamePayee } from "../../data"
+import {
+  listPayees,
+  mergePayees,
+  renamePayee,
+  setPayeeCategory,
+} from "../../data"
 import { defineTool } from "../tool"
 import { page, zId, zLimit, zOffset } from "./common"
 
@@ -29,6 +34,18 @@ export const renamePayeeTool = defineTool({
   kind: "write",
   idempotent: true,
   run: ({ id, name }, { actor }) => renamePayee(actor(), id, name),
+})
+
+export const setPayeeCategoryTool = defineTool({
+  name: "set_payee_category",
+  title: "Set a payee's default category",
+  description:
+    "Sets the category that new transactions from this payee get when they arrive without one (bank sync, CSV import, or a new transaction with no categoryId). Existing transactions are not changed. categoryId null clears it.",
+  input: { id: zId, categoryId: zId.nullable() },
+  kind: "write",
+  idempotent: true,
+  run: ({ id, categoryId }, { actor }) =>
+    setPayeeCategory(actor(), id, categoryId),
 })
 
 export const mergePayeesTool = defineTool({

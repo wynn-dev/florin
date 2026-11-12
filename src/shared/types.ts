@@ -59,6 +59,11 @@ export type Settings = {
    * "https://florin.example.com"; empty means http://localhost:<port>.
    */
   publicUrl: string
+  /**
+   * BCP 47 tag for number and date formats, e.g. "en-GB" or "de-DE"; empty
+   * until first set, which means en-GB.
+   */
+  locale: string
 }
 
 /** Units of `currency` per 1 EUR on `date`, as the ECB publishes them. */
@@ -134,7 +139,13 @@ export type NewHolding = Omit<
 > &
   Partial<Pick<Holding, "assetClass" | "costBasis" | "unrealizedPnl">>
 
-export type Payee = { id: number; name: string; transactionCount: number }
+export type Payee = {
+  id: number
+  name: string
+  transactionCount: number
+  /** New transactions from this payee that arrive without a category get it. */
+  defaultCategoryId: number | null
+}
 
 export type Category = {
   id: number

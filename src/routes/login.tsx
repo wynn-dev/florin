@@ -1,109 +1,65 @@
-import { useQuery } from "@tanstack/react-query"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { useForm } from "@tanstack/react-form"
+import { useState } from "react"
+import { useMutation } from "@tanstack/react-query"
+import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { Brand } from "@/components/setup/brand"
 import { Button } from "@/components/ui/button"
+import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/lib/api"
 
+/** Sign-in for a florin that has its password. A fresh one goes to /setup. */
 export const Route = createFileRoute("/login")({ component: Login })
 
-type Session = { signedIn: boolean; needsSetup: boolean }
-
 function Login() {
-  const navigate = useNavigate()
-  const session = useQuery({
-    queryKey: ["session"],
-    queryFn: () => api<Session>("/session"),
-  })
-  const setup = session.data?.needsSetup ?? false
-
-  const form = useForm({
-    defaultValues: { setupCode: "", password: "" },
-    onSubmit: async ({ value, formApi }) => {
-      try {
-        await api<Session>("/session", {
-          method: "POST",
-          body: setup ? value : { password: value.password },
-        })
-        await navigate({ to: "/" })
-      } catch (error) {
-        formApi.setErrorMap({
-          onSubmit: { fields: { password: (error as Error).message } },
-        })
-      }
+  const router = useRouter()
+  const [password, setPassword] = useState("")
+  const signIn = useMutation({
+    mutationFn: () => api("/session", { method: "POST", body: { password } }),
+    onSuccess: async () => {
+      await router.invalidate()
+      await router.navigate({ to: "/" })
     },
   })
-
+  const wrong = signIn.isError || undefined
   return (
     <main className="grid min-h-svh place-items-center p-6">
       <form
-        className="flex w-full max-w-xs flex-col gap-6"
+        className="flex w-full max-w-xs flex-col gap-8"
         onSubmit={(e) => {
           e.preventDefault()
-          void form.handleSubmit()
+          if (password) signIn.mutate()
         }}
       >
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold tracking-tight">florin</h1>
-          <p className="text-sm text-muted-foreground">
-            {setup
-              ? "Enter the setup code florin printed when it started (or run florin setup-code), then choose a password."
-              : "Sign in to your budget."}
-          </p>
-        </div>
-        {setup && (
-          <form.Field name="setupCode">
-            {(field) => (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor={field.name}>Setup code</Label>
-                <Input
-                  id={field.name}
-                  autoFocus
-                  autoComplete="off"
-                  spellCheck={false}
-                  placeholder="XXXX-XXXX-XXXX"
-                  className="font-mono uppercase"
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-              </div>
+        <Brand />
+        <div className="flex flex-col gap-4">
+          <Field data-invalid={wrong}>
+            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <Input
+              id="password"
+              type="password"
+              autoFocus
+              autoComplete="current-password"
+              value={password}
+              aria-invalid={wrong}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                signIn.reset()
+              }}
+            />
+            {signIn.error && (
+              <FieldError>
+                {signIn.error.message === "wrong password"
+                  ? "Wrong password"
+                  : signIn.error.message}
+              </FieldError>
             )}
-          </form.Field>
-        )}
-        <form.Field
-          name="password"
-          validators={{
-            onSubmit: ({ value }) =>
-              setup && value.length < 8 ? "At least 8 characters" : undefined,
-          }}
-        >
-          {(field) => (
-            <div className="flex flex-col gap-2">
-              <Label htmlFor={field.name}>Password</Label>
-              <Input
-                id={field.name}
-                type="password"
-                autoFocus={!setup}
-                autoComplete={setup ? "new-password" : "current-password"}
-                value={field.state.value}
-                onChange={(e) => field.handleChange(e.target.value)}
-              />
-              {field.state.meta.errors.length > 0 && (
-                <p className="text-sm text-destructive">
-                  {field.state.meta.errors.join(", ")}
-                </p>
-              )}
-            </div>
-          )}
-        </form.Field>
-        <form.Subscribe selector={(s) => s.isSubmitting}>
-          {(submitting) => (
-            <Button type="submit" disabled={submitting || session.isPending}>
-              {setup ? "Set password" : "Sign in"}
-            </Button>
-          )}
-        </form.Subscribe>
+          </Field>
+          <Button type="submit" disabled={signIn.isPending}>
+            {signIn.isPending && <Spinner />}
+            Sign in
+          </Button>
+        </div>
       </form>
     </main>
   )

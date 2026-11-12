@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import {
+  checkPassword,
   checkSetupCode,
   createSession,
   isSignedIn,
@@ -9,6 +10,7 @@ import {
   verifyPassword,
 } from "@/server/auth"
 import { loadConfig } from "@/server/config"
+import { updateSettings } from "@/server/data"
 import { body, respond } from "@/server/http"
 
 export const Route = createFileRoute("/api/session")({
@@ -23,13 +25,17 @@ export const Route = createFileRoute("/api/session")({
 
       /**
        * Signs in with { password }. On first run, { setupCode, password } sets
-       * the password; the code is the one `florin start` printed.
+       * the password; the code is the one `florin start` printed. The first
+       * run may also carry { currency, locale }, saved before the password so
+       * a bad value leaves florin unclaimed.
        */
       POST: ({ request }) =>
         respond(async () => {
-          const { password, setupCode } = await body<{
+          const { password, setupCode, currency, locale } = await body<{
             password: string
             setupCode?: string
+            currency?: string
+            locale?: string
           }>(request)
           if (needsSetup()) {
             if (!checkSetupCode(setupCode)) {
@@ -38,6 +44,9 @@ export const Route = createFileRoute("/api/session")({
                 { status: 401 }
               )
             }
+            checkPassword(password)
+            if (currency !== undefined || locale !== undefined)
+              updateSettings("person", { currency, locale })
             setPassword(password)
           } else if (
             typeof password !== "string" ||

@@ -7,7 +7,7 @@ import { checkCurrency } from "./fx"
 import { InvalidInput } from "./validate"
 import type { Actor, Settings } from "@/shared/types"
 
-const DEFAULTS: Settings = { currency: "EUR", publicUrl: "" }
+const DEFAULTS: Settings = { currency: "EUR", publicUrl: "", locale: "" }
 
 export function getSettings(): Settings {
   const rows = db().select().from(schema.settings).all()
@@ -48,12 +48,40 @@ function checkPublicUrl(value: unknown): string {
   return `${url.origin}${url.pathname}`.replace(/\/+$/, "")
 }
 
+/** A BCP 47 tag the runtime can format with, in its canonical form ("de-DE"). */
+function checkLocale(value: unknown): string {
+  if (typeof value !== "string" || !value.trim())
+    throw new InvalidInput("locale must be a tag like en-GB or de-DE")
+  let tag: string
+  try {
+    tag = Intl.getCanonicalLocales(value.trim())[0]
+  } catch {
+    throw new InvalidInput(`${value} is not a locale; use a tag like en-GB`)
+  }
+  if (!Intl.NumberFormat.supportedLocalesOf(tag).length)
+    throw new InvalidInput(`florin can't format numbers for ${tag}`)
+  return tag
+}
+
+/** Whether any transaction exists: from then on the budget currency is fixed. */
+export function hasTransactions(): boolean {
+  return !!db()
+    .select({ id: schema.transactions.id })
+    .from(schema.transactions)
+    .limit(1)
+    .get()
+}
+
 export function updateSettings(
   actor: Actor,
   patch: Partial<Settings>
 ): Settings {
   if (patch.currency !== undefined) {
     checkCurrency(patch.currency)
+    if (patch.currency !== getSettings().currency && hasTransactions())
+      throw new InvalidInput(
+        "the budget currency is fixed once transactions exist"
+      )
     const { accounts } = schema
     const mismatch = db()
       .select({ name: accounts.name })
@@ -85,6 +113,11 @@ export function updateSettings(
       url,
       url ? `Set the public address to ${url}` : "Cleared the public address"
     )
+  }
+  if (patch.locale !== undefined) {
+    const locale = checkLocale(patch.locale)
+    if (locale !== getSettings().locale)
+      save(actor, "locale", locale, `Set the locale to ${locale}`)
   }
   return getSettings()
 }

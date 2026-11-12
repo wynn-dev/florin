@@ -12,10 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppActivityRouteImport } from './routes/_app/activity'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTransactionsRouteImport } from './routes/_app/transactions'
 import { Route as ApiAttentionRouteImport } from './routes/api/attention'
+import { Route as ApiPasswordRouteImport } from './routes/api/password'
 import { Route as ApiSessionRouteImport } from './routes/api/session'
 import { Route as ApiSettingsRouteImport } from './routes/api/settings'
 import { Route as AppAccountsIndexRouteImport } from './routes/_app/accounts/index'
@@ -32,6 +35,8 @@ import { Route as ApiCategoriesIndexRouteImport } from './routes/api/categories/
 import { Route as ApiCategoriesIdRouteImport } from './routes/api/categories/$id'
 import { Route as ApiCategoryGroupsIndexRouteImport } from './routes/api/category-groups/index'
 import { Route as ApiCategoryGroupsIdRouteImport } from './routes/api/category-groups/$id'
+import { Route as ApiExportDatabaseRouteImport } from './routes/api/export/database'
+import { Route as ApiExportTransactionsRouteImport } from './routes/api/export/transactions'
 import { Route as ApiFxConvertRouteImport } from './routes/api/fx/convert'
 import { Route as ApiFxRefreshRouteImport } from './routes/api/fx/refresh'
 import { Route as ApiFxStatusRouteImport } from './routes/api/fx/status'
@@ -44,6 +49,8 @@ import { Route as ApiReportsIncomeExpensesRouteImport } from './routes/api/repor
 import { Route as ApiReportsNetWorthRouteImport } from './routes/api/reports/net-worth'
 import { Route as ApiReportsSpendingRouteImport } from './routes/api/reports/spending'
 import { Route as ApiReportsSpendingByDayRouteImport } from './routes/api/reports/spending-by-day'
+import { Route as ApiSetupIndexRouteImport } from './routes/api/setup/index'
+import { Route as ApiSetupCategoriesRouteImport } from './routes/api/setup/categories'
 import { Route as ApiTransactionsIndexRouteImport } from './routes/api/transactions/index'
 import { Route as ApiTransactionsIdRouteImport } from './routes/api/transactions/$id'
 import { Route as ConnectEnableBankingCallbackRouteImport } from './routes/connect/enable-banking/callback'
@@ -87,6 +94,11 @@ const McpRoute = McpRouteImport.update({
   path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -97,6 +109,11 @@ const AppActivityRoute = AppActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTransactionsRoute = AppTransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
@@ -105,6 +122,11 @@ const AppTransactionsRoute = AppTransactionsRouteImport.update({
 const ApiAttentionRoute = ApiAttentionRouteImport.update({
   id: '/api/attention',
   path: '/api/attention',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPasswordRoute = ApiPasswordRouteImport.update({
+  id: '/api/password',
+  path: '/api/password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSessionRoute = ApiSessionRouteImport.update({
@@ -187,6 +209,16 @@ const ApiCategoryGroupsIdRoute = ApiCategoryGroupsIdRouteImport.update({
   path: '/api/category-groups/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiExportDatabaseRoute = ApiExportDatabaseRouteImport.update({
+  id: '/api/export/database',
+  path: '/api/export/database',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiExportTransactionsRoute = ApiExportTransactionsRouteImport.update({
+  id: '/api/export/transactions',
+  path: '/api/export/transactions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFxConvertRoute = ApiFxConvertRouteImport.update({
   id: '/api/fx/convert',
   path: '/api/fx/convert',
@@ -246,6 +278,16 @@ const ApiReportsSpendingRoute = ApiReportsSpendingRouteImport.update({
 const ApiReportsSpendingByDayRoute = ApiReportsSpendingByDayRouteImport.update({
   id: '/api/reports/spending-by-day',
   path: '/api/reports/spending-by-day',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSetupIndexRoute = ApiSetupIndexRouteImport.update({
+  id: '/api/setup/',
+  path: '/api/setup/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSetupCategoriesRoute = ApiSetupCategoriesRouteImport.update({
+  id: '/api/setup/categories',
+  path: '/api/setup/categories',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiTransactionsIndexRoute = ApiTransactionsIndexRouteImport.update({
@@ -407,9 +449,12 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/setup': typeof SetupRoute
   '/activity': typeof AppActivityRoute
+  '/settings': typeof AppSettingsRoute
   '/transactions': typeof AppTransactionsRoute
   '/api/attention': typeof ApiAttentionRoute
+  '/api/password': typeof ApiPasswordRoute
   '/api/session': typeof ApiSessionRoute
   '/api/settings': typeof ApiSettingsRoute
   '/accounts/$id': typeof AppAccountsIdRoute
@@ -419,6 +464,8 @@ export interface FileRoutesByFullPath {
   '/api/activity/sources': typeof ApiActivitySourcesRoute
   '/api/categories/$id': typeof ApiCategoriesIdRoute
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
+  '/api/export/database': typeof ApiExportDatabaseRoute
+  '/api/export/transactions': typeof ApiExportTransactionsRoute
   '/api/fx/convert': typeof ApiFxConvertRoute
   '/api/fx/refresh': typeof ApiFxRefreshRoute
   '/api/fx/status': typeof ApiFxStatusRoute
@@ -428,6 +475,7 @@ export interface FileRoutesByFullPath {
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
   '/api/reports/spending': typeof ApiReportsSpendingRoute
   '/api/reports/spending-by-day': typeof ApiReportsSpendingByDayRoute
+  '/api/setup/categories': typeof ApiSetupCategoriesRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
   '/connect/enable-banking/callback': typeof ConnectEnableBankingCallbackRoute
   '/accounts/': typeof AppAccountsIndexRoute
@@ -440,6 +488,7 @@ export interface FileRoutesByFullPath {
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/mcp-tokens/': typeof ApiMcpTokensIndexRoute
   '/api/payees/': typeof ApiPayeesIndexRoute
+  '/api/setup/': typeof ApiSetupIndexRoute
   '/api/transactions/': typeof ApiTransactionsIndexRoute
   '/api/accounts/$id/balances': typeof ApiAccountsIdBalancesRoute
   '/api/accounts/$id/holdings': typeof ApiAccountsIdHoldingsRoute
@@ -470,9 +519,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/setup': typeof SetupRoute
   '/activity': typeof AppActivityRoute
+  '/settings': typeof AppSettingsRoute
   '/transactions': typeof AppTransactionsRoute
   '/api/attention': typeof ApiAttentionRoute
+  '/api/password': typeof ApiPasswordRoute
   '/api/session': typeof ApiSessionRoute
   '/api/settings': typeof ApiSettingsRoute
   '/': typeof AppIndexRoute
@@ -483,6 +535,8 @@ export interface FileRoutesByTo {
   '/api/activity/sources': typeof ApiActivitySourcesRoute
   '/api/categories/$id': typeof ApiCategoriesIdRoute
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
+  '/api/export/database': typeof ApiExportDatabaseRoute
+  '/api/export/transactions': typeof ApiExportTransactionsRoute
   '/api/fx/convert': typeof ApiFxConvertRoute
   '/api/fx/refresh': typeof ApiFxRefreshRoute
   '/api/fx/status': typeof ApiFxStatusRoute
@@ -492,6 +546,7 @@ export interface FileRoutesByTo {
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
   '/api/reports/spending': typeof ApiReportsSpendingRoute
   '/api/reports/spending-by-day': typeof ApiReportsSpendingByDayRoute
+  '/api/setup/categories': typeof ApiSetupCategoriesRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
   '/connect/enable-banking/callback': typeof ConnectEnableBankingCallbackRoute
   '/accounts': typeof AppAccountsIndexRoute
@@ -504,6 +559,7 @@ export interface FileRoutesByTo {
   '/api/jobs': typeof ApiJobsIndexRoute
   '/api/mcp-tokens': typeof ApiMcpTokensIndexRoute
   '/api/payees': typeof ApiPayeesIndexRoute
+  '/api/setup': typeof ApiSetupIndexRoute
   '/api/transactions': typeof ApiTransactionsIndexRoute
   '/api/accounts/$id/balances': typeof ApiAccountsIdBalancesRoute
   '/api/accounts/$id/holdings': typeof ApiAccountsIdHoldingsRoute
@@ -536,9 +592,12 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/setup': typeof SetupRoute
   '/_app/activity': typeof AppActivityRoute
+  '/_app/settings': typeof AppSettingsRoute
   '/_app/transactions': typeof AppTransactionsRoute
   '/api/attention': typeof ApiAttentionRoute
+  '/api/password': typeof ApiPasswordRoute
   '/api/session': typeof ApiSessionRoute
   '/api/settings': typeof ApiSettingsRoute
   '/_app/': typeof AppIndexRoute
@@ -549,6 +608,8 @@ export interface FileRoutesById {
   '/api/activity/sources': typeof ApiActivitySourcesRoute
   '/api/categories/$id': typeof ApiCategoriesIdRoute
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
+  '/api/export/database': typeof ApiExportDatabaseRoute
+  '/api/export/transactions': typeof ApiExportTransactionsRoute
   '/api/fx/convert': typeof ApiFxConvertRoute
   '/api/fx/refresh': typeof ApiFxRefreshRoute
   '/api/fx/status': typeof ApiFxStatusRoute
@@ -558,6 +619,7 @@ export interface FileRoutesById {
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
   '/api/reports/spending': typeof ApiReportsSpendingRoute
   '/api/reports/spending-by-day': typeof ApiReportsSpendingByDayRoute
+  '/api/setup/categories': typeof ApiSetupCategoriesRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
   '/connect/enable-banking/callback': typeof ConnectEnableBankingCallbackRoute
   '/_app/accounts/': typeof AppAccountsIndexRoute
@@ -570,6 +632,7 @@ export interface FileRoutesById {
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/mcp-tokens/': typeof ApiMcpTokensIndexRoute
   '/api/payees/': typeof ApiPayeesIndexRoute
+  '/api/setup/': typeof ApiSetupIndexRoute
   '/api/transactions/': typeof ApiTransactionsIndexRoute
   '/api/accounts/$id/balances': typeof ApiAccountsIdBalancesRoute
   '/api/accounts/$id/holdings': typeof ApiAccountsIdHoldingsRoute
@@ -603,9 +666,12 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/mcp'
+    | '/setup'
     | '/activity'
+    | '/settings'
     | '/transactions'
     | '/api/attention'
+    | '/api/password'
     | '/api/session'
     | '/api/settings'
     | '/accounts/$id'
@@ -615,6 +681,8 @@ export interface FileRouteTypes {
     | '/api/activity/sources'
     | '/api/categories/$id'
     | '/api/category-groups/$id'
+    | '/api/export/database'
+    | '/api/export/transactions'
     | '/api/fx/convert'
     | '/api/fx/refresh'
     | '/api/fx/status'
@@ -624,6 +692,7 @@ export interface FileRouteTypes {
     | '/api/reports/net-worth'
     | '/api/reports/spending'
     | '/api/reports/spending-by-day'
+    | '/api/setup/categories'
     | '/api/transactions/$id'
     | '/connect/enable-banking/callback'
     | '/accounts/'
@@ -636,6 +705,7 @@ export interface FileRouteTypes {
     | '/api/jobs/'
     | '/api/mcp-tokens/'
     | '/api/payees/'
+    | '/api/setup/'
     | '/api/transactions/'
     | '/api/accounts/$id/balances'
     | '/api/accounts/$id/holdings'
@@ -666,9 +736,12 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/mcp'
+    | '/setup'
     | '/activity'
+    | '/settings'
     | '/transactions'
     | '/api/attention'
+    | '/api/password'
     | '/api/session'
     | '/api/settings'
     | '/'
@@ -679,6 +752,8 @@ export interface FileRouteTypes {
     | '/api/activity/sources'
     | '/api/categories/$id'
     | '/api/category-groups/$id'
+    | '/api/export/database'
+    | '/api/export/transactions'
     | '/api/fx/convert'
     | '/api/fx/refresh'
     | '/api/fx/status'
@@ -688,6 +763,7 @@ export interface FileRouteTypes {
     | '/api/reports/net-worth'
     | '/api/reports/spending'
     | '/api/reports/spending-by-day'
+    | '/api/setup/categories'
     | '/api/transactions/$id'
     | '/connect/enable-banking/callback'
     | '/accounts'
@@ -700,6 +776,7 @@ export interface FileRouteTypes {
     | '/api/jobs'
     | '/api/mcp-tokens'
     | '/api/payees'
+    | '/api/setup'
     | '/api/transactions'
     | '/api/accounts/$id/balances'
     | '/api/accounts/$id/holdings'
@@ -731,9 +808,12 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/mcp'
+    | '/setup'
     | '/_app/activity'
+    | '/_app/settings'
     | '/_app/transactions'
     | '/api/attention'
+    | '/api/password'
     | '/api/session'
     | '/api/settings'
     | '/_app/'
@@ -744,6 +824,8 @@ export interface FileRouteTypes {
     | '/api/activity/sources'
     | '/api/categories/$id'
     | '/api/category-groups/$id'
+    | '/api/export/database'
+    | '/api/export/transactions'
     | '/api/fx/convert'
     | '/api/fx/refresh'
     | '/api/fx/status'
@@ -753,6 +835,7 @@ export interface FileRouteTypes {
     | '/api/reports/net-worth'
     | '/api/reports/spending'
     | '/api/reports/spending-by-day'
+    | '/api/setup/categories'
     | '/api/transactions/$id'
     | '/connect/enable-banking/callback'
     | '/_app/accounts/'
@@ -765,6 +848,7 @@ export interface FileRouteTypes {
     | '/api/jobs/'
     | '/api/mcp-tokens/'
     | '/api/payees/'
+    | '/api/setup/'
     | '/api/transactions/'
     | '/api/accounts/$id/balances'
     | '/api/accounts/$id/holdings'
@@ -797,13 +881,17 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
+  SetupRoute: typeof SetupRoute
   ApiAttentionRoute: typeof ApiAttentionRoute
+  ApiPasswordRoute: typeof ApiPasswordRoute
   ApiSessionRoute: typeof ApiSessionRoute
   ApiSettingsRoute: typeof ApiSettingsRoute
   ApiActivityIdRoute: typeof ApiActivityIdRoute
   ApiActivitySourcesRoute: typeof ApiActivitySourcesRoute
   ApiCategoriesIdRoute: typeof ApiCategoriesIdRoute
   ApiCategoryGroupsIdRoute: typeof ApiCategoryGroupsIdRoute
+  ApiExportDatabaseRoute: typeof ApiExportDatabaseRoute
+  ApiExportTransactionsRoute: typeof ApiExportTransactionsRoute
   ApiFxConvertRoute: typeof ApiFxConvertRoute
   ApiFxRefreshRoute: typeof ApiFxRefreshRoute
   ApiFxStatusRoute: typeof ApiFxStatusRoute
@@ -813,6 +901,7 @@ export interface RootRouteChildren {
   ApiReportsNetWorthRoute: typeof ApiReportsNetWorthRoute
   ApiReportsSpendingRoute: typeof ApiReportsSpendingRoute
   ApiReportsSpendingByDayRoute: typeof ApiReportsSpendingByDayRoute
+  ApiSetupCategoriesRoute: typeof ApiSetupCategoriesRoute
   ApiTransactionsIdRoute: typeof ApiTransactionsIdRoute
   ConnectEnableBankingCallbackRoute: typeof ConnectEnableBankingCallbackRoute
   ApiAccountsIndexRoute: typeof ApiAccountsIndexRoute
@@ -822,6 +911,7 @@ export interface RootRouteChildren {
   ApiJobsIndexRoute: typeof ApiJobsIndexRoute
   ApiMcpTokensIndexRoute: typeof ApiMcpTokensIndexRoute
   ApiPayeesIndexRoute: typeof ApiPayeesIndexRoute
+  ApiSetupIndexRoute: typeof ApiSetupIndexRoute
   ApiTransactionsIndexRoute: typeof ApiTransactionsIndexRoute
   ApiAccountsIdBalancesRoute: typeof ApiAccountsIdBalancesRoute
   ApiAccountsIdHoldingsRoute: typeof ApiAccountsIdHoldingsRoute
@@ -873,6 +963,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/': {
       id: '/_app/'
       path: '/'
@@ -887,6 +984,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppActivityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/transactions': {
       id: '/_app/transactions'
       path: '/transactions'
@@ -899,6 +1003,13 @@ declare module '@tanstack/react-router' {
       path: '/api/attention'
       fullPath: '/api/attention'
       preLoaderRoute: typeof ApiAttentionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/password': {
+      id: '/api/password'
+      path: '/api/password'
+      fullPath: '/api/password'
+      preLoaderRoute: typeof ApiPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/session': {
@@ -1013,6 +1124,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCategoryGroupsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/export/database': {
+      id: '/api/export/database'
+      path: '/api/export/database'
+      fullPath: '/api/export/database'
+      preLoaderRoute: typeof ApiExportDatabaseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/export/transactions': {
+      id: '/api/export/transactions'
+      path: '/api/export/transactions'
+      fullPath: '/api/export/transactions'
+      preLoaderRoute: typeof ApiExportTransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/fx/convert': {
       id: '/api/fx/convert'
       path: '/api/fx/convert'
@@ -1095,6 +1220,20 @@ declare module '@tanstack/react-router' {
       path: '/api/reports/spending-by-day'
       fullPath: '/api/reports/spending-by-day'
       preLoaderRoute: typeof ApiReportsSpendingByDayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/setup/': {
+      id: '/api/setup/'
+      path: '/api/setup'
+      fullPath: '/api/setup/'
+      preLoaderRoute: typeof ApiSetupIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/setup/categories': {
+      id: '/api/setup/categories'
+      path: '/api/setup/categories'
+      fullPath: '/api/setup/categories'
+      preLoaderRoute: typeof ApiSetupCategoriesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/transactions/': {
@@ -1298,6 +1437,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppActivityRoute: typeof AppActivityRoute
+  AppSettingsRoute: typeof AppSettingsRoute
   AppTransactionsRoute: typeof AppTransactionsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccountsIdRoute: typeof AppAccountsIdRoute
@@ -1310,6 +1450,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppActivityRoute: AppActivityRoute,
+  AppSettingsRoute: AppSettingsRoute,
   AppTransactionsRoute: AppTransactionsRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccountsIdRoute: AppAccountsIdRoute,
@@ -1326,13 +1467,17 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
+  SetupRoute: SetupRoute,
   ApiAttentionRoute: ApiAttentionRoute,
+  ApiPasswordRoute: ApiPasswordRoute,
   ApiSessionRoute: ApiSessionRoute,
   ApiSettingsRoute: ApiSettingsRoute,
   ApiActivityIdRoute: ApiActivityIdRoute,
   ApiActivitySourcesRoute: ApiActivitySourcesRoute,
   ApiCategoriesIdRoute: ApiCategoriesIdRoute,
   ApiCategoryGroupsIdRoute: ApiCategoryGroupsIdRoute,
+  ApiExportDatabaseRoute: ApiExportDatabaseRoute,
+  ApiExportTransactionsRoute: ApiExportTransactionsRoute,
   ApiFxConvertRoute: ApiFxConvertRoute,
   ApiFxRefreshRoute: ApiFxRefreshRoute,
   ApiFxStatusRoute: ApiFxStatusRoute,
@@ -1342,6 +1487,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiReportsNetWorthRoute: ApiReportsNetWorthRoute,
   ApiReportsSpendingRoute: ApiReportsSpendingRoute,
   ApiReportsSpendingByDayRoute: ApiReportsSpendingByDayRoute,
+  ApiSetupCategoriesRoute: ApiSetupCategoriesRoute,
   ApiTransactionsIdRoute: ApiTransactionsIdRoute,
   ConnectEnableBankingCallbackRoute: ConnectEnableBankingCallbackRoute,
   ApiAccountsIndexRoute: ApiAccountsIndexRoute,
@@ -1351,6 +1497,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiJobsIndexRoute: ApiJobsIndexRoute,
   ApiMcpTokensIndexRoute: ApiMcpTokensIndexRoute,
   ApiPayeesIndexRoute: ApiPayeesIndexRoute,
+  ApiSetupIndexRoute: ApiSetupIndexRoute,
   ApiTransactionsIndexRoute: ApiTransactionsIndexRoute,
   ApiAccountsIdBalancesRoute: ApiAccountsIdBalancesRoute,
   ApiAccountsIdHoldingsRoute: ApiAccountsIdHoldingsRoute,

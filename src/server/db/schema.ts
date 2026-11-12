@@ -48,6 +48,11 @@ export const accounts = sqliteTable(
 export const payees = sqliteTable("payees", {
   id: integer().primaryKey(),
   name: text().notNull().unique(),
+  /** New transactions from this payee that arrive without a category get this one. */
+  defaultCategoryId: integer("default_category_id").references(
+    () => categories.id,
+    { onDelete: "set null" }
+  ),
 })
 
 export const categoryGroups = sqliteTable("category_groups", {

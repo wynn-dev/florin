@@ -11,7 +11,12 @@ import {
 import { listBankLinksTool, syncBanks } from "./banks"
 import { ibkrPull, ibkrStatus } from "./ibkr"
 import { overview } from "./overview"
-import { listPayeesTool, mergePayeesTool, renamePayeeTool } from "./payees"
+import {
+  listPayeesTool,
+  mergePayeesTool,
+  renamePayeeTool,
+  setPayeeCategoryTool,
+} from "./payees"
 import {
   getActivity,
   getExchangeRates,
@@ -54,6 +59,7 @@ export const tools: FlorinTool[] = [
   // Payees
   listPayeesTool,
   renamePayeeTool,
+  setPayeeCategoryTool,
   mergePayeesTool,
   // Reports, investments, rates, history
   getReport,

@@ -1,0 +1,1 @@
+ALTER TABLE `payees` ADD `default_category_id` integer REFERENCES categories(id) ON DELETE SET NULL;
