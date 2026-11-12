@@ -5,12 +5,14 @@ import { Money } from "@/components/money"
 import { QueryState } from "@/components/states"
 import { Skeleton } from "@/components/ui/skeleton"
 import { queries } from "@/lib/api"
-import { currentMonth } from "@/lib/format"
+import { currentMonth, formatLeft } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 /**
- * "This month": spent of assigned with a bar, what's ready to assign, and
- * the categories over their budget, each a link to the month's budget.
+ * "This month": spent of the monthly goal (or with no goal, of the plan) with
+ * a bar and what is left or over, the money not planned yet, and
+ * the categories over plan ("Home & Tech  €618.60 over"), each a link to the
+ * month's budget.
  */
 export function ThisMonth({ currency }: { currency: string }) {
   const month = currentMonth()
@@ -38,8 +40,13 @@ export function ThisMonth({ currency }: { currency: string }) {
         }
       >
         {(budget) => {
-          const spent = 0 - budget.activity || 0
-          const share = budget.budgeted > 0 ? spent / budget.budgeted : 0
+          // With a goal the card leads with it; without, with the plan.
+          const goal = budget.goal
+          const spent = goal
+            ? Math.max(0, goal.spent)
+            : 0 - budget.activity || 0
+          const target = goal ? goal.amount : budget.budgeted
+          const share = target > 0 ? spent / target : 0
           const over = budget.groups
             .flatMap((g) => g.categories)
             .filter((c) => c.available < 0)
@@ -55,24 +62,31 @@ export function ThisMonth({ currency }: { currency: string }) {
                     className="text-xl font-semibold tracking-tight"
                   />
                   <span className="text-muted-foreground">
-                    {budget.budgeted > 0 ? (
+                    {goal ? (
+                      <>
+                        spent of{" "}
+                        <Money cents={goal.amount} currency={currency} />
+                      </>
+                    ) : budget.budgeted > 0 ? (
                       <>
                         spent of{" "}
                         <Money cents={budget.budgeted} currency={currency} />{" "}
-                        assigned
+                        planned
                       </>
                     ) : (
-                      "spent, nothing assigned yet"
+                      "spent, no plan yet"
                     )}
                   </span>
                 </p>
-                {budget.budgeted > 0 && (
+                {target > 0 && (
                   <div
                     role="meter"
-                    aria-label="Spent of assigned"
+                    aria-label={
+                      goal ? "Spent of the monthly goal" : "Spent of planned"
+                    }
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-valuenow={Math.round(share * 100)}
+                    aria-valuenow={Math.round(Math.min(1, share) * 100)}
                     className="h-1.5 overflow-hidden rounded-full bg-muted"
                   >
                     <div
@@ -84,21 +98,50 @@ export function ThisMonth({ currency }: { currency: string }) {
                     />
                   </div>
                 )}
+                {goal &&
+                  (goal.left >= 0 ? (
+                    <p className="text-muted-foreground">
+                      <Money
+                        cents={goal.left}
+                        currency={currency}
+                        className="text-foreground"
+                      />{" "}
+                      left
+                    </p>
+                  ) : (
+                    <p className="text-negative">
+                      <Money cents={-goal.left} currency={currency} /> over your{" "}
+                      <Money cents={goal.amount} currency={currency} /> goal
+                    </p>
+                  ))}
               </div>
               <Link
                 to="/budget/$month"
                 params={{ month }}
                 className="-mx-2 flex items-baseline justify-between gap-4 rounded-md px-2 py-1 hover:bg-muted/60"
               >
-                <span className="text-muted-foreground">Ready to assign</span>
                 {budget.toBudget === 0 ? (
-                  <span className="text-muted-foreground">All assigned</span>
+                  <span className="text-muted-foreground">
+                    Everything is planned
+                  </span>
+                ) : budget.toBudget > 0 ? (
+                  <>
+                    <span className="text-muted-foreground">
+                      Not planned yet
+                    </span>
+                    <Money cents={budget.toBudget} currency={currency} />
+                  </>
                 ) : (
-                  <Money
-                    cents={budget.toBudget}
-                    currency={currency}
-                    className={cn(budget.toBudget < 0 && "text-negative")}
-                  />
+                  <>
+                    <span className="text-negative">
+                      Planned more than you have
+                    </span>
+                    <Money
+                      cents={-budget.toBudget}
+                      currency={currency}
+                      className="text-negative"
+                    />
+                  </>
                 )}
               </Link>
               {over.slice(0, 3).map((c) => (
@@ -108,15 +151,10 @@ export function ThisMonth({ currency }: { currency: string }) {
                   params={{ month }}
                   className="-mx-2 flex items-baseline justify-between gap-4 rounded-md px-2 py-1 hover:bg-muted/60"
                 >
-                  <span className="truncate">
-                    {c.name}
-                    <span className="text-muted-foreground"> over budget</span>
+                  <span className="truncate">{c.name}</span>
+                  <span className="whitespace-nowrap text-negative tabular-nums">
+                    {formatLeft(c.available, currency)}
                   </span>
-                  <Money
-                    cents={c.available}
-                    currency={currency}
-                    className="text-negative"
-                  />
                 </Link>
               ))}
               {over.length > 3 && (
@@ -125,7 +163,7 @@ export function ThisMonth({ currency }: { currency: string }) {
                   params={{ month }}
                   className="text-muted-foreground hover:text-foreground"
                 >
-                  {over.length - 3} more over budget
+                  {over.length - 3} more over plan
                 </Link>
               )}
             </div>

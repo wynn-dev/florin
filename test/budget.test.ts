@@ -1,4 +1,4 @@
-// The budget page's data: moving money to and from Ready to assign, a
+// The budget page's data: moving money to and from what is not planned yet, a
 // category's inspector numbers, and the first month with money in it.
 import { describe, expect, test } from "vitest"
 import { useTempHome } from "./setup"
@@ -46,7 +46,7 @@ describe("budget page", () => {
     })
   })
 
-  test("moves money from and back to Ready to assign", () => {
+  test("moves money from and back to what is not planned yet", () => {
     const groceries = categoryId("Groceries")
     const before = data.getBudgetMonth("2026-04").toBudget
     let month = data.moveBudgetAmounts("person", "2026-04", [
@@ -55,7 +55,7 @@ describe("budget page", () => {
     expect(month.toBudget).toBe(before - 30_000)
     expect(budgeted("2026-04", groceries)).toBe(30_000)
     expect(data.listActivity({ limit: 1 }).items[0].summary).toBe(
-      "Moved €300.00 from Ready to assign to Groceries in 2026-04"
+      "Planned €300.00 more for Groceries in 2026-04"
     )
     month = data.moveBudgetAmounts("person", "2026-04", [
       { fromCategoryId: groceries, toCategoryId: null, amount: 10_000 },
@@ -77,7 +77,7 @@ describe("budget page", () => {
     expect(detail.history.at(-1)).toEqual({ month: "2026-04", spent: 4_210 })
     expect(detail.lastChange).toMatchObject({
       actor: "person",
-      summary: "Moved €100.00 from Groceries to Ready to assign in 2026-04",
+      summary: "Planned €100.00 less for Groceries in 2026-04",
     })
     data.moveBudgetAmounts("person", "2026-04", [
       {

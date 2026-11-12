@@ -1,7 +1,13 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { ChevronDownIcon } from "lucide-react"
-import { BudgetBody, ReadyToAssign, beforeFirstMonth } from "./month-parts"
+import {
+  BudgetBody,
+  GoalHeadline,
+  NotPlannedYet,
+  OverPlan,
+  beforeFirstMonth,
+} from "./month-parts"
 import { AssignedCell, AvailablePillText, Figure, SpentLink } from "./cells"
 import { LastChange, SpendingHistory } from "./inspector"
 import { MonthSwitcher } from "./month-switcher"
@@ -10,7 +16,7 @@ import { budgetQueries } from "./queries"
 import type { ReactNode } from "react"
 import type { BudgetCategory, BudgetMonth } from "@/shared/types"
 import { cn } from "@/lib/utils"
-import { formatMoney } from "@/lib/format"
+import { formatLeft } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import {
   Drawer,
@@ -20,9 +26,11 @@ import {
 } from "@/components/ui/drawer"
 
 /**
- * The budget on a phone: Ready to assign sticky on top, the month switcher,
- * then each group as a collapsible list of name … available. Tapping a row
- * opens a drawer with Assigned, the three numbers, Last change and Move money.
+ * The budget on a phone: the monthly goal (when set) or else the money not
+ * planned yet sticky on top, then what is over plan with Cover what went
+ * over, the month switcher, then each group as a collapsible list of name …
+ * left. Tapping a row opens a drawer with
+ * Planned, Spent and Left, Last change and Move money.
  */
 export function BudgetPhone({
   month,
@@ -30,6 +38,8 @@ export function BudgetPhone({
   showHidden,
   onAddGroup,
   newGroup,
+  editingGoal,
+  onEditingGoalChange,
 }: {
   month: BudgetMonth
   currency: string
@@ -37,6 +47,8 @@ export function BudgetPhone({
   onAddGroup: () => void
   /** The new-group field while Add group is open. */
   newGroup: ReactNode
+  editingGoal: boolean
+  onEditingGoalChange: (editing: boolean) => void
 }) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
   const [openId, setOpenId] = useState<number | null>(null)
@@ -46,14 +58,32 @@ export function BudgetPhone({
 
   return (
     <div className="flex flex-col gap-4">
-      {!beforeFirstMonth(month) && (
+      {month.goal || editingGoal ? (
         <div className="sticky top-0 z-10 -mx-4 -mt-4 bg-background/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/80">
-          <ReadyToAssign amount={month.toBudget} currency={currency} />
+          <GoalHeadline
+            month={month}
+            currency={currency}
+            editing={editingGoal}
+            onEditingChange={onEditingGoalChange}
+          />
         </div>
+      ) : (
+        !beforeFirstMonth(month) && (
+          <div className="sticky top-0 z-10 -mx-4 -mt-4 bg-background/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/80">
+            <NotPlannedYet amount={month.toBudget} currency={currency} />
+          </div>
+        )
+      )}
+      {!beforeFirstMonth(month) && (
+        <OverPlan month={month} currency={currency} />
       )}
       <MonthSwitcher month={month.month} />
       <BudgetBody month={month} onAddGroup={onAddGroup}>
         <div className="flex flex-col">
+          <div className="flex h-7 items-end justify-between border-b pb-1.5 text-xs font-medium text-muted-foreground">
+            <span>Category</span>
+            <span className="pr-2">Left</span>
+          </div>
           {month.groups.map((group) => {
             const isOpen = !collapsed.has(group.id)
             return (
@@ -78,11 +108,11 @@ export function BudgetPhone({
                   <span className="truncate">{group.name}</span>
                   <span
                     className={cn(
-                      "ml-auto tabular-nums",
+                      "ml-auto whitespace-nowrap tabular-nums",
                       group.available < 0 && "text-negative"
                     )}
                   >
-                    {formatMoney(group.available, currency)}
+                    {formatLeft(group.available, currency)}
                   </span>
                 </button>
                 {isOpen &&
@@ -100,6 +130,11 @@ export function BudgetPhone({
                       >
                         <span className="min-w-0 flex-1 truncate">
                           {c.name}
+                          {month.goal && c.outsideGoal && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              not in goal
+                            </span>
+                          )}
                         </span>
                         <AvailablePillText
                           available={c.available}
@@ -163,7 +198,7 @@ function CategoryDrawer({
       ) : (
         <div className="flex flex-col gap-4 px-4">
           <dl className="flex flex-col">
-            <Figure label="Assigned">
+            <Figure label="Planned">
               <AssignedCell
                 month={month.month}
                 category={category}
@@ -180,7 +215,7 @@ function CategoryDrawer({
                 symbol
               />
             </Figure>
-            <Figure label="Available">
+            <Figure label="Left">
               <AvailablePillText
                 available={category.available}
                 currency={currency}
@@ -194,7 +229,9 @@ function CategoryDrawer({
             currency={currency}
           />
           <Button variant="outline" size="lg" onClick={() => setMoving(true)}>
-            {category.available < 0 ? "Cover overspending" : "Move money"}
+            {category.available < 0
+              ? `Cover the ${formatLeft(category.available, currency)}`
+              : "Move money"}
           </Button>
         </div>
       )}

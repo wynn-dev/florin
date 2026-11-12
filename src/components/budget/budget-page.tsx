@@ -5,7 +5,13 @@ import { BudgetTable, NewGroupRow } from "./budget-table"
 import { BudgetPhone } from "./budget-phone"
 import { CategoryInspector, MonthSummary } from "./inspector"
 import { MonthSwitcher } from "./month-switcher"
-import { BudgetBody, ReadyToAssign, beforeFirstMonth } from "./month-parts"
+import {
+  BudgetBody,
+  GoalHeadline,
+  NotPlannedYet,
+  OverPlan,
+  beforeFirstMonth,
+} from "./month-parts"
 import type { BudgetMonth } from "@/shared/types"
 import { cn } from "@/lib/utils"
 import { queries } from "@/lib/api"
@@ -31,6 +37,7 @@ export function BudgetPage({ month }: { month: string }) {
   const [showHidden, setShowHidden] = useState(false)
   const [addingGroup, setAddingGroup] = useState(false)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [editingGoal, setEditingGoal] = useState(false)
   const after = useAfterClose()
 
   const menu = (
@@ -48,6 +55,11 @@ export function BudgetPage({ month }: { month: string }) {
         <DropdownMenuItem onSelect={after.later(() => setAddingGroup(true))}>
           Add group
         </DropdownMenuItem>
+        {budget.data && !budget.data.goal && (
+          <DropdownMenuItem onSelect={after.later(() => setEditingGoal(true))}>
+            Set a monthly goal
+          </DropdownMenuItem>
+        )}
         <DropdownMenuCheckboxItem
           checked={showHidden}
           onCheckedChange={setShowHidden}
@@ -93,16 +105,31 @@ export function BudgetPage({ month }: { month: string }) {
               showHidden={showHidden}
               onAddGroup={() => setAddingGroup(true)}
               newGroup={newGroup}
+              editingGoal={editingGoal}
+              onEditingGoalChange={setEditingGoal}
             />
           ) : (
             <div className="grid grid-cols-12 gap-6">
               <div className="col-span-12 flex flex-col gap-4 xl:col-span-8">
                 <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
                   <MonthSwitcher month={month} />
-                  {!beforeFirstMonth(data) && (
-                    <ReadyToAssign amount={data.toBudget} currency={currency} />
+                  {!beforeFirstMonth(data) && !data.goal && (
+                    <NotPlannedYet amount={data.toBudget} currency={currency} />
                   )}
                 </div>
+                <GoalHeadline
+                  month={data}
+                  currency={currency}
+                  editing={editingGoal}
+                  onEditingChange={setEditingGoal}
+                />
+                {!beforeFirstMonth(data) && (
+                  <OverPlan
+                    month={data}
+                    currency={currency}
+                    className="justify-end xl:hidden"
+                  />
+                )}
                 <BudgetBody
                   month={data}
                   onAddGroup={() => setAddingGroup(true)}

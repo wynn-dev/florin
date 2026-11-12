@@ -240,6 +240,8 @@ export type Category = {
   groupId: number
   name: string
   hidden: boolean
+  /** Left out of the monthly goal's spending (investing, a company's costs, one-offs). */
+  outsideGoal: boolean
 }
 
 export type CategoryGroup = {
@@ -380,6 +382,8 @@ export type BudgetCategory = {
   id: number
   name: string
   hidden: boolean
+  /** Left out of the monthly goal's spending. */
+  outsideGoal: boolean
   budgeted: number
   /** Net of this month's transactions in the category (spending is negative). */
   activity: number
@@ -418,7 +422,28 @@ export type BudgetMonth = {
   toBudget: number
   /** The first month with a transaction in an on-budget account; null before any. */
   firstMonth: string | null
+  /** The monthly spending goal and this month against it; null while no goal is set. */
+  goal: MonthGoal | null
   groups: BudgetGroup[]
+}
+
+/**
+ * The monthly spending goal against one month. A target only: it changes
+ * nothing in the budget's numbers.
+ */
+export type MonthGoal = {
+  /** The goal: at most this much spending a month. */
+  amount: number
+  /**
+   * Spent this month as the spending report counts it (on-budget, net of
+   * refunds, no transfers between own accounts), without categories outside
+   * the goal; positive = money spent.
+   */
+  spent: number
+  /** amount − spent; negative = over the goal by that much. */
+  left: number
+  /** What the month plans for the categories the goal counts. */
+  planned: number
 }
 
 export type DateRange = { from: string; to: string }

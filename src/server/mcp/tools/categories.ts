@@ -16,7 +16,7 @@ export const listCategories = defineTool({
   name: "list_categories",
   title: "List categories",
   description:
-    "Category groups with their categories and ids. Income groups hold the categories income is booked to (that money becomes 'to budget'); every other category is an expense envelope. Hidden categories are included and marked unless includeHidden is false.",
+    "Category groups with their categories and ids. Income groups hold the categories income is booked to (that money becomes 'to budget'); every other category is an expense envelope. Hidden categories are included and marked unless includeHidden is false. outsideGoal marks a category whose spending the monthly goal leaves out (see set_monthly_goal).",
   input: { includeHidden: z.boolean().optional() },
   kind: "read",
   run: ({ includeHidden }) =>
@@ -30,6 +30,7 @@ export const listCategories = defineTool({
           id: c.id,
           name: c.name,
           ...(c.hidden ? { hidden: true } : {}),
+          ...(c.outsideGoal ? { outsideGoal: true } : {}),
         })),
     })),
 })
@@ -38,7 +39,7 @@ export const saveCategory = defineTool({
   name: "save_category",
   title: "Create or change a category",
   description:
-    "Without id: creates a category (name and groupId needed). With id: renames it, moves it to another group (groupId) or hides/shows it (hidden). Hide a category that is no longer used rather than deleting it.",
+    "Without id: creates a category (name and groupId needed). With id: renames it, moves it to another group (groupId), hides/shows it (hidden) or leaves it out of / counts it in the monthly goal (outsideGoal: true for investing, a company's costs, one-off costs; every category counts by default). Hide a category that is no longer used rather than deleting it.",
   input: {
     id: zId
       .optional()
@@ -46,15 +47,18 @@ export const saveCategory = defineTool({
     name: z.string().optional(),
     groupId: zId.optional(),
     hidden: z.boolean().optional(),
+    outsideGoal: z.boolean().optional(),
   },
   kind: "write",
-  run: ({ id, name, groupId, hidden }, { actor }) => {
+  run: ({ id, name, groupId, hidden, outsideGoal }, { actor }) => {
     if (id !== undefined)
-      return updateCategory(actor(), id, { name, groupId, hidden })
+      return updateCategory(actor(), id, { name, groupId, hidden, outsideGoal })
     if (!name || groupId === undefined)
       throw new InvalidInput("a new category needs a name and a groupId")
     const created = createCategory(actor(), { groupId, name })
-    return hidden ? updateCategory(actor(), created.id, { hidden }) : created
+    return hidden || outsideGoal
+      ? updateCategory(actor(), created.id, { hidden, outsideGoal })
+      : created
   },
 })
 

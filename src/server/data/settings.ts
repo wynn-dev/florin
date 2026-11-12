@@ -2,9 +2,9 @@ import { and, eq, ne } from "drizzle-orm"
 import { db, schema } from "../db"
 import { listenPort, loadConfig } from "../config"
 import { runJobSoon } from "../jobs"
-import { logChange } from "./changes"
+import { logChange, money } from "./changes"
 import { checkCurrency } from "./fx"
-import { InvalidInput, machineTimeZone } from "./validate"
+import { InvalidInput, checkAmount, machineTimeZone } from "./validate"
 import type { Actor, Settings } from "@/shared/types"
 
 const DEFAULTS: Settings = {
@@ -91,6 +91,55 @@ function checkLocale(value: unknown): string {
   if (!Intl.NumberFormat.supportedLocalesOf(tag).length)
     throw new InvalidInput(`florin can't format numbers for ${tag}`)
   return tag
+}
+
+const GOAL = "monthlyGoal"
+
+/** The monthly spending goal in minor units, or null while none is set. */
+export function getMonthlyGoal(): number | null {
+  const row = db()
+    .select({ value: schema.settings.value })
+    .from(schema.settings)
+    .where(eq(schema.settings.key, GOAL))
+    .get()
+  return row ? Number(row.value) : null
+}
+
+/** Sets the monthly spending goal (a positive amount), or removes it with null. */
+export function setMonthlyGoal(
+  actor: Actor,
+  amount: number | null
+): number | null {
+  if (amount !== null) {
+    checkAmount(amount)
+    if (amount <= 0)
+      throw new InvalidInput(
+        "the goal must be more than zero, or null to remove it"
+      )
+  }
+  if (amount === getMonthlyGoal()) return amount
+  const currency = getSettings().currency
+  db().transaction((tx) => {
+    if (amount === null)
+      tx.delete(schema.settings).where(eq(schema.settings.key, GOAL)).run()
+    else
+      tx.insert(schema.settings)
+        .values({ key: GOAL, value: String(amount) })
+        .onConflictDoUpdate({
+          target: schema.settings.key,
+          set: { value: String(amount) },
+        })
+        .run()
+    logChange(tx, actor, {
+      action: "update",
+      entity: "settings",
+      summary:
+        amount === null
+          ? "Removed the monthly goal"
+          : `Set the monthly goal to ${money(amount, currency)}`,
+    })
+  })
+  return amount
 }
 
 /** Whether any transaction exists: from then on the budget currency is fixed. */

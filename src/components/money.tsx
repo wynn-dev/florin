@@ -6,7 +6,7 @@ import { formatMoney } from "@/lib/format"
  * (pass `tabular={false}` for a hero). With `signed`, as on every transaction
  * amount, the sign always shows and inflows read in --positive; outflows stay
  * in the normal foreground, because spending isn't an error. Colour what's
- * wrong (overspent, negative Ready to assign) with `className="text-negative"`.
+ * wrong (over plan, planned more than you have) with `className="text-negative"`.
  */
 export function Money({
   cents,

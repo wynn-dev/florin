@@ -231,7 +231,7 @@ describe("locale", () => {
     const unassigned = data
       .needsAttention(new Date(Date.now() + 25 * 3_600_000))
       .items.find((i) => i.id === "unassigned")
-    expect(unassigned?.text).toMatch(/^[\d.]+,\d{2}\s€ unassigned/)
+    expect(unassigned?.text).toMatch(/^[\d.]+,\d{2}\s€ not planned yet/)
     data.updateSettings("person", { locale: "en-GB" })
   })
 })

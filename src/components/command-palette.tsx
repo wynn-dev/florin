@@ -169,7 +169,7 @@ export function CommandPalette() {
               </CommandItem>
               <CommandItem
                 onSelect={() => go(() => setMoving(true))}
-                keywords={["budget", "assign", "cover"]}
+                keywords={["budget", "plan", "cover", "over"]}
               >
                 Move money
               </CommandItem>

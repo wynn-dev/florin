@@ -229,7 +229,7 @@ function overspent(): AttentionItem[] {
         {
           id: `overspent:${category.id}`,
           who: "agent" as const,
-          text: `${category.name} {has been|is} ${amount(-category.available, currency)} over {since}`,
+          text: `${category.name} {has been|is} ${amount(-category.available, currency)} over plan {since}`,
           since,
           action: { label: "Cover", to: `/budget/${month}` },
         },
@@ -323,9 +323,9 @@ function unassigned(): AttentionItem[] {
     {
       id: "unassigned",
       who: "agent",
-      text: `${amount(toBudget, getSettings().currency)} unassigned {since}`,
+      text: `${amount(toBudget, getSettings().currency)} not planned yet {since}`,
       since,
-      action: { label: "Assign", to: `/budget/${month}` },
+      action: { label: "Plan", to: `/budget/${month}` },
     },
   ]
 }

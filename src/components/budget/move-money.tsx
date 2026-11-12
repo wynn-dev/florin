@@ -5,15 +5,16 @@ import type { CategoryChoice } from "@/components/category-picker"
 import {
   currencySymbol,
   formatAmountInput,
+  formatLeft,
   formatMoney,
   parseAmount,
 } from "@/lib/format"
 import { CategoryList } from "@/components/category-picker"
 
 /**
- * Move money for one category: "Move €40.00 from Groceries to …", or for an
- * overspent one "Cover €42.10 from …". The amount is editable; the list has
- * Ready to assign first and each category's available money at its right;
+ * Move money for one category: "Move €40.00 from Groceries to …", or for one
+ * that went over "Cover €42.10 from …". The amount is editable; the list has
+ * Not planned yet first and what each category has left at its right;
  * picking one (Enter or click) applies, with an Undo toast.
  */
 export function MoveMoney({
@@ -43,7 +44,7 @@ export function MoveMoney({
     month.groups.flatMap((g) => g.categories.map((c) => [c.id, c.name]))
   )
   const label = (id: number | null) =>
-    id === null ? "Ready to assign" : (name.get(id) ?? "")
+    id === null ? "money not planned yet" : (name.get(id) ?? "")
 
   const apply = (choice: CategoryChoice) => {
     if (!amount) return
@@ -104,7 +105,7 @@ export function MoveMoney({
           recent={[]}
           autoFocus
           trailing={(choice) =>
-            formatMoney(
+            formatLeft(
               choice.type === "category"
                 ? (available.get(choice.id) ?? 0)
                 : month.toBudget,

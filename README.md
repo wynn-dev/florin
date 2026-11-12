@@ -2,7 +2,7 @@
 
 florin is a budgeting app you run yourself. One `florin` command serves a
 calm web dashboard, a JSON API and an MCP server on one local port, over one
-SQLite file in `~/.florin`. It does envelope budgeting per category with
+SQLite file in `~/.florin`. It does a monthly plan per category with
 leftover carrying over, accounts in any currency, transfers, CSV import and
 four reports; it syncs your bank through [Enable Banking](https://enablebanking.com)
 and your Interactive Brokers account through IBKR Flex. Agents do most of the
@@ -54,16 +54,28 @@ after the first can be skipped and done later in Settings.
 
 ## The budget
 
-Each month you assign money to expense categories. A category's available
-amount is what it had left at the end of last month, plus what you assign this
-month, minus what you spend. Leftover carries into the next month; overspending
-doesn't: a category that ends a month below zero shows red in that month,
-starts the next one at zero, and the overspending comes out of the next
-month's Ready to assign instead. Cover it within the month (Move money, or
-Cover overspending on the category) and nothing comes out. Ready to assign is
-all income so far, minus everything assigned so far, minus the overspending of
-the months before; so a budget started after months of unbudgeted history
-starts clean rather than deep in the red.
+Each month you plan how much goes to each expense category. Per category the
+Budget page shows what you planned, what you spent and what is left. What is
+left carries into the next month. A category that spent more than it had shows
+"€40.00 over" in red for that month; the next month it starts again at zero,
+and the amount it went over comes out of your money not planned yet instead.
+Cover it within the month and nothing comes out: Move money from a category
+with money left, or Cover what went over, which plans the extra for every
+category that went over at once, from the money not planned yet. The money not
+planned yet is all the money that came in so far, minus everything planned so
+far, minus what went over in the months before; so a budget started after
+months of history starts clean rather than deep in the red. Planning more than
+you have reads as "You planned €500.00 more than you have".
+
+A monthly goal is one amount you aim to spend under each month. Set it from
+the Budget page's ⋯ menu (click it to change it; clear it to remove it), or
+have an agent use `set_monthly_goal`. With a goal, the Budget page and
+Overview lead with it: "€3,210.00 spent of €5,000.00", what is left or how
+much you are over. It counts what the spending report counts (on-budget
+accounts, refunds taken off, never moves between your own accounts), except
+categories you leave out of it (a category's ⋯ › Counts toward goal; for
+investing, a company's costs or one-off costs). It is only a target: it
+changes none of the budget's numbers.
 
 Moving money between your own accounts is a transfer: two linked
 transactions, one in each account, each in that account's currency. When both

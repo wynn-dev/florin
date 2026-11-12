@@ -10,9 +10,12 @@ export const Route = createFileRoute("/api/categories/$id")({
           updateCategory(
             "person",
             id(params.id),
-            await body<{ name?: string; hidden?: boolean; groupId?: number }>(
-              request
-            )
+            await body<{
+              name?: string
+              hidden?: boolean
+              groupId?: number
+              outsideGoal?: boolean
+            }>(request)
           )
         ),
       /** ?transferTo=<categoryId> moves the category's transactions there first. */

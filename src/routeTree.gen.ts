@@ -31,6 +31,7 @@ import { Route as ApiAccountsIndexRouteImport } from './routes/api/accounts/inde
 import { Route as ApiActivityIndexRouteImport } from './routes/api/activity/index'
 import { Route as ApiActivityIdRouteImport } from './routes/api/activity/$id'
 import { Route as ApiActivitySourcesRouteImport } from './routes/api/activity/sources'
+import { Route as ApiBudgetGoalRouteImport } from './routes/api/budget/goal'
 import { Route as ApiCategoriesIndexRouteImport } from './routes/api/categories/index'
 import { Route as ApiCategoriesIdRouteImport } from './routes/api/categories/$id'
 import { Route as ApiCategoryGroupsIndexRouteImport } from './routes/api/category-groups/index'
@@ -68,6 +69,7 @@ import { Route as ApiAccountsIdValuesRouteImport } from './routes/api/accounts/$
 import { Route as ApiActivityTransactionsIdRouteImport } from './routes/api/activity/transactions/$id'
 import { Route as ApiBudgetMonthIndexRouteImport } from './routes/api/budget/$month/index'
 import { Route as ApiBudgetMonthCategoryIdRouteImport } from './routes/api/budget/$month/$categoryId'
+import { Route as ApiBudgetMonthCoverRouteImport } from './routes/api/budget/$month/cover'
 import { Route as ApiBudgetMonthMoveRouteImport } from './routes/api/budget/$month/move'
 import { Route as ApiConnectionsEnableBankingIndexRouteImport } from './routes/api/connections/enable-banking/index'
 import { Route as ApiConnectionsEnableBankingBanksRouteImport } from './routes/api/connections/enable-banking/banks'
@@ -192,6 +194,11 @@ const ApiActivityIdRoute = ApiActivityIdRouteImport.update({
 const ApiActivitySourcesRoute = ApiActivitySourcesRouteImport.update({
   id: '/api/activity/sources',
   path: '/api/activity/sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBudgetGoalRoute = ApiBudgetGoalRouteImport.update({
+  id: '/api/budget/goal',
+  path: '/api/budget/goal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCategoriesIndexRoute = ApiCategoriesIndexRouteImport.update({
@@ -384,6 +391,11 @@ const ApiBudgetMonthCategoryIdRoute =
     path: '/api/budget/$month/$categoryId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiBudgetMonthCoverRoute = ApiBudgetMonthCoverRouteImport.update({
+  id: '/api/budget/$month/cover',
+  path: '/api/budget/$month/cover',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBudgetMonthMoveRoute = ApiBudgetMonthMoveRouteImport.update({
   id: '/api/budget/$month/move',
   path: '/api/budget/$month/move',
@@ -492,6 +504,7 @@ export interface FileRoutesByFullPath {
   '/reports/$report': typeof AppReportsReportRoute
   '/api/activity/$id': typeof ApiActivityIdRoute
   '/api/activity/sources': typeof ApiActivitySourcesRoute
+  '/api/budget/goal': typeof ApiBudgetGoalRoute
   '/api/categories/$id': typeof ApiCategoriesIdRoute
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
   '/api/export/database': typeof ApiExportDatabaseRoute
@@ -532,6 +545,7 @@ export interface FileRoutesByFullPath {
   '/api/accounts/$id/values': typeof ApiAccountsIdValuesRoute
   '/api/activity/transactions/$id': typeof ApiActivityTransactionsIdRoute
   '/api/budget/$month/$categoryId': typeof ApiBudgetMonthCategoryIdRoute
+  '/api/budget/$month/cover': typeof ApiBudgetMonthCoverRoute
   '/api/budget/$month/move': typeof ApiBudgetMonthMoveRoute
   '/api/connections/enable-banking/banks': typeof ApiConnectionsEnableBankingBanksRoute
   '/api/connections/enable-banking/credentials': typeof ApiConnectionsEnableBankingCredentialsRoute
@@ -568,6 +582,7 @@ export interface FileRoutesByTo {
   '/reports/$report': typeof AppReportsReportRoute
   '/api/activity/$id': typeof ApiActivityIdRoute
   '/api/activity/sources': typeof ApiActivitySourcesRoute
+  '/api/budget/goal': typeof ApiBudgetGoalRoute
   '/api/categories/$id': typeof ApiCategoriesIdRoute
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
   '/api/export/database': typeof ApiExportDatabaseRoute
@@ -608,6 +623,7 @@ export interface FileRoutesByTo {
   '/api/accounts/$id/values': typeof ApiAccountsIdValuesRoute
   '/api/activity/transactions/$id': typeof ApiActivityTransactionsIdRoute
   '/api/budget/$month/$categoryId': typeof ApiBudgetMonthCategoryIdRoute
+  '/api/budget/$month/cover': typeof ApiBudgetMonthCoverRoute
   '/api/budget/$month/move': typeof ApiBudgetMonthMoveRoute
   '/api/connections/enable-banking/banks': typeof ApiConnectionsEnableBankingBanksRoute
   '/api/connections/enable-banking/credentials': typeof ApiConnectionsEnableBankingCredentialsRoute
@@ -646,6 +662,7 @@ export interface FileRoutesById {
   '/_app/reports/$report': typeof AppReportsReportRoute
   '/api/activity/$id': typeof ApiActivityIdRoute
   '/api/activity/sources': typeof ApiActivitySourcesRoute
+  '/api/budget/goal': typeof ApiBudgetGoalRoute
   '/api/categories/$id': typeof ApiCategoriesIdRoute
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
   '/api/export/database': typeof ApiExportDatabaseRoute
@@ -686,6 +703,7 @@ export interface FileRoutesById {
   '/api/accounts/$id/values': typeof ApiAccountsIdValuesRoute
   '/api/activity/transactions/$id': typeof ApiActivityTransactionsIdRoute
   '/api/budget/$month/$categoryId': typeof ApiBudgetMonthCategoryIdRoute
+  '/api/budget/$month/cover': typeof ApiBudgetMonthCoverRoute
   '/api/budget/$month/move': typeof ApiBudgetMonthMoveRoute
   '/api/connections/enable-banking/banks': typeof ApiConnectionsEnableBankingBanksRoute
   '/api/connections/enable-banking/credentials': typeof ApiConnectionsEnableBankingCredentialsRoute
@@ -724,6 +742,7 @@ export interface FileRouteTypes {
     | '/reports/$report'
     | '/api/activity/$id'
     | '/api/activity/sources'
+    | '/api/budget/goal'
     | '/api/categories/$id'
     | '/api/category-groups/$id'
     | '/api/export/database'
@@ -764,6 +783,7 @@ export interface FileRouteTypes {
     | '/api/accounts/$id/values'
     | '/api/activity/transactions/$id'
     | '/api/budget/$month/$categoryId'
+    | '/api/budget/$month/cover'
     | '/api/budget/$month/move'
     | '/api/connections/enable-banking/banks'
     | '/api/connections/enable-banking/credentials'
@@ -800,6 +820,7 @@ export interface FileRouteTypes {
     | '/reports/$report'
     | '/api/activity/$id'
     | '/api/activity/sources'
+    | '/api/budget/goal'
     | '/api/categories/$id'
     | '/api/category-groups/$id'
     | '/api/export/database'
@@ -840,6 +861,7 @@ export interface FileRouteTypes {
     | '/api/accounts/$id/values'
     | '/api/activity/transactions/$id'
     | '/api/budget/$month/$categoryId'
+    | '/api/budget/$month/cover'
     | '/api/budget/$month/move'
     | '/api/connections/enable-banking/banks'
     | '/api/connections/enable-banking/credentials'
@@ -877,6 +899,7 @@ export interface FileRouteTypes {
     | '/_app/reports/$report'
     | '/api/activity/$id'
     | '/api/activity/sources'
+    | '/api/budget/goal'
     | '/api/categories/$id'
     | '/api/category-groups/$id'
     | '/api/export/database'
@@ -917,6 +940,7 @@ export interface FileRouteTypes {
     | '/api/accounts/$id/values'
     | '/api/activity/transactions/$id'
     | '/api/budget/$month/$categoryId'
+    | '/api/budget/$month/cover'
     | '/api/budget/$month/move'
     | '/api/connections/enable-banking/banks'
     | '/api/connections/enable-banking/credentials'
@@ -948,6 +972,7 @@ export interface RootRouteChildren {
   ApiSettingsRoute: typeof ApiSettingsRoute
   ApiActivityIdRoute: typeof ApiActivityIdRoute
   ApiActivitySourcesRoute: typeof ApiActivitySourcesRoute
+  ApiBudgetGoalRoute: typeof ApiBudgetGoalRoute
   ApiCategoriesIdRoute: typeof ApiCategoriesIdRoute
   ApiCategoryGroupsIdRoute: typeof ApiCategoryGroupsIdRoute
   ApiExportDatabaseRoute: typeof ApiExportDatabaseRoute
@@ -985,6 +1010,7 @@ export interface RootRouteChildren {
   ApiAccountsIdValuesRoute: typeof ApiAccountsIdValuesRoute
   ApiActivityTransactionsIdRoute: typeof ApiActivityTransactionsIdRoute
   ApiBudgetMonthCategoryIdRoute: typeof ApiBudgetMonthCategoryIdRoute
+  ApiBudgetMonthCoverRoute: typeof ApiBudgetMonthCoverRoute
   ApiBudgetMonthMoveRoute: typeof ApiBudgetMonthMoveRoute
   ApiConnectionsEnableBankingBanksRoute: typeof ApiConnectionsEnableBankingBanksRoute
   ApiConnectionsEnableBankingCredentialsRoute: typeof ApiConnectionsEnableBankingCredentialsRoute
@@ -1159,6 +1185,13 @@ declare module '@tanstack/react-router' {
       path: '/api/activity/sources'
       fullPath: '/api/activity/sources'
       preLoaderRoute: typeof ApiActivitySourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/budget/goal': {
+      id: '/api/budget/goal'
+      path: '/api/budget/goal'
+      fullPath: '/api/budget/goal'
+      preLoaderRoute: typeof ApiBudgetGoalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/categories/': {
@@ -1420,6 +1453,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBudgetMonthCategoryIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/budget/$month/cover': {
+      id: '/api/budget/$month/cover'
+      path: '/api/budget/$month/cover'
+      fullPath: '/api/budget/$month/cover'
+      preLoaderRoute: typeof ApiBudgetMonthCoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/budget/$month/move': {
       id: '/api/budget/$month/move'
       path: '/api/budget/$month/move'
@@ -1574,6 +1614,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSettingsRoute: ApiSettingsRoute,
   ApiActivityIdRoute: ApiActivityIdRoute,
   ApiActivitySourcesRoute: ApiActivitySourcesRoute,
+  ApiBudgetGoalRoute: ApiBudgetGoalRoute,
   ApiCategoriesIdRoute: ApiCategoriesIdRoute,
   ApiCategoryGroupsIdRoute: ApiCategoryGroupsIdRoute,
   ApiExportDatabaseRoute: ApiExportDatabaseRoute,
@@ -1611,6 +1652,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAccountsIdValuesRoute: ApiAccountsIdValuesRoute,
   ApiActivityTransactionsIdRoute: ApiActivityTransactionsIdRoute,
   ApiBudgetMonthCategoryIdRoute: ApiBudgetMonthCategoryIdRoute,
+  ApiBudgetMonthCoverRoute: ApiBudgetMonthCoverRoute,
   ApiBudgetMonthMoveRoute: ApiBudgetMonthMoveRoute,
   ApiConnectionsEnableBankingBanksRoute: ApiConnectionsEnableBankingBanksRoute,
   ApiConnectionsEnableBankingCredentialsRoute:

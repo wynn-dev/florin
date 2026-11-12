@@ -1,7 +1,13 @@
 // Every MCP tool, in the order clients list them. To add a tool, write it
 // with defineTool in a file in this folder and add it here.
 import { deleteAccountTool, listAccountsTool, saveAccount } from "./accounts"
-import { getBudgetMonthTool, moveMoney, setBudget } from "./budget"
+import {
+  coverOverspendingTool,
+  getBudgetMonthTool,
+  moveMoney,
+  setBudget,
+  setMonthlyGoalTool,
+} from "./budget"
 import {
   deleteCategoryTool,
   listCategories,
@@ -55,6 +61,8 @@ export const tools: FlorinTool[] = [
   getBudgetMonthTool,
   setBudget,
   moveMoney,
+  coverOverspendingTool,
+  setMonthlyGoalTool,
   // Categories
   listCategories,
   saveCategory,
