@@ -151,11 +151,7 @@ function CategoryDrawer({
     <div className="flex max-h-[80dvh] flex-col overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
       <DrawerHeader className="gap-1 text-left!">
         <DrawerTitle className="text-left">{category.name}</DrawerTitle>
-        <LastChange
-          detail={detail.data}
-          month={month.month}
-          category={category.name}
-        />
+        <LastChange detail={detail.data} month={month.month} />
       </DrawerHeader>
       {moving ? (
         <MoveMoney

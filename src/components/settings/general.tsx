@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useRouter } from "@tanstack/react-router"
+import { useLoaderData, useRouter } from "@tanstack/react-router"
+import { CheckIcon, ChevronsUpDownIcon } from "lucide-react"
 import { toast } from "sonner"
 import type { Settings } from "@/shared/types"
 import {
@@ -15,6 +16,14 @@ import { Aside, SettingsRow, SettingsSection } from "@/components/settings/row"
 import { THEMES } from "@/components/app-sidebar"
 import { Button } from "@/components/ui/button"
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -28,6 +37,11 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
@@ -63,7 +77,10 @@ function useSaveSettings() {
 
 export function GeneralSettings() {
   const settings = useQuery(queries.settings())
-  if (!settings.data)
+  // The currency row depends on setup's answer: wait for it rather than swap
+  // a picker for fixed text once it arrives.
+  const setup = useQuery(queries.setup())
+  if (!settings.data || setup.isPending)
     return (
       <div className="flex flex-col gap-3">
         {Array.from({ length: 6 }, (_, i) => (
@@ -75,6 +92,7 @@ export function GeneralSettings() {
     <SettingsSection>
       <CurrencyRow settings={settings.data} />
       <LocaleRow settings={settings.data} />
+      <TimeZoneRow settings={settings.data} />
       <ThemeRow />
       <PasswordRow />
       <ExchangeRatesRow />
@@ -157,6 +175,76 @@ function LocaleRow({ settings }: { settings: Settings }) {
           ))}
         </SelectContent>
       </Select>
+    </SettingsRow>
+  )
+}
+
+const ZONES: string[] =
+  typeof Intl.supportedValuesOf === "function"
+    ? Intl.supportedValuesOf("timeZone")
+    : []
+
+/** The time zone "today" and "this month" are in: the machine's unless set. */
+function TimeZoneRow({ settings }: { settings: Settings }) {
+  const save = useSaveSettings()
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const effective = useLoaderData({ from: "__root__" }).timeZone
+  const pick = (timeZone: string) => {
+    setOpen(false)
+    if (timeZone === settings.timeZone) return
+    save.mutate(
+      { timeZone },
+      // The root route reloads the zone and re-renders every page.
+      { onSuccess: () => void router.invalidate() }
+    )
+  }
+  const label = (zone: string) => zone.replace(/_/g, " ")
+  return (
+    <SettingsRow title="Time zone" htmlFor="time-zone">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            id="time-zone"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className={`${CONTROL} justify-between font-normal`}
+          >
+            <span className="truncate">
+              {label(settings.timeZone || effective)}
+            </span>
+            <ChevronsUpDownIcon className="text-muted-foreground" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-72 p-0">
+          <Command>
+            <CommandInput placeholder="Search time zones" />
+            <CommandList className="max-h-72">
+              <CommandEmpty>No time zone by that name.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem value="machine" onSelect={() => pick("")}>
+                  This machine&rsquo;s
+                  {!settings.timeZone && <CheckIcon className="ml-auto" />}
+                </CommandItem>
+                {ZONES.map((zone) => (
+                  <CommandItem
+                    key={zone}
+                    value={zone}
+                    keywords={[label(zone)]}
+                    onSelect={() => pick(zone)}
+                  >
+                    {label(zone)}
+                    {settings.timeZone === zone && (
+                      <CheckIcon className="ml-auto" />
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </SettingsRow>
   )
 }

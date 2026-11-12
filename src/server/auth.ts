@@ -55,26 +55,42 @@ export function checkSetupCode(code: unknown): boolean {
   return timingSafeEqual(a, b)
 }
 
-function sign(expires: number): string {
+function sign(expires: number, nonce: string): string {
   const config = loadConfig()
   return createHmac("sha256", config.sessionSecret)
-    .update(`${expires}.${config.passwordHash ?? ""}`)
+    .update(`${expires}.${nonce}.${config.passwordHash ?? ""}`)
     .digest("base64url")
 }
 
-/** A new session token, valid for SESSION_DAYS. */
+/** A new session token, valid for SESSION_DAYS: "<expires>.<nonce>.<signature>". */
 export function createSession(): string {
   const expires = Date.now() + SESSION_DAYS * 86_400_000
-  return `${expires}.${sign(expires)}`
+  const nonce = randomBytes(9).toString("base64url")
+  return `${expires}.${nonce}.${sign(expires, nonce)}`
 }
 
 export function verifySession(token: string | undefined): boolean {
   if (!token || needsSetup()) return false
-  const [expires, mac] = token.split(".")
-  if (!(Number(expires) > Date.now()) || !mac) return false
-  const expected = Buffer.from(sign(Number(expires)))
+  const [expires, nonce, mac] = token.split(".")
+  if (!(Number(expires) > Date.now()) || !nonce || !mac) return false
+  if (loadConfig().signedOut?.[mac]) return false
+  const expected = Buffer.from(sign(Number(expires), nonce))
   const given = Buffer.from(mac)
   return expected.length === given.length && timingSafeEqual(expected, given)
+}
+
+/** Signs a session out for good: its token stops working before it expires. */
+export function revokeSession(token: string | undefined): void {
+  if (!verifySession(token)) return
+  const [expires, , mac] = token!.split(".")
+  const config = loadConfig()
+  const now = Date.now()
+  // Only tokens that haven't expired yet need remembering.
+  const signedOut = Object.fromEntries(
+    Object.entries(config.signedOut ?? {}).filter(([, until]) => until > now)
+  )
+  signedOut[mac] = Number(expires)
+  saveConfig({ ...config, signedOut })
 }
 
 export function sessionFromRequest(request: Request): string | undefined {

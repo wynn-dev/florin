@@ -235,7 +235,7 @@ export function linkAccount(
       entity: "account",
       entityId: id,
       summary: link.provider
-        ? `Linked ${account.name} to ${link.provider}`
+        ? `Linked ${account.name} to ${link.provider === "ibkr" ? "Interactive Brokers" : "Enable Banking"}`
         : `Unlinked ${account.name}`,
     })
   })

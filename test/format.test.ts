@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "vitest"
 import {
   addDays,
+  localiseAmounts,
   addMonths,
   currencyDigits,
   currencySymbol,
@@ -173,4 +174,26 @@ test("formatPercent", () => {
   expect(formatPercent(0.456)).toBe("46%")
   expect(formatPercent(-0.03, { signed: true })).toBe("−3%")
   expect(formatPercent(0.12, { signed: true })).toBe("+12%")
+})
+
+describe("amounts in server-written text", () => {
+  test("follow the locale", () => {
+    setLocale("de-DE")
+    expect(localiseAmounts("Moved €1,234.50 from A to B")).toMatch(
+      /^Moved 1\.234,50\s€ from A to B$/
+    )
+    expect(localiseAmounts("Budgeted CHF 40.00 for Food")).toMatch(
+      /^Budgeted 40,00\sCHF for Food$/
+    )
+    expect(localiseAmounts("Added −$12.00 at Shop")).toMatch(
+      /^Added −12,00\s\$ at Shop$/
+    )
+    setLocale("en-GB")
+    expect(localiseAmounts("Added −$12.00 at Shop")).toBe(
+      "Added −US$12.00 at Shop"
+    )
+    expect(localiseAmounts("Paid ¥1,235 on 2026-11-02")).toBe(
+      "Paid JP¥1,235 on 2026-11-02"
+    )
+  })
 })

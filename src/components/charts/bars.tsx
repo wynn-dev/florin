@@ -34,8 +34,9 @@ type Row = Record<string, unknown>
  * ends:
  * - "columns": vertical bars; two or more series stand side by side (income
  *   and expenses per month), with a legend.
- * - "ranked": horizontal bars, largest first, labels on the left (spending by
- *   group). Pass the rows already sorted.
+ * - "ranked": thin horizontal bars, largest first, names on the left and
+ *   each amount at its bar's end instead of an axis (spending by group).
+ *   Pass the rows already sorted.
  * - "diverging": one series of columns above and below zero, coloured by sign
  *   (positive var(--chart-1), negative var(--chart-2), or `divergingColors`).
  *
@@ -48,7 +49,7 @@ export function Bars<T extends Row>({
   series,
   currency,
   variant = "columns",
-  height = 240,
+  height,
   categoryFormat,
   highlight,
   divergingColors = ["var(--chart-1)", "var(--chart-2)"],
@@ -65,7 +66,7 @@ export function Bars<T extends Row>({
   /** Values are minor units in this currency. */
   currency: string
   variant?: "columns" | "ranked" | "diverging"
-  /** Pixels, axis band included. For "ranked", leave it out to get 36px per bar. */
+  /** Pixels, axis band included. For "ranked", leave it out to get 32px per bar. */
   height?: number
   /** How category values read; months ("2026-03") default to "Mar", dates to "12 Nov". */
   categoryFormat?: XFormat
@@ -90,7 +91,7 @@ export function Bars<T extends Row>({
       : (value) => String(value))
   const categoryTick = xTickFormatter(format)
   const plotHeight =
-    ranked && height === 240 ? Math.max(120, data.length * 36 + 32) : height
+    height ?? (ranked ? Math.max(96, data.length * 32 + 8) : 240)
 
   const fillFor = (row: T, index: number): string => {
     if (variant === "diverging") {
@@ -119,23 +120,17 @@ export function Bars<T extends Row>({
           data={data}
           layout={ranked ? "vertical" : "horizontal"}
           barGap={2}
-          barCategoryGap={ranked ? 6 : "20%"}
+          barCategoryGap={ranked ? 9 : "20%"}
           margin={{
-            top: labelLast ? 20 : 8,
-            right: labelLast ? 16 : ranked ? 8 : 4,
+            top: labelLast ? 20 : ranked ? 0 : 8,
+            right: labelLast ? 16 : ranked ? 88 : 4,
             bottom: 0,
             left: 0,
           }}
         >
           {ranked ? (
             <>
-              <XAxis
-                type="number"
-                {...axisProps}
-                tickCount={5}
-                className="tabular-nums"
-                tickFormatter={moneyTick(currency)}
-              />
+              <XAxis type="number" hide />
               <YAxis
                 type="category"
                 dataKey={categoryKey}
@@ -187,7 +182,7 @@ export function Bars<T extends Row>({
               key={s.key}
               dataKey={key(s)}
               fill={seriesColor(series, i)}
-              maxBarSize={24}
+              maxBarSize={ranked ? 14 : 24}
               radius={ranked ? [0, 4, 4, 0] : [4, 4, 0, 0]}
               isAnimationActive={false}
               onClick={
@@ -201,6 +196,19 @@ export function Bars<T extends Row>({
               {data.map((row, index) => (
                 <Cell key={index} fill={fillFor(row, i)} />
               ))}
+              {ranked && (
+                <LabelList
+                  dataKey={key(s)}
+                  position="right"
+                  offset={8}
+                  className="fill-foreground text-xs font-medium tabular-nums"
+                  formatter={(value: unknown) =>
+                    typeof value === "number"
+                      ? formatMoney(value, currency, { whole: true })
+                      : ""
+                  }
+                />
+              )}
               {labelLast && (
                 <LabelList
                   dataKey={key(s)}

@@ -4,6 +4,7 @@ import { db, schema } from "../db"
 import { getAccount } from "./accounts"
 import { getCategory } from "./categories"
 import { logChange, money } from "./changes"
+import { minorDigits } from "./fx"
 import { payeeCategory, payeeIdForName } from "./payees"
 import {
   checkAmount,
@@ -24,7 +25,11 @@ import type {
   TransactionPatch,
 } from "@/shared/types"
 
-const { transactions, accounts, payees, categories, changes } = schema
+const { transactions, accounts, payees, categories, changes, deletedImports } =
+  schema
+
+/** Ids florin gives bank rows (Enable Banking); a deleted one is remembered so a sync doesn't add it back. */
+export const BANK_ROW_ID = /^(er|h|pend):/
 const transferLeg = alias(transactions, "transfer_leg")
 const transferAccount = alias(accounts, "transfer_account")
 
@@ -121,13 +126,30 @@ function filterConditions(f: TransactionFilter): SQL | undefined {
   return and(...where)
 }
 
-/** A search that reads as an amount ("42.10", "42,10", "1200") matches it either way round. */
+/**
+ * A search that reads as an amount ("42.10", "42,10", "1200") matches it
+ * either way round, in each account's own currency: "1200" is ¥1,200 in a
+ * JPY account and €1,200.00 in a EUR one; "12.50" matches no JPY row.
+ */
 function amountMatch(term: string): SQL | undefined {
-  if (!/^[+\-−]?\d+([.,]\d{1,2})?$/.test(term)) return undefined
-  const cents = Math.round(
-    Math.abs(Number(term.replace(/^[+\-−]/, "").replace(",", "."))) * 100
-  )
-  return sql`abs(${transactions.amount}) = ${cents}`
+  const match = /^[+\-−]?(\d+)(?:[.,](\d{1,3}))?$/.exec(term)
+  if (!match) return undefined
+  const [, whole, fraction = ""] = match
+  const currencies = db()
+    .selectDistinct({ currency: accounts.currency })
+    .from(accounts)
+    .all()
+    .map((a) => a.currency)
+  const byCurrency = currencies.flatMap((currency) => {
+    const digits = minorDigits(currency)
+    if (fraction.replace(/0+$/, "").length > digits) return []
+    const minor = Number(whole + fraction.padEnd(digits, "0").slice(0, digits))
+    if (!Number.isSafeInteger(minor)) return []
+    return [
+      sql`(${accounts.currency} = ${currency} and abs(${transactions.amount}) = ${minor})`,
+    ]
+  })
+  return byCurrency.length ? or(...byCurrency) : undefined
 }
 
 /**
@@ -254,6 +276,16 @@ function insertTransaction(tx: Tx, input: NewTransaction): number {
     })
     .returning({ id: transactions.id })
     .get()
+  // Putting a deleted bank row back (Undo) lets later syncs see it again.
+  if (input.importedId)
+    tx.delete(deletedImports)
+      .where(
+        and(
+          eq(deletedImports.accountId, input.accountId),
+          eq(deletedImports.importedId, input.importedId)
+        )
+      )
+      .run()
   if (isTransfer)
     addTransferLeg(tx, row.id, input.transferAccountId!, input.transferAmount)
   return row.id
@@ -360,6 +392,26 @@ function applyPatch(tx: Tx, id: number, patch: TransactionPatch): string[] {
     transferAccountId === (set.accountId ?? current.accountId)
   ) {
     throw new InvalidInput("a transfer needs two different accounts")
+  }
+  // A leg moved (or a transfer made) across currencies can't mirror the
+  // amount: what arrives in the other account has to be said.
+  const moved =
+    set.accountId !== undefined || patch.transferAccountId !== undefined
+  if (
+    moved &&
+    transferAccountId !== null &&
+    patch.transferAmount === undefined
+  ) {
+    const from = getAccount(set.accountId ?? current.accountId).currency
+    const to = getAccount(transferAccountId).currency
+    const was =
+      current.transferAccountId !== null &&
+      getAccount(current.accountId).currency === from &&
+      getAccount(current.transferAccountId).currency === to
+    if (from !== to && !was)
+      throw new InvalidInput(
+        "a transfer between currencies needs transferAmount, what arrives in the other account"
+      )
   }
   const payeeId = resolvePayee(tx, patch)
   if (payeeId !== undefined) set.payeeId = payeeId
@@ -526,6 +578,11 @@ export function deleteTransactions(actor: Actor, ids: number[]): void {
   db().transaction((tx) => {
     for (const t of doomed) {
       tx.delete(transactions).where(eq(transactions.id, t.id)).run()
+      if (t.importedId && BANK_ROW_ID.test(t.importedId))
+        tx.insert(deletedImports)
+          .values({ accountId: t.accountId, importedId: t.importedId })
+          .onConflictDoNothing()
+          .run()
       if (t.transferId)
         tx.delete(transactions).where(eq(transactions.id, t.transferId)).run()
       logChange(tx, actor, {

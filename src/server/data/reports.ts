@@ -5,7 +5,7 @@
 import { and, desc, eq, inArray, lte, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/sqlite-core"
 import type { SQLiteSelect } from "drizzle-orm/sqlite-core"
-import { db, schema } from "../db"
+import { STARTING_BALANCES, db, schema } from "../db"
 import { listCategoryGroups } from "./categories"
 import { convert } from "./fx"
 import { getSettings } from "./settings"
@@ -67,7 +67,7 @@ function flowConditions(range: DateRange): SQL {
   return and(
     eq(accounts.onBudget, true),
     sql`${transactions.date} between ${range.from} and ${range.to}`,
-    sql`not (coalesce(${categoryGroups.isIncome}, 0) = 1 and ${categories.name} = 'Starting balances')`,
+    sql`coalesce(${categories.key}, '') <> ${STARTING_BALANCES}`,
     sql`coalesce(${legAccount.onBudget}, 0) = 0`
   )!
 }
@@ -432,6 +432,7 @@ export function netWorthReport(
   }
 
   let missingRates = false
+  const leftOut: string[] = []
   const points = dates.map((date) => ({
     date,
     assets: 0,
@@ -447,6 +448,7 @@ export function netWorthReport(
       const value = convert(own, account.currency, budgetCurrency, dates[i])
       if (value === null) {
         missingRates = true
+        if (i === dates.length - 1) leftOut.push(account.name)
         return
       }
       if (value >= 0) points[i].assets += value
@@ -478,7 +480,15 @@ export function netWorthReport(
     })
   }
   for (const p of points) p.netWorth = p.assets - p.liabilities
-  return { ...range, dataFrom, step, points, accounts: rows, missingRates }
+  return {
+    ...range,
+    dataFrom,
+    step,
+    points,
+    accounts: rows,
+    missingRates,
+    leftOut,
+  }
 }
 
 /** Budget-currency units per unit of `from` on `date`, and the date of the rate used. */
@@ -686,7 +696,7 @@ export function cashFlowReport(query: ReportQuery = {}): CashFlowReport {
       })),
     }
   }
-  const openingBalance = sql`(coalesce(${categoryGroups.isIncome}, 0) = 1 and ${categories.name} = 'Starting balances')`
+  const openingBalance = sql`coalesce(${categories.key}, '') = ${STARTING_BALANCES}`
   const internal = sql`coalesce(${leg.accountId} in (${sql.join(
     cash.map((id) => sql`${id}`),
     sql`, `

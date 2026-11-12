@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react"
+import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { RefreshCwIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -34,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Field, FieldLabel, FieldTitle } from "@/components/ui/field"
+import { Aside, SettingsRow } from "@/components/settings/row"
 import {
   Select,
   SelectContent,
@@ -42,7 +42,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -59,31 +58,6 @@ const INTERVALS: { hours: SyncHours; label: string }[] = [
 /** "added 12 Nov" from an ISO timestamp. */
 const added = (iso: string | null) =>
   iso ? `added ${formatDate(iso.slice(0, 10))}` : ""
-
-function Row({
-  title,
-  htmlFor,
-  children,
-}: {
-  title: string
-  htmlFor?: string
-  children: React.ReactNode
-}) {
-  return (
-    <Field orientation="horizontal" className="min-h-10 justify-between gap-4">
-      {htmlFor ? (
-        <FieldLabel htmlFor={htmlFor} className="shrink-0 whitespace-nowrap">
-          {title}
-        </FieldLabel>
-      ) : (
-        <FieldTitle className="shrink-0 whitespace-nowrap">{title}</FieldTitle>
-      )}
-      <div className="flex min-w-0 items-center justify-end gap-3 text-sm">
-        {children}
-      </div>
-    </Field>
-  )
-}
 
 /**
  * Settings › Connections › Enable Banking: the application id and private
@@ -117,9 +91,9 @@ export function EnableBankingSettings() {
   const ready = s.appId.set && s.privateKey.set
 
   return (
-    <div className="flex flex-col gap-3">
-      <Row title="Application ID">
-        {s.appId.set && <span className="text-muted-foreground">Set</span>}
+    <>
+      <SettingsRow title="Application ID">
+        {s.appId.set && <Aside>Set</Aside>}
         <Button
           variant="outline"
           size="sm"
@@ -127,14 +101,9 @@ export function EnableBankingSettings() {
         >
           {s.appId.set ? "Change" : "Add"}
         </Button>
-      </Row>
-      <Separator />
-      <Row title="Private key">
-        {s.privateKey.set && (
-          <span className="text-muted-foreground">
-            Set · {added(s.privateKey.setAt)}
-          </span>
-        )}
+      </SettingsRow>
+      <SettingsRow title="Private key">
+        {s.privateKey.set && <Aside>Set · {added(s.privateKey.setAt)}</Aside>}
         <Button
           variant="outline"
           size="sm"
@@ -142,25 +111,28 @@ export function EnableBankingSettings() {
         >
           {s.privateKey.set ? "Replace" : "Add"}
         </Button>
-      </Row>
+      </SettingsRow>
       {ready && (
         <>
-          <Separator />
-          <Row title="Application">
+          <SettingsRow title="Application">
             {app ? (
-              <span className="truncate text-muted-foreground">
+              <Aside>
                 {app.name} ·{" "}
                 {app.environment === "SANDBOX" ? "Sandbox" : "Production"}
                 {!app.active && " · inactive"}
-              </span>
+              </Aside>
             ) : (
-              <span className="text-negative">{s.applicationError}</span>
+              <span className="truncate text-sm text-negative">
+                {s.applicationError}
+              </span>
             )}
-          </Row>
+          </SettingsRow>
         </>
       )}
-      <Separator />
-      <Row title="Register this URL in Enable Banking" htmlFor="eb-redirect">
+      <SettingsRow
+        title="Register this URL in Enable Banking"
+        htmlFor="eb-redirect"
+      >
         {app && !app.redirectRegistered && (
           <span className="shrink-0 text-warning">Not registered</span>
         )}
@@ -169,9 +141,8 @@ export function EnableBankingSettings() {
           value={s.redirectUrl}
           className="w-[26rem] min-w-0 shrink"
         />
-      </Row>
-      <Separator />
-      <Row title="Sync" htmlFor="eb-interval">
+      </SettingsRow>
+      <SettingsRow title="Sync" htmlFor="eb-interval">
         <Select
           value={String(s.syncHours)}
           onValueChange={(v) => interval.mutate(Number(v) as SyncHours)}
@@ -187,26 +158,16 @@ export function EnableBankingSettings() {
             ))}
           </SelectContent>
         </Select>
-      </Row>
-      <Separator />
-      <div className="flex flex-col gap-3 pt-3">
-        <h3 className="text-sm font-medium">Linked banks</h3>
-        {s.links.map((link) => (
-          <Fragment key={link.id}>
-            <LinkRow link={link} />
-            <Separator />
-          </Fragment>
-        ))}
-        <div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setConnecting(true)}
-          >
-            Link a bank
-          </Button>
-        </div>
-      </div>
+      </SettingsRow>
+      {s.links.map((link) => (
+        <LinkRow key={link.id} link={link} />
+      ))}
+      <SettingsRow title={s.links.length ? "Another bank" : "Banks"}>
+        {!s.links.length && <Aside>None linked</Aside>}
+        <Button variant="outline" size="sm" onClick={() => setConnecting(true)}>
+          Link a bank
+        </Button>
+      </SettingsRow>
 
       <Dialog
         open={editing !== null}
@@ -232,7 +193,7 @@ export function EnableBankingSettings() {
         </DialogContent>
       </Dialog>
       <ConnectBankDialog open={connecting} onOpenChange={setConnecting} />
-    </div>
+    </>
   )
 }
 
@@ -276,9 +237,9 @@ function LinkRow({ link }: { link: BankLink }) {
   const syncing = sync.isPending || link.syncing
 
   return (
-    <div className="flex items-start justify-between gap-4">
+    <div className="flex items-start justify-between gap-4 border-b py-3">
       <div className="flex min-w-0 flex-col gap-0.5 text-sm">
-        <span className="font-medium">{link.bank}</span>
+        <span className="leading-snug font-medium">{link.bank}</span>
         <span className="truncate text-muted-foreground">
           {linked.length
             ? linked.map((a) => a.accountName).join(", ")

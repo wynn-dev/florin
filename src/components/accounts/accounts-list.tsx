@@ -3,13 +3,14 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { ChevronDownIcon } from "lucide-react"
 import { AddAccountDialog } from "./add-account"
-import { SECTIONS } from "./queries"
+import { SECTIONS, accountQueries } from "./queries"
 import { ConnectionState } from "./connection"
 import type { AddStep } from "./add-account"
 import type { Account } from "@/shared/types"
 import { cn } from "@/lib/utils"
 import { queries } from "@/lib/api"
-import { formatMoney } from "@/lib/format"
+import { addDays, formatMoney, today } from "@/lib/format"
+import { Sparkline } from "@/components/charts"
 import { Page } from "@/components/page"
 import {
   EmptyState,
@@ -56,7 +57,7 @@ export function AccountsList({
         query={accounts}
         error="Couldn't load accounts."
         skeleton={
-          <div className="flex max-w-3xl flex-col gap-8">
+          <div className="flex max-w-5xl flex-col gap-8">
             <SkeletonFigure />
             <SkeletonRows rows={6} />
           </div>
@@ -78,7 +79,7 @@ export function AccountsList({
           const closed = all.filter((a) => a.closed)
           const sum = total(open)
           return (
-            <div className="flex w-full max-w-3xl flex-col gap-8">
+            <div className="flex w-full max-w-5xl flex-col gap-8">
               <div className="flex flex-col gap-1">
                 <span className="text-sm text-muted-foreground">
                   {sum === null
@@ -88,6 +89,11 @@ export function AccountsList({
                 <span className="text-4xl font-semibold tracking-tight">
                   {formatMoney(sum ?? knownTotal(open), currency)}
                 </span>
+              </div>
+              <div className="-mb-6 hidden grid-cols-[minmax(0,1fr)_7rem_8rem_9rem] gap-x-6 px-3 text-xs text-muted-foreground md:grid">
+                <span />
+                <span className="col-span-2 text-right">Last 90 days</span>
+                <span className="text-right">Balance</span>
               </div>
               {SECTIONS.map((section) => {
                 const rows = byName(
@@ -174,6 +180,16 @@ function Section({
   )
 }
 
+/** Ninety days back from today, as an ISO date. */
+function daysAgo(n: number): string {
+  return addDays(today(), -n)
+}
+
+/**
+ * One account: its name (and a second line only when its connection has
+ * something to say), the last 90 days as a sparkline with the change over
+ * them, and the balance in its own currency (≈ the budget's beside it).
+ */
 function AccountRow({
   account,
   currency,
@@ -182,20 +198,43 @@ function AccountRow({
   currency: string
 }) {
   const foreign = account.currency !== currency
+  const balances = useQuery(accountQueries.balances(account.id)).data
+  const since = daysAgo(90)
+  const recent = balances?.filter((p) => p.date >= since) ?? []
+  const before = balances?.filter((p) => p.date < since).at(-1)
+  const series = before ? [before, ...recent] : recent
+  const change =
+    series.length > 1 ? series.at(-1)!.value - series[0].value : null
   return (
     <Link
       to="/accounts/$id"
       params={{ id: String(account.id) }}
       className={cn(
-        "flex min-h-14 items-center gap-4 rounded-lg px-3 py-2 text-sm outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50",
+        "grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 rounded-lg px-3 py-2 text-sm outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 md:grid-cols-[minmax(0,1fr)_7rem_8rem_9rem]",
         account.closed && "text-muted-foreground"
       )}
     >
-      <span className="flex min-w-0 flex-1 flex-col">
+      <span className="flex min-w-0 flex-col">
         <span className="truncate">{account.name}</span>
-        <span className="truncate text-muted-foreground">
-          <ConnectionState account={account} />
-        </span>
+        {account.provider && (
+          <span className="truncate text-muted-foreground">
+            <ConnectionState account={account} />
+          </span>
+        )}
+      </span>
+      <span className="hidden md:block">
+        {series.length > 1 && <Sparkline values={series.map((p) => p.value)} />}
+      </span>
+      <span className="hidden text-right text-muted-foreground tabular-nums md:block">
+        {change !== null && change !== 0 && (
+          <>
+            {formatMoney(change, account.currency, {
+              signed: true,
+              symbol: foreign,
+              whole: true,
+            })}
+          </>
+        )}
       </span>
       <span className="flex flex-col items-end tabular-nums">
         <span>

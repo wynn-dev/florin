@@ -65,12 +65,17 @@ function Action({ item }: { item: AttentionItem }) {
   const { action } = item
   const run = useMutation({
     mutationFn: (path: string) =>
-      api<{ url?: string } | undefined>(path.replace(/^\/api/, ""), {
-        method: "POST",
-      }),
-    onSuccess: (answer) => {
-      if (answer && typeof answer === "object" && answer.url)
-        window.location.href = answer.url
+      api<{ url?: string; error?: string | null } | undefined>(
+        path.replace(/^\/api/, ""),
+        { method: "POST", body: "post" in action ? action.body : undefined }
+      ),
+    onSuccess: (answer, path) => {
+      if (!answer || typeof answer !== "object") return
+      if (answer.url) window.location.href = answer.url
+      else if (answer.error)
+        toast.error(`${action.label} failed: ${answer.error}`, {
+          action: { label: "Retry", onClick: () => run.mutate(path) },
+        })
     },
     onError: (error, path) =>
       toast.error(`${action.label} failed: ${error.message}`, {

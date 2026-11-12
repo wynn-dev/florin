@@ -1,3 +1,4 @@
+import { useId } from "react"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import type { Series, TooltipRow, XFormat } from "./common"
 import { cn } from "@/lib/utils"
@@ -23,7 +24,8 @@ import {
 type Row = Record<string, unknown>
 
 /**
- * Money over time: one series as a 2px line with a flat 10% fill (net worth,
+ * Money over time: one series as a crisp 2px line over a soft fill that fades
+ * to nothing toward the baseline (net worth,
  * an account's balance, IBKR value), or several as plain lines for a
  * comparison (this month against last). A crosshair follows the pointer;
  * hover shows every series' value. Rows with a null value end that line, so
@@ -38,6 +40,7 @@ export function AreaTrend<T extends Row>({
   xFormat = "month",
   xTicks,
   baseline = "zero",
+  curve = "monotone",
   fill = series.length === 1,
   endLabel = false,
   tooltipLabel,
@@ -58,7 +61,9 @@ export function AreaTrend<T extends Row>({
   xTicks?: (string | number)[]
   /** "zero" starts the y axis at 0; "auto" fits it to the data (an investment's value). */
   baseline?: "zero" | "auto"
-  /** The flat 10% fill under the first series; on by default for one series. */
+  /** How lines join their points: smooth by default; "stepAfter" for a running total. */
+  curve?: "monotone" | "linear" | "stepAfter"
+  /** The fading fill under the first series; on by default for one series. */
   fill?: boolean
   /** An 8px dot and the value at the first series' last point. */
   endLabel?: boolean
@@ -80,6 +85,7 @@ export function AreaTrend<T extends Row>({
       : undefined)
 
   const xKey: string = x
+  const gradient = `fill-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <LegendRow series={series} />
@@ -100,12 +106,30 @@ export function AreaTrend<T extends Row>({
           onClick={
             onPointClick
               ? (state) => {
-                  const row = data[Number(state.activeIndex)]
+                  // A click with no point under the pointer (no active index) does nothing.
+                  const index = state.activeIndex
+                  if (index === null || index === undefined || index === "")
+                    return
+                  const row = data[Number(index)]
                   if (row !== undefined) onPointClick(row)
                 }
               : undefined
           }
         >
+          <defs>
+            <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
+              <stop
+                offset="0%"
+                stopColor={seriesColor(series, 0)}
+                stopOpacity={0.22}
+              />
+              <stop
+                offset="100%"
+                stopColor={seriesColor(series, 0)}
+                stopOpacity={0}
+              />
+            </linearGradient>
+          </defs>
           <CartesianGrid {...gridProps} />
           <XAxis
             dataKey={xKey}
@@ -153,13 +177,13 @@ export function AreaTrend<T extends Row>({
               <Area
                 key={s.key}
                 dataKey={key(s)}
-                type="monotone"
+                type={curve}
                 stroke={seriesColor(series, i)}
                 strokeWidth={2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                fill={seriesColor(series, i)}
-                fillOpacity={i === 0 && fill ? 0.1 : 0}
+                fill={i === 0 && fill ? `url(#${gradient})` : "none"}
+                fillOpacity={1}
                 baseValue={baseline === "auto" ? "dataMin" : undefined}
                 connectNulls={false}
                 isAnimationActive={false}

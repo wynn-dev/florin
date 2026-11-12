@@ -66,6 +66,8 @@ export type NetWorthReport = ReportBase & {
   accounts: NetWorthAccount[]
   /** Some account in another currency has no rate yet and is left out of the totals. */
   missingRates: boolean
+  /** The accounts left out of the latest point (the figure shown as net worth) for lack of a rate. */
+  leftOut: string[]
 }
 
 export type SpendingCategory = {

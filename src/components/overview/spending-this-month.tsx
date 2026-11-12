@@ -49,6 +49,9 @@ export function SpendingThisMonth({ currency }: { currency: string }) {
                 currency={currency}
                 height={height}
                 endLabel
+                // A running total moves in steps, one per day; a smooth curve
+                // would invent wiggles between them.
+                curve="stepAfter"
                 tooltipLabel={(day) => `Day ${day}`}
                 className="-mx-1"
               />

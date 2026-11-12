@@ -1,9 +1,22 @@
 # florin
 
-A budgeting app you run yourself: one `florin` command serves a web dashboard,
-a JSON API and an MCP server on one local port, over one SQLite file in
-`~/.florin`. Envelope budgets per category with leftover carrying over,
-accounts in any currency, transfers, CSV import and reports.
+florin is a budgeting app you run yourself. One `florin` command serves a
+calm web dashboard, a JSON API and an MCP server on one local port, over one
+SQLite file in `~/.florin`. It does envelope budgeting per category with
+leftover carrying over, accounts in any currency, transfers, CSV import and
+four reports; it syncs your bank through [Enable Banking](https://enablebanking.com)
+and your Interactive Brokers account through IBKR Flex. Agents do most of the
+day-to-day work through its MCP server, and every change says who made it.
+
+![Overview, light](docs/screenshots/overview-light.png)
+
+![Overview, dark](docs/screenshots/overview-dark.png)
+
+More: [budget](docs/screenshots/budget-light.png) ·
+[transactions](docs/screenshots/transactions-light.png) ·
+[investment account](docs/screenshots/investment-light.png) ·
+[reports](docs/screenshots/reports-light.png) ·
+[activity](docs/screenshots/activity-dark.png) (all from the built-in demo data).
 
 ## Install
 
@@ -29,6 +42,15 @@ It prints the address, by default http://127.0.0.1:4680, and on a fresh florin
 the setup code the dashboard asks for before you choose a password. To try
 florin without a service, `florin start` runs it in the terminal.
 
+## First run
+
+Open the address `florin service install` printed. The first-run page asks for
+the setup code (`florin setup-code` prints it again), then takes you through
+four short steps: a password and the budget's currency; your accounts (connect
+a bank, connect Interactive Brokers, or add one by hand); starter categories
+you can rename or untick; and an access token for an MCP client. Every step
+after the first can be skipped and done later in Settings.
+
 ## The service
 
 ```sh
@@ -46,7 +68,8 @@ logged out, and tells you the `sudo` line to run if it can't. Its logs are in
 the journal: `journalctl --user -u florin -f`.
 
 On macOS it is a launchd agent, `~/Library/LaunchAgents/io.github.wynn-dev.florin.plist`,
-kept alive while you are logged in, with its log in `~/.florin/logs/florin.log`.
+kept alive while you are logged in, with its log in `~/.florin/logs/florin.log`
+(moved to `florin.log.1` once it passes 5 MB, at the next start).
 
 `FLORIN_HOME` and `FLORIN_PORT`, if set when you run `florin service install`,
 are written into the service.
@@ -57,12 +80,24 @@ Run the install line again. It installs the newest release next to the old
 one, switches `~/.local/share/florin/current` to it, restarts the service if
 it is running, and then removes the old version. Your data is not touched.
 
-## Your data
+## Your data and backups
 
 Everything florin keeps is in one folder, `~/.florin` (or `FLORIN_HOME`):
-`florin.db` (the SQLite database), `config.json` (settings, the password hash
-and connector credentials, readable only by you) and, on macOS, `logs/`. Back
-up that folder to back up florin.
+`florin.db` (the SQLite database), `config.json` (the password hash, the
+session secret and connector credentials, readable only by you) and, on macOS,
+`logs/`. Back up that folder to back up florin; `config.json` holds your bank
+and IBKR credentials, so keep the backup private.
+
+Settings › General › Export gives you the same without the folder:
+**Download CSV** (every transaction, oldest first, amounts as plain decimals)
+and **Download database** (a consistent copy of `florin.db`, safe to take while
+florin runs). To restore, stop florin, put the database back as
+`~/.florin/florin.db` and start it again.
+
+Settings › General also holds the budget's currency (fixed once transactions
+exist), the locale numbers, money and dates are shown in, the time zone that
+decides "today" and "this month" (the machine's unless you pick one), the
+theme, the password and the public address.
 
 ## Uninstalling
 
@@ -123,6 +158,8 @@ In IBKR's Client Portal, under **Performance & Reports › Flex Queries**:
    - **Open Positions**, with level of detail **Summary**
    - **Trades**, **Executions**
    - **Cash Transactions**
+   - **Conversion Rates** (lets florin value cash and fees in a third
+     currency; without it florin uses the ECB's rate)
 
    Delivery configuration: format **XML**, period **Last 365 Calendar Days**.
    General configuration: date format **yyyyMMdd**, time format **HHmmss**,
@@ -146,14 +183,17 @@ forgets the token and keeps the account and its history.
 
 florin's MCP server lets agents read and work the whole budget: accounts,
 transactions (including bulk categorising, transfers and imports), budgets,
-categories, payees, reports and the change log. Every change an agent makes is
-recorded under its name. Start an agent with the `overview` tool.
+categories, payees, reports, investments, the change log, and syncing banks
+and IBKR. Every change an agent makes is recorded under its name. Start an
+agent with the `overview` tool. It is HTTP only: there is no stdio mode and no
+`florin mcp` command.
 
 The MCP is served over streamable HTTP by the running florin, at its public
 address (set in Settings) plus `/mcp`: `http://127.0.0.1:4680/mcp` locally, or
 e.g. `https://florin.example.com/mcp` behind your own domain. Create an access token
-in Settings (it is shown once), then give your client the URL and the token as a
-bearer header. Changes are recorded as `mcp:<token name>`; deleting the token
+in Settings › Connections › MCP (or in the last first-run step; it is shown
+once, with the client config filled in), then give your client the URL and the
+token as a bearer header, e.g. in Claude Code's `.mcp.json`: Changes are recorded as `mcp:<token name>`; deleting the token
 cuts the client off.
 
 ```json
@@ -189,8 +229,15 @@ in a temporary `FLORIN_HOME` and off port 4680, the default.
 For UI work, `pnpm dev` runs the same app with hot reload on port 4780, using
 the data folder in `FLORIN_HOME`.
 
-Checks: `pnpm lint`, `pnpm typecheck`, `pnpm test` (runs against a real database
-in a temporary folder) and `pnpm build`. CI runs all four on every pull request.
+Checks: `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test` (runs
+against a real database in a temporary folder) and `pnpm build`. CI runs them
+all on every pull request.
+
+`pnpm florin seed-demo` fills an empty florin with eighteen months of sample
+data (the screenshots above come from it). To test bank sync for real, use an
+Enable Banking **sandbox** application and its mock banks, never a production
+one; the tests themselves run against a fake Enable Banking and a fake IBKR
+Flex service, so CI needs no keys.
 
 ### Layout
 
@@ -199,7 +246,7 @@ in a temporary folder) and `pnpm build`. CI runs all four on every pull request.
   migrations are bundled into the build and applied when florin opens the database.
 - `src/server/data/` – the data layer: every read and write of the budget.
   The `/api` routes and the MCP both call it. Every write takes an actor
-  (`person`, `mcp:<client>`, `bank-sync:<bank>`, `ibkr`, `import`, `demo`) and records a line
+  (`person`, `mcp:<client>`, `bank-sync:<bank>`, `ibkr`, `import:<file>`) and records a line
   in the change log.
 - `src/shared/types.ts` – the API types, shared by the server and the web app.
 - `src/server/jobs.ts` – background jobs (a plain in-process scheduler, state in
@@ -226,7 +273,7 @@ in a temporary folder) and `pnpm build`. CI runs all four on every pull request.
   never call Intl themselves. `src/components/` – the shared parts pages build
   from: `Money`, `AmountInput`, the category and payee pickers, `SourceLabel`,
   the empty/error/skeleton states and `charts/` (`AreaTrend`, `Bars`,
-  `SegmentedBar`).
+  `SegmentedBar`, `Sparkline`).
 - `src/cli.ts` – the `florin` command.
 - `test/` – tests (Vitest).
 

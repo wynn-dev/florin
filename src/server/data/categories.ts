@@ -1,5 +1,5 @@
-import { and, asc, eq, sql } from "drizzle-orm"
-import { db, schema } from "../db"
+import { asc, eq, sql } from "drizzle-orm"
+import { STARTING_BALANCES, db, schema } from "../db"
 import { describe, logChange } from "./changes"
 import { checkName, found, InvalidInput } from "./validate"
 import type { Database } from "../db"
@@ -247,20 +247,17 @@ export function deleteCategory(
   })
 }
 
-/** The income category opening balances are booked to, created when missing. */
+/**
+ * The income category opening balances are booked to, found by its key (the
+ * person may rename it), created when missing.
+ */
 export function startingBalanceCategoryId(
   tx: Pick<Database, "select" | "insert"> = db()
 ): number {
   const existing = tx
     .select({ id: categories.id })
     .from(categories)
-    .innerJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
-    .where(
-      and(
-        eq(categoryGroups.isIncome, true),
-        eq(categories.name, "Starting balances")
-      )
-    )
+    .where(eq(categories.key, STARTING_BALANCES))
     .get()
   if (existing) return existing.id
   let group = tx
@@ -275,7 +272,11 @@ export function startingBalanceCategoryId(
     .get()
   return tx
     .insert(categories)
-    .values({ groupId: group.id, name: "Starting balances" })
+    .values({
+      groupId: group.id,
+      name: "Starting balances",
+      key: STARTING_BALANCES,
+    })
     .returning({ id: categories.id })
     .get().id
 }

@@ -50,7 +50,20 @@ const SECTIONS: [string, FlexSection][] = [
   ["CashTransactions", "Cash Transactions"],
 ]
 
-export function parseFlexReport(xml: string): FlexAccountReport[] {
+/**
+ * A currency's rate to the account's base currency on a date, as a decimal
+ * string, from outside the report (florin's ECB rates); null when unknown.
+ */
+export type OutsideRate = (
+  currency: string,
+  base: string,
+  date: string
+) => string | null
+
+export function parseFlexReport(
+  xml: string,
+  outsideRate: OutsideRate = () => null
+): FlexAccountReport[] {
   let root: XmlElement
   try {
     root = parseXml(xml)
@@ -66,10 +79,13 @@ export function parseFlexReport(xml: string): FlexAccountReport[] {
   const statements = childrenNamed(root, "FlexStatements").flatMap((s) =>
     childrenNamed(s, "FlexStatement")
   )
-  return statements.map(readStatement)
+  return statements.map((s) => readStatement(s, outsideRate))
 }
 
-function readStatement(statement: XmlElement): FlexAccountReport {
+function readStatement(
+  statement: XmlElement,
+  outsideRate: OutsideRate
+): FlexAccountReport {
   const info = childNamed(statement, "AccountInformation")
   const nav = childNamed(statement, "EquitySummaryInBase")
   if (!nav) throw new MissingSectionError("Net Asset Value (NAV) in Base")
@@ -85,7 +101,20 @@ function readStatement(statement: XmlElement): FlexAccountReport {
   if (!currency || !/^[A-Z]{3}$/.test(currency))
     throw new MissingSectionError("Account Information")
   const digits = minorDigits(currency)
-  const ctx: Ctx = { currency, digits }
+  const rates = latestRates(statement)
+  const ctx: Ctx = {
+    currency,
+    digits,
+    rateOf: (other, date) => {
+      if (other === currency) return "1"
+      const rate = rates.get(other) ?? outsideRate(other, currency, date)
+      if (rate === null)
+        throw new FlexQueryError(
+          `IBKR's report has ${other} amounts but no exchange rate from ${other} to ${currency}. Add the Conversion Rates section to the Flex query.`
+        )
+      return rate
+    },
+  }
 
   const missing = SECTIONS.filter(([el]) => !childNamed(statement, el)).map(
     ([, section]) => section
@@ -127,7 +156,12 @@ function readStatement(statement: XmlElement): FlexAccountReport {
   }
 }
 
-type Ctx = { currency: string; digits: number }
+type Ctx = {
+  currency: string
+  digits: number
+  /** A currency's rate to base: the report's own first, then florin's ECB rates. */
+  rateOf: (currency: string, date: string) => string
+}
 
 // ---------------------------------------------------------------- dates
 
@@ -302,7 +336,6 @@ function readCash(
   const asOf = flexDate(statement.attrs.toDate)
   const foreign = perCurrency.filter((r) => r.attrs.currency !== ctx.currency)
   const baseCash = perCurrency.find((r) => r.attrs.currency === ctx.currency)
-  const rates = latestRates(statement)
   return perCurrency
     .map((r) => {
       const currency = r.attrs.currency
@@ -323,7 +356,7 @@ function readCash(
       else
         value = mulToMinor(
           amount,
-          rates.get(currency) ?? "0",
+          ctx.rateOf(currency, asOf),
           ctx.digits,
           "endingCash"
         )
@@ -343,7 +376,10 @@ function readCash(
     .filter((h) => h.quantity !== 0)
 }
 
-/** The newest fxRateToBase per currency among the report's rows. */
+/**
+ * The newest rate to base per currency among the report's rows (their
+ * fxRateToBase), and its Conversion Rates section where the query has one.
+ */
 function latestRates(statement: XmlElement): Map<string, string> {
   const rows = ["Trades", "CashTransactions", "OpenPositions"].flatMap(
     (s) => childNamed(statement, s)?.children ?? []
@@ -356,6 +392,15 @@ function latestRates(statement: XmlElement): Map<string, string> {
     const seen = best.get(currency)
     if (!seen || date > seen.date)
       best.set(currency, { date, rate: fxRateToBase })
+  }
+  const base = childNamed(statement, "AccountInformation")?.attrs.currency ?? ""
+  for (const r of childNamed(statement, "ConversionRates")?.children ?? []) {
+    const { fromCurrency, toCurrency, rate } = r.attrs
+    if (!fromCurrency || isBlank(rate) || (base && toCurrency !== base))
+      continue
+    const date = r.attrs.reportDate || ""
+    const seen = best.get(fromCurrency)
+    if (!seen || date > seen.date) best.set(fromCurrency, { date, rate })
   }
   return new Map([...best].map(([c, v]) => [c, v.rate]))
 }
@@ -387,9 +432,7 @@ function readTrade(
   const commissionRate =
     commissionCurrency === a.currency
       ? rate
-      : commissionCurrency === ctx.currency
-        ? "1"
-        : "0"
+      : ctx.rateOf(commissionCurrency, date)
 
   if (a.assetCategory === "CASH") {
     // EUR.USD: quantity is in EUR (the first currency), proceeds in USD (the row's).

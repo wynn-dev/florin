@@ -2,7 +2,6 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { accountQueries } from "./queries"
 import { ConnectionLine } from "./connection"
-import { AccountRegister } from "./slots"
 import type { Account, AccountValue, AssetClass, Holding } from "@/shared/types"
 import { cn } from "@/lib/utils"
 import { queries } from "@/lib/api"
@@ -18,6 +17,7 @@ import {
 import { AreaTrend, SegmentedBar } from "@/components/charts"
 import { usePullIbkr } from "@/components/connections/ibkr/use-ibkr"
 import { Money } from "@/components/money"
+import { TransactionsTable } from "@/components/transactions/transactions-table"
 import {
   EmptyState,
   QueryState,
@@ -225,7 +225,10 @@ export function InvestmentAccount({ account }: { account: Account }) {
                 <Holdings rows={rows} currency={account.currency} />
               </TabsContent>
               <TabsContent value="activity">
-                <AccountRegister account={account} runningBalance={false} />
+                <TransactionsTable
+                  accountId={account.id}
+                  runningBalance={false}
+                />
               </TabsContent>
             </Tabs>
           </>

@@ -8,6 +8,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  renameSync,
   writeFileSync,
 } from "node:fs"
 import { homedir } from "node:os"
@@ -26,6 +27,8 @@ export type Config = {
   sessionSecret: string
   /** Connector credentials, by key (src/server/secrets.ts). */
   secrets?: Record<string, { value: string; setAt: string }>
+  /** Sessions signed out before they expired: their signature → when they would have. */
+  signedOut?: Record<string, number>
 }
 
 export const DEFAULT_PORT = 4680
@@ -71,10 +74,17 @@ function newSetupCode(): string {
   return [0, 4, 8].map((i) => chars.slice(i, i + 4).join("")).join("-")
 }
 
+/**
+ * Writes config.json whole or not at all: to a private temporary file beside
+ * it, then renamed over it, so a crash or a full disk mid-write never leaves
+ * a half-written file (it holds the password hash and the credentials).
+ */
 export function saveConfig(config: Config): void {
   const path = configPath()
-  writeFileSync(path, JSON.stringify(config, null, 2) + "\n", { mode: 0o600 })
-  chmodSync(path, 0o600)
+  const temp = `${path}.${process.pid}.tmp`
+  writeFileSync(temp, JSON.stringify(config, null, 2) + "\n", { mode: 0o600 })
+  chmodSync(temp, 0o600)
+  renameSync(temp, path)
 }
 
 /** The port florin listens on: FLORIN_PORT, else config.json. */

@@ -153,6 +153,26 @@ describe("refreshing rates", () => {
     expect(data.rateOn("USD", "2026-11-15")).toBe(1.162)
   })
 
+  test("a backfill that fails is tried again on the next run, not skipped", async () => {
+    // Thursday 19 Nov; Monday and Tuesday were never stored.
+    vi.setSystemTime(new Date("2026-11-19T10:00:00Z"))
+    const daily = fixture("daily")
+      .replace("2026-11-11", "2026-11-18")
+      .replace("1.1590", "1.1700")
+    const failing = fakeEcb({ daily })
+    const down = (file: EcbFile) =>
+      file === "daily"
+        ? failing.fetchXml(file)
+        : Promise.reject(new Error("ECB unreachable"))
+    await expect(refreshRates(down)).rejects.toThrow("ECB unreachable")
+    // Nothing stored past the gap, so the next run still sees it.
+    expect(data.rateOn("USD", "2026-11-18")).not.toBe(1.17)
+    const ecb = fakeEcb({ daily })
+    await refreshRates(ecb.fetchXml)
+    expect(ecb.fetched).toEqual(["daily", "hist-90d"])
+    expect(data.rateOn("USD", "2026-11-18")).toBe(1.17)
+  })
+
   test("a currency the ECB doesn't publish is an error, the others still arrive", async () => {
     const ars = data.createAccount("person", {
       name: "Pesos",

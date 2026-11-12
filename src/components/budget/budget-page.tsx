@@ -59,7 +59,14 @@ export function BudgetPage({ month }: { month: string }) {
   )
 
   const newGroup = addingGroup && (
-    <NewGroupRow onDone={() => setAddingGroup(false)} />
+    <NewGroupRow
+      onDone={() => setAddingGroup(false)}
+      hiddenUntil={
+        budget.data && beforeFirstMonth(budget.data)
+          ? budget.data.firstMonth
+          : undefined
+      }
+    />
   )
 
   const loading = (

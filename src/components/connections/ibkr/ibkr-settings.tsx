@@ -1,7 +1,7 @@
 // Settings › Connections › Interactive Brokers: titles and controls, with only
 // the state the person needs now (an error, sections the query lacks) shown
 // beyond them. The section heading is the Settings page's.
-import { Fragment, useState } from "react"
+import { useState } from "react"
 import { ConnectIbkrDialog, CredentialsDialog } from "./connect-ibkr-dialog"
 import {
   useDisconnectIbkr,
@@ -9,57 +9,20 @@ import {
   usePullIbkr,
   useUntil,
 } from "./use-ibkr"
-import type { ReactNode } from "react"
 import type { IbkrStatus } from "@/shared/ibkr"
-import { formatDate, getLocale } from "@/lib/format"
+import { formatDate, formatDayTime, formatTime } from "@/lib/format"
 import { Money } from "@/components/money"
+import { Aside, SettingsRow } from "@/components/settings/row"
 import { SectionError, SkeletonRows } from "@/components/states"
 import { Button } from "@/components/ui/button"
-import { Field, FieldTitle } from "@/components/ui/field"
-import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 
-/** "11 Nov, 06:10" in the person's locale and time zone. */
-function reportTime(iso: string): string {
-  return new Intl.DateTimeFormat(getLocale(), {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso))
-}
-
-function clockTime(iso: string): string {
-  return new Intl.DateTimeFormat(getLocale(), {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso))
-}
-
-function Row({ title, children }: { title?: ReactNode; children: ReactNode }) {
+/** A line of state under the rows: an error, or sections the query lacks. */
+function Note({ tone, children }: { tone: string; children: string }) {
   return (
-    <Field orientation="horizontal" className="min-h-9 justify-between">
-      {title !== undefined && (
-        <FieldTitle className="font-normal">{title}</FieldTitle>
-      )}
-      <div className="ml-auto flex min-w-0 items-center justify-end gap-3 text-sm">
-        {children}
-      </div>
-    </Field>
-  )
-}
-
-function Rows({ children }: { children: ReactNode[] }) {
-  const rows = children.filter(Boolean)
-  return (
-    <div className="flex flex-col gap-3">
-      {rows.map((row, i) => (
-        <Fragment key={i}>
-          {i > 0 && <Separator />}
-          {row}
-        </Fragment>
-      ))}
-    </div>
+    <p role="alert" className={`border-b py-3 text-sm ${tone}`}>
+      {children}
+    </p>
   )
 }
 
@@ -83,16 +46,16 @@ export function IbkrSettings() {
 function NotConnected({ status }: { status: IbkrStatus }) {
   const [open, setOpen] = useState(false)
   return (
-    <Rows>
-      <Row title="Flex token">
-        <span className="text-muted-foreground">Not set</span>
+    <>
+      <SettingsRow title="Flex token">
+        <Aside>Not set</Aside>
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
           Connect
         </Button>
-      </Row>
-      {status.accounts.length > 0 && <AccountRows status={status} />}
+      </SettingsRow>
+      <AccountRows status={status} />
       <ConnectIbkrDialog open={open} onOpenChange={setOpen} />
-    </Rows>
+    </>
   )
 }
 
@@ -109,41 +72,34 @@ function Connected({ status }: { status: IbkrStatus }) {
       : null
 
   return (
-    <Rows>
-      <Row title="Flex token">
-        <span className="text-muted-foreground">
+    <>
+      <SettingsRow title="Flex token">
+        <Aside>
           Set
           {status.token.setAt &&
             ` · added ${formatDate(status.token.setAt.slice(0, 10))}`}
-        </span>
+        </Aside>
         <Button variant="outline" size="sm" onClick={() => setChange("token")}>
           Change
         </Button>
-      </Row>
-      <Row title="Query ID">
-        <span className="tabular-nums">{status.queryId}</span>
+      </SettingsRow>
+      <SettingsRow title="Query ID">
+        <Aside>{status.queryId}</Aside>
         <Button variant="outline" size="sm" onClick={() => setChange("query")}>
           Change
         </Button>
-      </Row>
+      </SettingsRow>
       <AccountRows status={status} />
-      <Row
-        title={
-          status.lastReportAt
-            ? `Last report ${reportTime(status.lastReportAt)}`
-            : "No report yet"
-        }
-      >
-        {running ? (
-          <span className="text-muted-foreground">Pulling…</span>
-        ) : (
-          waiting &&
-          status.nextPullAllowedAt && (
-            <span className="text-muted-foreground">
-              Next pull allowed at {clockTime(status.nextPullAllowedAt)}
-            </span>
-          )
-        )}
+      <SettingsRow title="Last report">
+        <Aside>
+          {running
+            ? "Pulling…"
+            : waiting && status.nextPullAllowedAt
+              ? `Next pull allowed at ${formatTime(status.nextPullAllowedAt)}`
+              : status.lastReportAt
+                ? formatDayTime(status.lastReportAt)
+                : "None yet"}
+        </Aside>
         <Button
           variant="outline"
           size="sm"
@@ -153,29 +109,27 @@ function Connected({ status }: { status: IbkrStatus }) {
           {running && <Spinner />}
           Pull now
         </Button>
-      </Row>
+      </SettingsRow>
       {(status.lastError || pullError) && (
-        <p role="alert" className="text-sm text-negative">
-          {pullError ?? status.lastError}
-        </p>
+        <Note tone="text-negative">{(pullError ?? status.lastError)!}</Note>
       )}
       {status.missingSections.length > 0 && (
-        <p className="text-sm text-warning">
-          The Flex query lacks {listText(status.missingSections)}. Tick{" "}
-          {status.missingSections.length === 1 ? "it" : "them"} in IBKR's Flex
-          query so florin gets everything.
-        </p>
+        <Note tone="text-warning">
+          {`The Flex query lacks ${listText(status.missingSections)}. Tick ${
+            status.missingSections.length === 1 ? "it" : "them"
+          } in IBKR's Flex query so florin gets everything.`}
+        </Note>
       )}
-      <Row>
+      <SettingsRow title="Connection">
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           disabled={disconnect.isPending || running}
           onClick={() => disconnect.mutate()}
         >
           Disconnect
         </Button>
-      </Row>
+      </SettingsRow>
       {change && (
         <CredentialsDialog
           open
@@ -184,32 +138,26 @@ function Connected({ status }: { status: IbkrStatus }) {
           queryId={status.queryId ?? ""}
         />
       )}
-    </Rows>
+    </>
   )
 }
 
 function AccountRows({ status }: { status: IbkrStatus }) {
-  return (
-    <div className="flex flex-col gap-3">
-      {status.accounts.map((a, i) => (
-        <Fragment key={a.id}>
-          {i > 0 && <Separator />}
-          <Row
-            title={
-              <a href={`/accounts/${a.id}`} className="hover:underline">
-                {a.name}
-              </a>
-            }
-          >
-            <span className="text-muted-foreground">{a.maskedId}</span>
-            {a.value !== null && (
-              <Money cents={a.value} currency={a.currency} />
-            )}
-          </Row>
-        </Fragment>
-      ))}
-    </div>
-  )
+  return status.accounts.map((a) => (
+    <SettingsRow
+      key={a.id}
+      title={
+        <a href={`/accounts/${a.id}`} className="hover:underline">
+          {a.name}
+        </a>
+      }
+    >
+      <Aside>{a.maskedId}</Aside>
+      {a.value !== null && (
+        <Money cents={a.value} currency={a.currency} className="text-sm" />
+      )}
+    </SettingsRow>
+  ))
 }
 
 function listText(items: string[]): string {

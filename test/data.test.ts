@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest"
 import { useTempHome } from "./setup"
 import * as data from "@/server/data"
+import { closeDatabase } from "@/server/db"
 
 const {
   listTransactions,
@@ -536,5 +537,104 @@ describe("input checks", () => {
       amount: "Amount",
     })
     expect(data.getAccount(yen.id).balance).toBe(-2_180)
+  })
+})
+
+describe("stable keys", () => {
+  test("opening balances are found by key after a rename, and deleted defaults stay deleted", () => {
+    const groups = data.listCategoryGroups()
+    const starting = groups
+      .flatMap((g) => g.categories)
+      .find((c) => c.name === "Starting balances")!
+    data.updateCategory("person", starting.id, { name: "Opening balances" })
+    const account = data.createAccount("person", {
+      name: "Renamed check",
+      type: "checking",
+      startingBalance: 5_000,
+    })
+    const rows = data.listTransactions({ accountId: account.id }).items
+    expect(rows.map((t) => t.categoryId)).toEqual([starting.id])
+
+    for (const g of data.listCategoryGroups())
+      data.deleteCategoryGroup("person", g.id)
+    closeDatabase()
+    expect(data.listCategoryGroups()).toEqual([])
+  })
+})
+
+describe("payee clean-up", () => {
+  test("title-cases shouting names without mangling Ä, Ö or apostrophes", () => {
+    expect(data.cleanPayee("  KÄYTTÖTILI  ÖLJY ")).toBe("Käyttötili Öljy")
+    expect(data.cleanPayee("MCDONALD'S 123")).toBe("Mcdonald's 123")
+    expect(data.cleanPayee("Bakery Rossi")).toBe("Bakery Rossi")
+  })
+})
+
+describe("transfers across currencies", () => {
+  test("a leg can't be moved into an account in another currency without saying what arrives", () => {
+    const eur = data.createAccount("person", {
+      name: "EUR a",
+      type: "checking",
+    })
+    const eur2 = data.createAccount("person", {
+      name: "EUR b",
+      type: "savings",
+    })
+    const usd = data.createAccount("person", {
+      name: "USD c",
+      type: "savings",
+      currency: "USD",
+    })
+    const t = data.createTransaction("person", {
+      accountId: eur.id,
+      date: "2026-10-01",
+      amount: -10_000,
+      transferAccountId: eur2.id,
+    })
+    expect(() =>
+      data.updateTransaction("person", t.id, { transferAccountId: usd.id })
+    ).toThrow(/transferAmount/)
+    expect(() =>
+      data.updateTransaction("person", t.id, { accountId: usd.id })
+    ).toThrow(/transferAmount/)
+    const moved = data.updateTransaction("person", t.id, {
+      transferAccountId: usd.id,
+      transferAmount: 10_800,
+    })
+    expect(moved.transferAmount).toBe(10_800)
+    // Within the same pair of currencies, other edits need nothing more.
+    data.updateTransaction("person", t.id, { notes: "rent share" })
+  })
+})
+
+describe("amount search", () => {
+  test("respects each currency's decimals (JPY has none)", () => {
+    const yen = data.createAccount("person", {
+      name: "Yen wallet",
+      type: "cash",
+      currency: "JPY",
+    })
+    const euro = data.createAccount("person", {
+      name: "Euro wallet",
+      type: "cash",
+    })
+    const y = data.createTransaction("person", {
+      accountId: yen.id,
+      date: "2026-10-02",
+      amount: -1200,
+      payeeName: "Ramen",
+    })
+    const e = data.createTransaction("person", {
+      accountId: euro.id,
+      date: "2026-10-02",
+      amount: -120_000,
+      payeeName: "Laptop",
+    })
+    const ids = (search: string) =>
+      data.listTransactions({ search, limit: 1000 }).items.map((t) => t.id)
+    expect(ids("1200")).toEqual(expect.arrayContaining([y.id, e.id]))
+    expect(ids("1200,00")).toEqual(expect.arrayContaining([y.id, e.id]))
+    expect(ids("12.00")).not.toContain(y.id)
+    expect(ids("1200.50")).not.toContain(y.id)
   })
 })

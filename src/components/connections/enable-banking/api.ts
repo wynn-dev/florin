@@ -6,6 +6,7 @@ import { api } from "@/lib/api"
 import type {
   AccountMapping,
   Bank,
+  BankLink,
   EnableBankingStatus,
   SetCredentials,
   SyncHours,
@@ -19,6 +20,15 @@ export const ebQueries = {
     queryOptions({
       queryKey: ["enable-banking"],
       queryFn: () => api<EnableBankingStatus>(BASE),
+    }),
+  /** The links alone, without asking Enable Banking: for account pages and lists. */
+  links: () =>
+    queryOptions({
+      queryKey: ["enable-banking", "links"],
+      queryFn: () => api<BankLink[]>(`${BASE}/links`),
+      // While a sync runs (scheduled, or started elsewhere), watch it finish.
+      refetchInterval: (query) =>
+        query.state.data?.some((l) => l.syncing) ? 2_000 : false,
     }),
   banks: (country: string) =>
     queryOptions({

@@ -4,7 +4,7 @@
 // the next month, and so does overspending until it is covered. Money arrives
 // through income categories; "to budget" is all income to date minus all
 // amounts assigned to date.
-import { and, desc, eq, like, or, sql } from "drizzle-orm"
+import { and, desc, eq, or, sql } from "drizzle-orm"
 import { db, schema } from "../db"
 import { getCategory, listCategoryGroups } from "./categories"
 import { logChange, money } from "./changes"
@@ -259,6 +259,8 @@ export function moveBudgetAmounts(
         action: "update",
         entity: "budget",
         entityId: (to ?? from)!.id,
+        // The category money left: also the entity itself when it went back to Ready to assign.
+        relatedId: from ? from.id : null,
         summary: `Moved ${money(amount, currency)} from ${from?.name ?? "Ready to assign"} to ${to?.name ?? "Ready to assign"} in ${month}`,
       })
     }
@@ -303,11 +305,11 @@ export function getBudgetCategoryDetail(
     .where(
       and(
         eq(changeLog.entity, "budget"),
-        // A move is logged against the category it went to; the one it
-        // came from is named in the summary.
+        // A move is logged against the category it went to, with the one
+        // it came from as its related id.
         or(
           eq(changeLog.entityId, category.id),
-          like(changeLog.summary, `Moved % from ${category.name} to %`)
+          eq(changeLog.relatedId, category.id)
         )
       )
     )
@@ -323,6 +325,8 @@ export function getBudgetCategoryDetail(
     lastChange: last
       ? {
           id: last.id,
+          entry: last.batch ?? last.id,
+          into: last.relatedId !== category.id,
           at: last.at,
           actor: last.actor as Actor,
           summary: last.summary,

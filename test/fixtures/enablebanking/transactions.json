@@ -3,13 +3,30 @@
     "entry_reference": "00000000-0000-4000-8000-000000000006",
     "merchant_category_code": null,
     "transaction_amount": { "currency": "EUR", "amount": "1.12" },
-    "creditor": { "name": "Wallmart", "postal_address": null, "organisation_id": null, "private_id": null, "contact_details": null },
+    "creditor": {
+      "name": "Wallmart",
+      "postal_address": null,
+      "organisation_id": null,
+      "private_id": null,
+      "contact_details": null
+    },
     "creditor_account": null,
     "creditor_agent": null,
     "debtor": null,
-    "debtor_account": { "iban": null, "other": { "identification": "1234.0", "scheme_name": "CPAN", "issuer": null } },
+    "debtor_account": {
+      "iban": null,
+      "other": {
+        "identification": "1234.0",
+        "scheme_name": "CPAN",
+        "issuer": null
+      }
+    },
     "debtor_agent": null,
-    "bank_transaction_code": { "description": "Korttiosto", "code": null, "sub_code": null },
+    "bank_transaction_code": {
+      "description": "Korttiosto",
+      "code": null,
+      "sub_code": null
+    },
     "credit_debit_indicator": "DBIT",
     "status": "BOOK",
     "booking_date": "2026-11-12",
@@ -19,7 +36,13 @@
     "reference_number": "678944335600",
     "reference_number_schema": null,
     "remittance_information": ["678944335600", "USD 9.39 Gotham City"],
-    "exchange_rate": { "unit_currency": "USD", "exchange_rate": "1.1729", "rate_type": null, "contract_identification": null, "instructed_amount": { "currency": "USD", "amount": "9.39" } },
+    "exchange_rate": {
+      "unit_currency": "USD",
+      "exchange_rate": "1.1729",
+      "rate_type": null,
+      "contract_identification": null,
+      "instructed_amount": { "currency": "USD", "amount": "9.39" }
+    },
     "note": null,
     "transaction_id": null
   },
@@ -27,13 +50,30 @@
     "entry_reference": "00000000-0000-4000-8000-000000000007",
     "merchant_category_code": null,
     "transaction_amount": { "currency": "EUR", "amount": "16.00" },
-    "creditor": { "name": "ATM 2312", "postal_address": null, "organisation_id": null, "private_id": null, "contact_details": null },
+    "creditor": {
+      "name": "ATM 2312",
+      "postal_address": null,
+      "organisation_id": null,
+      "private_id": null,
+      "contact_details": null
+    },
     "creditor_account": null,
     "creditor_agent": null,
     "debtor": null,
-    "debtor_account": { "iban": null, "other": { "identification": "1234", "scheme_name": "CPAN", "issuer": null } },
+    "debtor_account": {
+      "iban": null,
+      "other": {
+        "identification": "1234",
+        "scheme_name": "CPAN",
+        "issuer": null
+      }
+    },
     "debtor_agent": null,
-    "bank_transaction_code": { "description": "Debet automaattiotto", "code": null, "sub_code": null },
+    "bank_transaction_code": {
+      "description": "Debet automaattiotto",
+      "code": null,
+      "sub_code": null
+    },
     "credit_debit_indicator": "DBIT",
     "status": "BOOK",
     "booking_date": "2026-11-12",
@@ -51,13 +91,23 @@
     "entry_reference": "00000000-0000-4000-8000-000000000009",
     "merchant_category_code": null,
     "transaction_amount": { "currency": "EUR", "amount": "14.25" },
-    "creditor": { "name": "Helsinkimissio ry", "postal_address": null, "organisation_id": null, "private_id": null, "contact_details": null },
+    "creditor": {
+      "name": "Helsinkimissio ry",
+      "postal_address": null,
+      "organisation_id": null,
+      "private_id": null,
+      "contact_details": null
+    },
     "creditor_account": null,
     "creditor_agent": null,
     "debtor": null,
     "debtor_account": null,
     "debtor_agent": null,
-    "bank_transaction_code": { "description": "Itsepalvelu", "code": null, "sub_code": null },
+    "bank_transaction_code": {
+      "description": "Itsepalvelu",
+      "code": null,
+      "sub_code": null
+    },
     "credit_debit_indicator": "DBIT",
     "status": "BOOK",
     "booking_date": "2026-10-29",
@@ -78,10 +128,20 @@
     "creditor": null,
     "creditor_account": null,
     "creditor_agent": null,
-    "debtor": { "name": "KELA/FPA", "postal_address": null, "organisation_id": null, "private_id": null, "contact_details": null },
+    "debtor": {
+      "name": "KELA/FPA",
+      "postal_address": null,
+      "organisation_id": null,
+      "private_id": null,
+      "contact_details": null
+    },
     "debtor_account": null,
     "debtor_agent": null,
-    "bank_transaction_code": { "description": "Pano", "code": null, "sub_code": null },
+    "bank_transaction_code": {
+      "description": "Pano",
+      "code": null,
+      "sub_code": null
+    },
     "credit_debit_indicator": "CRDT",
     "status": "BOOK",
     "booking_date": "2026-11-12",
@@ -99,13 +159,29 @@
     "entry_reference": "00000000-0000-4000-8000-000000000011",
     "merchant_category_code": null,
     "transaction_amount": { "currency": "EUR", "amount": "40.00" },
-    "creditor": { "name": "Amarillo", "postal_address": null, "organisation_id": null, "private_id": null, "contact_details": null },
+    "creditor": {
+      "name": "Amarillo",
+      "postal_address": null,
+      "organisation_id": null,
+      "private_id": null,
+      "contact_details": null
+    },
     "creditor_account": null,
     "creditor_agent": null,
-    "debtor": { "name": null, "postal_address": null, "organisation_id": null, "private_id": null, "contact_details": null },
+    "debtor": {
+      "name": null,
+      "postal_address": null,
+      "organisation_id": null,
+      "private_id": null,
+      "contact_details": null
+    },
     "debtor_account": null,
     "debtor_agent": null,
-    "bank_transaction_code": { "description": null, "code": "CCRD", "sub_code": "POSD" },
+    "bank_transaction_code": {
+      "description": null,
+      "code": "CCRD",
+      "sub_code": "POSD"
+    },
     "credit_debit_indicator": "DBIT",
     "status": "BOOK",
     "booking_date": "2026-11-10",

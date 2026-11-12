@@ -26,7 +26,14 @@ import type { BankTransaction, Balance, Client, PsuHeaders } from "./client"
 import type { Actor, ImportRow, TransactionStatus } from "@/shared/types"
 import type { SyncHours, SyncResult } from "@/shared/enablebanking"
 
-const { ebLinks, ebAccounts, ebSettings, transactions } = schema
+const {
+  ebLinks,
+  ebAccounts,
+  ebSettings,
+  transactions,
+  changes,
+  deletedImports,
+} = schema
 
 export const SYNC_JOB = "enable-banking"
 /** How often the job looks for links that are due. */
@@ -248,13 +255,36 @@ const daysApart = (a: string, b: string) =>
 /** Ids florin gives bank rows; any other row (typed in, or from a CSV) has no bank id yet. */
 const BANK_ID = /^(er|h|pend|eb):/
 
+/** Whether the row was typed in or imported (its first log line isn't a bank sync's). */
+function addedByPerson(
+  tx: Pick<ReturnType<typeof db>, "select">,
+  id: number
+): boolean {
+  const first = tx
+    .select({ actor: changes.actor })
+    .from(changes)
+    .where(
+      and(
+        eq(changes.entity, "transaction"),
+        eq(changes.entityId, id),
+        eq(changes.action, "create")
+      )
+    )
+    .orderBy(changes.id)
+    .get()
+  return !!first && !first.actor.startsWith("bank-sync")
+}
+
 /**
  * Brings one fetch into a florin account, the bank's answer being the truth:
  * - a pending row the bank books under the same id turns booked in place;
  * - a pending row the bank no longer reports as pending becomes the nearest
  *   booked row new in this fetch (same sign, date within 7 days, same payee
  *   text or an amount within 20%), keeping its category and notes and taking
- *   the booked amount; with no such row it is deleted;
+ *   the booked amount; with no such row it is deleted, unless it was typed
+ *   in (and only matched to the bank's pending row): that one is unmatched
+ *   and stays, the person's;
+ * - a bank row the person or an agent deleted stays deleted;
  * - a new bank row that matches a row without a bank id (same amount, date
  *   within 3 days, nearest first) is attached to it, keeping the person's
  *   payee, category and notes;
@@ -268,7 +298,15 @@ export function applyRows(
 ): Counts {
   const account = getAccount(accountId)
   const result = db().transaction((tx) => {
-    const live = rows.filter((r) => !r.cancelled)
+    const deleted = new Set(
+      tx
+        .select({ id: deletedImports.importedId })
+        .from(deletedImports)
+        .where(eq(deletedImports.accountId, accountId))
+        .all()
+        .map((r) => r.id)
+    )
+    const live = rows.filter((r) => !r.cancelled && !deleted.has(r.importedId))
     const ids = live.map((r) => r.importedId)
     const known = new Map<string, typeof transactions.$inferSelect>()
     for (let i = 0; i < ids.length; i += 500) {
@@ -286,6 +324,7 @@ export function applyRows(
     let updated = 0
     let removed = 0
     let matched = 0
+    let unmatched = 0
     const settled = new Set<number>()
     let fresh: Row[] = []
     for (const row of live) {
@@ -356,6 +395,17 @@ export function applyRows(
           .where(eq(transactions.id, p.id))
           .run()
         updated++
+      } else if (addedByPerson(tx, p.id)) {
+        tx.update(transactions)
+          .set({
+            importedId: null,
+            importedPayee: null,
+            bookedDate: null,
+            status: "cleared",
+          })
+          .where(eq(transactions.id, p.id))
+          .run()
+        unmatched++
       } else {
         tx.delete(transactions).where(eq(transactions.id, p.id)).run()
         removed++
@@ -417,6 +467,13 @@ export function applyRows(
         action: "delete",
         entity: "transaction",
         summary: `Removed ${removed} pending transaction${removed === 1 ? "" : "s"} the bank dropped from ${account.name}`,
+      })
+    }
+    if (unmatched) {
+      logChange(tx, actor, {
+        action: "update",
+        entity: "transaction",
+        summary: `Unmatched ${plural(unmatched)} in ${account.name} from pending rows the bank dropped`,
       })
     }
     if (matched) {

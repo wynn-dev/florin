@@ -1,3 +1,6 @@
+import { eq } from "drizzle-orm"
+import { db, schema } from "../db"
+
 /** A request the data layer refuses; /api answers it with 400. */
 export class InvalidInput extends Error {}
 
@@ -55,8 +58,41 @@ export function found<T>(row: T | undefined, what: string): T {
   return row
 }
 
-export function today(): string {
-  return new Date().toISOString().slice(0, 10)
+/** The machine's own time zone, e.g. "Europe/Helsinki". */
+export function machineTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+}
+
+/** The person's time zone: the timeZone setting, else the machine's. */
+export function timeZone(): string {
+  const row = db()
+    .select({ value: schema.settings.value })
+    .from(schema.settings)
+    .where(eq(schema.settings.key, "timeZone"))
+    .get()
+  return row?.value || machineTimeZone()
+}
+
+/** The day `now` falls on in `zone`: "2026-11-12". */
+export function dayIn(now: Date, zone: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: zone,
+  }).formatToParts(now)
+  const part = (type: string) => parts.find((p) => p.type === type)?.value
+  return `${part("year")}-${part("month")}-${part("day")}`
+}
+
+/** Today in the person's time zone, not UTC. */
+export function today(now: Date = new Date()): string {
+  return dayIn(now, timeZone())
+}
+
+/** This month in the person's time zone: "2026-11". */
+export function thisMonth(now: Date = new Date()): string {
+  return today(now).slice(0, 7)
 }
 
 /** "2026-03" → "2026-03-31" */

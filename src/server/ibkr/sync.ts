@@ -21,12 +21,13 @@ import {
   money,
   payeeIdForName,
 } from "../data"
+import { rateOn } from "../data/fx"
 import { InvalidInput, today } from "../data/validate"
 import { fetchFlexReport } from "./client"
 import { IbkrError } from "./errors"
 import { parseFlexReport } from "./flex"
 import type { FlexClientOptions } from "./client"
-import type { FlexAccountReport } from "./flex"
+import type { FlexAccountReport, OutsideRate } from "./flex"
 import type {
   FlexSection,
   IbkrAccount,
@@ -44,6 +45,13 @@ export const PULL_SPACING_MS = 60_000
 const OVERLAP_DAYS = 3
 
 const { accounts, accountValues, holdings, transactions, ibkr } = schema
+
+/** A rate the report itself lacks, from florin's ECB rates (per EUR, crossed). */
+const ecbRate: OutsideRate = (currency, base, date) => {
+  const from = rateOn(currency, date)
+  const to = rateOn(base, date)
+  return from && to ? (to / from).toFixed(10) : null
+}
 
 /** A pull refused because IBKR's limits don't allow one yet; /api answers 429. */
 export class TooSoon extends IbkrError {
@@ -270,7 +278,7 @@ async function pull(
       : undefined
   try {
     const xml = await fetchFlexReport({ token, queryId, days }, clientOptions)
-    const reports = parseFlexReport(xml)
+    const reports = parseFlexReport(xml, ecbRate)
     if (!reports.length)
       throw new IbkrError(
         "The report has no accounts in it. Check the Flex query's account selection.",

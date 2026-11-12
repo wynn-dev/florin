@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 import { openAccounts } from "@/components/app-sidebar"
+import { MoveMoneyDialog } from "@/components/budget/move-money-dialog"
 import { useConnections } from "@/components/sync-status"
 import { Money } from "@/components/money"
 import {
@@ -39,6 +40,7 @@ function useDebounced<T>(value: T, ms: number): T {
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
+  const [moving, setMoving] = useState(false)
   const [search, setSearch] = useState("")
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -91,133 +93,144 @@ export function CommandPalette() {
   const showMatches = term.length >= 2 && (matches.data?.items.length ?? 0) > 0
 
   return (
-    <CommandDialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o)
-        if (!o) setSearch("")
-      }}
-      title="Command palette"
-      className="sm:max-w-lg"
-      description="Go to a page, start an action or find a transaction"
-    >
-      <Command>
-        <CommandInput
-          placeholder="Search pages, actions and transactions"
-          value={search}
-          onValueChange={setSearch}
-        />
-        <CommandList className="max-h-96 [&_[data-slot=command-item]>svg:last-child]:hidden">
-          <CommandEmpty>No results</CommandEmpty>
-          <CommandGroup heading="Go to">
-            <CommandItem onSelect={() => go(to("/"))}>Overview</CommandItem>
-            <CommandItem onSelect={() => go(to("/transactions"))}>
-              Transactions
-            </CommandItem>
-            <CommandItem onSelect={() => go(to("/budget"))}>Budget</CommandItem>
-            <CommandItem onSelect={() => go(to("/accounts"))}>
-              Accounts
-            </CommandItem>
-            <CommandItem onSelect={() => go(to("/reports"))}>
-              Reports
-            </CommandItem>
-            <CommandItem onSelect={() => go(to("/activity"))}>
-              Activity
-            </CommandItem>
-            <CommandItem onSelect={() => go(to("/settings"))}>
-              Settings
-            </CommandItem>
-            {[thisMonth, lastMonth].map((m) => (
-              <CommandItem key={m} onSelect={() => go(to(`/budget/${m}`))}>
-                Budget: {formatMonth(m)}
+    <>
+      <CommandDialog
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o)
+          if (!o) setSearch("")
+        }}
+        title="Command palette"
+        className="sm:max-w-lg"
+        description="Go to a page, start an action or find a transaction"
+      >
+        <Command>
+          <CommandInput
+            placeholder="Search pages, actions and transactions"
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList className="max-h-96 [&_[data-slot=command-item]>svg:last-child]:hidden">
+            <CommandEmpty>No results</CommandEmpty>
+            <CommandGroup heading="Go to">
+              <CommandItem onSelect={() => go(to("/"))}>Overview</CommandItem>
+              <CommandItem onSelect={() => go(to("/transactions"))}>
+                Transactions
               </CommandItem>
-            ))}
-            {accounts.map((a) => (
-              <CommandItem
-                key={a.id}
-                value={`account ${a.name} ${a.id}`}
-                onSelect={() => go(to(`/accounts/${a.id}`))}
-              >
-                {a.name}
+              <CommandItem onSelect={() => go(to("/budget"))}>
+                Budget
               </CommandItem>
-            ))}
-          </CommandGroup>
-          <CommandGroup heading="Actions">
-            <CommandItem
-              onSelect={() => go(command("/transactions", "new-transaction"))}
-            >
-              New transaction
-            </CommandItem>
-            <CommandItem
-              onSelect={() => go(command("/transactions", "import-csv"))}
-            >
-              Import CSV
-            </CommandItem>
-            <CommandItem
-              onSelect={() =>
-                go(() =>
-                  navigate({ to: "/accounts", search: { add: "choose" } })
-                )
-              }
-            >
-              Add account
-            </CommandItem>
-            {connections.length > 0 && (
-              <CommandItem onSelect={() => go(syncAll)}>Sync now</CommandItem>
-            )}
-            <CommandItem
-              onSelect={() =>
-                go(() =>
-                  setTheme(
-                    document.documentElement.classList.contains("dark")
-                      ? "light"
-                      : "dark"
-                  )
-                )
-              }
-              keywords={["dark", "light", "mode", theme]}
-            >
-              Toggle theme
-            </CommandItem>
-          </CommandGroup>
-          {showMatches && (
-            <CommandGroup heading="Transactions">
-              {matches.data!.items.map((t) => (
+              <CommandItem onSelect={() => go(to("/accounts"))}>
+                Accounts
+              </CommandItem>
+              <CommandItem onSelect={() => go(to("/reports"))}>
+                Reports
+              </CommandItem>
+              <CommandItem onSelect={() => go(to("/activity"))}>
+                Activity
+              </CommandItem>
+              <CommandItem onSelect={() => go(to("/settings"))}>
+                Settings
+              </CommandItem>
+              {[thisMonth, lastMonth].map((m) => (
+                <CommandItem key={m} onSelect={() => go(to(`/budget/${m}`))}>
+                  Budget: {formatMonth(m)}
+                </CommandItem>
+              ))}
+              {accounts.map((a) => (
                 <CommandItem
-                  key={t.id}
-                  // Always matches what was typed: the server already searched.
-                  value={`${search} transaction ${t.id}`}
-                  onSelect={() => go(to("/transactions", { search: term }))}
+                  key={a.id}
+                  value={`account ${a.name} ${a.id}`}
+                  onSelect={() => go(to(`/accounts/${a.id}`))}
                 >
-                  <span className="w-16 shrink-0 text-muted-foreground tabular-nums">
-                    {formatDate(t.date)}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">
-                    {t.transferAccountName
-                      ? `→ ${t.transferAccountName}`
-                      : (t.payeeName ?? t.importedPayee ?? "No payee")}
-                    {t.notes && (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · {t.notes}
-                      </span>
-                    )}
-                  </span>
-                  <Money
-                    cents={t.amount}
-                    currency={
-                      allAccounts?.find((a) => a.id === t.accountId)
-                        ?.currency ?? "EUR"
-                    }
-                    signed
-                    className="ml-auto"
-                  />
+                  {a.name}
                 </CommandItem>
               ))}
             </CommandGroup>
-          )}
-        </CommandList>
-      </Command>
-    </CommandDialog>
+            <CommandGroup heading="Actions">
+              <CommandItem
+                onSelect={() => go(command("/transactions", "new-transaction"))}
+              >
+                New transaction
+              </CommandItem>
+              <CommandItem
+                onSelect={() => go(command("/transactions", "import-csv"))}
+              >
+                Import CSV
+              </CommandItem>
+              <CommandItem
+                onSelect={() =>
+                  go(() =>
+                    navigate({ to: "/accounts", search: { add: "choose" } })
+                  )
+                }
+              >
+                Add account
+              </CommandItem>
+              <CommandItem
+                onSelect={() => go(() => setMoving(true))}
+                keywords={["budget", "assign", "cover"]}
+              >
+                Move money
+              </CommandItem>
+              {connections.length > 0 && (
+                <CommandItem onSelect={() => go(syncAll)}>Sync now</CommandItem>
+              )}
+              <CommandItem
+                onSelect={() =>
+                  go(() =>
+                    setTheme(
+                      document.documentElement.classList.contains("dark")
+                        ? "light"
+                        : "dark"
+                    )
+                  )
+                }
+                keywords={["dark", "light", "mode", theme]}
+              >
+                Toggle theme
+              </CommandItem>
+            </CommandGroup>
+            {showMatches && (
+              <CommandGroup heading="Transactions">
+                {matches.data!.items.map((t) => (
+                  <CommandItem
+                    key={t.id}
+                    // Always matches what was typed: the server already searched.
+                    value={`${search} transaction ${t.id}`}
+                    onSelect={() => go(to("/transactions", { search: term }))}
+                  >
+                    <span className="w-16 shrink-0 text-muted-foreground tabular-nums">
+                      {formatDate(t.date)}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {t.transferAccountName
+                        ? `→ ${t.transferAccountName}`
+                        : (t.payeeName ?? t.importedPayee ?? "No payee")}
+                      {t.notes && (
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · {t.notes}
+                        </span>
+                      )}
+                    </span>
+                    <Money
+                      cents={t.amount}
+                      currency={
+                        allAccounts?.find((a) => a.id === t.accountId)
+                          ?.currency ?? "EUR"
+                      }
+                      signed
+                      className="ml-auto"
+                    />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </CommandDialog>
+      <MoveMoneyDialog open={moving} onOpenChange={setMoving} />
+    </>
   )
 }

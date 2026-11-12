@@ -291,3 +291,35 @@ describe("the XML reader", () => {
       expect(() => parseXml(bad)).toThrow()
   })
 })
+
+describe("foreign cash without a rate in the report's rows", () => {
+  // A second foreign currency (GBP) that no trade or cash row gives a rate for.
+  const eurRow = /<CashReportCurrency [^>]*currency="EUR"[^>]*\/>/.exec(
+    full
+  )![0]
+  const gbpRow = eurRow
+    .replace('currency="EUR"', 'currency="GBP"')
+    .replace(/ endingCash="[^"]*"/, ' endingCash="100"')
+  const withGbp = full.replace(eurRow, `${eurRow}\n${gbpRow}`)
+  const gbp = (xml: string, rate?: string) =>
+    parseFlexReport(xml, rate ? () => rate : undefined)[0].cash!.find(
+      (h) => h.currency === "GBP"
+    )!
+
+  test("is valued at florin's ECB rate rather than at zero", () => {
+    expect(gbp(withGbp, "1.30").value).toBe(13_000)
+  })
+
+  test("uses the report's Conversion Rates section first", () => {
+    const xml = withGbp.replace(
+      "</FlexStatement>",
+      '<ConversionRates><ConversionRate reportDate="20261111" fromCurrency="GBP" toCurrency="USD" rate="1.25" /></ConversionRates>\n</FlexStatement>'
+    )
+    expect(gbp(xml, "1.30").value).toBe(12_500)
+  })
+
+  test("with no rate anywhere, says what to add instead of counting it as zero", () => {
+    expect(() => parseFlexReport(withGbp)).toThrow(FlexQueryError)
+    expect(() => parseFlexReport(withGbp)).toThrow(/Conversion Rates/)
+  })
+})

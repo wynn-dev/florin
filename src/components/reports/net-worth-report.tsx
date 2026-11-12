@@ -62,6 +62,9 @@ export function NetWorthReport({
                 x: report.step === "month" ? p.date.slice(0, 7) : p.date,
               }))}
               x="x"
+              // Scaled to the figures, as the account value chart is: from
+              // zero a growing net worth reads as a flat line.
+              baseline="auto"
               // A month or more ticks once a month; a few weeks tick by date.
               xFormat={
                 report.step === "day" && report.points.length < 45

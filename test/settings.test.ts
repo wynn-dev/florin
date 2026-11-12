@@ -93,6 +93,36 @@ describe("settings", () => {
     )
     expect(data.getSettings().locale).toBe("de-DE")
   })
+
+  test("saving an unchanged setting writes no change-log line", () => {
+    const lines = () => data.listActivity({ limit: 500 }).total
+    data.updateSettings("person", { publicUrl: "https://florin.example.com" })
+    const before = lines()
+    data.updateSettings("person", {
+      publicUrl: "https://florin.example.com/",
+      locale: "de-DE",
+      currency: data.getSettings().currency,
+    })
+    expect(lines()).toBe(before)
+  })
+
+  test("today and this month are in the person's time zone, not UTC", () => {
+    // 23:30 UTC on 31 Jan is already 1 Feb in Helsinki and still 31 Jan in New York.
+    const late = new Date("2026-01-31T23:30:00Z")
+    data.updateSettings("person", { timeZone: "Europe/Helsinki" })
+    expect(data.today(late)).toBe("2026-02-01")
+    expect(data.thisMonth(late)).toBe("2026-02")
+    data.updateSettings("person", { timeZone: "America/New_York" })
+    expect(data.today(late)).toBe("2026-01-31")
+    expect(() =>
+      data.updateSettings("person", { timeZone: "Mars/Olympus" })
+    ).toThrow(data.InvalidInput)
+    // Empty means the machine's own zone.
+    data.updateSettings("person", { timeZone: "" })
+    expect(data.effectiveTimeZone()).toBe(
+      Intl.DateTimeFormat().resolvedOptions().timeZone
+    )
+  })
 })
 
 describe("payee default category", () => {
@@ -180,5 +210,41 @@ describe("export", () => {
     expect(
       readdirSync(home.dir).filter((f) => f.startsWith(".export"))
     ).toEqual([])
+  })
+})
+
+describe("locale", () => {
+  test("the Needs-attention text follows the locale for amounts", () => {
+    data.updateSettings("person", { locale: "de-DE" })
+    const account = data.createAccount("person", {
+      name: "Konto",
+      type: "checking",
+    }).id
+    data.createTransaction("person", {
+      accountId: account,
+      date: data.today(),
+      amount: 123_456,
+      payeeName: "Salary",
+      categoryId: categoryId("Income"),
+    })
+    // A day later, past any agent's grace period.
+    const unassigned = data
+      .needsAttention(new Date(Date.now() + 25 * 3_600_000))
+      .items.find((i) => i.id === "unassigned")
+    expect(unassigned?.text).toMatch(/^[\d.]+,\d{2}\s€ unassigned/)
+    data.updateSettings("person", { locale: "en-GB" })
+  })
+})
+
+describe("CSV export cells", () => {
+  test("text that a spreadsheet would run as a formula stays text; amounts stay numbers", () => {
+    expect(data.csvCell('=HYPERLINK("http://x")')).toBe(
+      '"\'=HYPERLINK(""http://x"")"'
+    )
+    expect(data.csvCell("+31 20 555")).toBe("'+31 20 555")
+    expect(data.csvCell("-cmd|' /C calc'!A0")).toBe("'-cmd|' /C calc'!A0")
+    expect(data.csvCell("@SUM(A1)")).toBe("'@SUM(A1)")
+    expect(data.csvCell("-42.10")).toBe("-42.10")
+    expect(data.csvCell("Bakery, Rossi")).toBe('"Bakery, Rossi"')
   })
 })

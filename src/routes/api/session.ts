@@ -5,7 +5,9 @@ import {
   createSession,
   isSignedIn,
   needsSetup,
+  revokeSession,
   sessionCookie,
+  sessionFromRequest,
   setPassword,
   verifyPassword,
 } from "@/server/auth"
@@ -60,14 +62,15 @@ export const Route = createFileRoute("/api/session")({
           )
         }),
 
-      DELETE: () =>
-        respond(
-          () =>
-            new Response(null, {
-              status: 204,
-              headers: { "set-cookie": sessionCookie("", 0) },
-            })
-        ),
+      /** Signs out: the session's token stops working, not just its cookie. */
+      DELETE: ({ request }) =>
+        respond(() => {
+          revokeSession(sessionFromRequest(request))
+          return new Response(null, {
+            status: 204,
+            headers: { "set-cookie": sessionCookie("", 0) },
+          })
+        }),
     },
   },
 })

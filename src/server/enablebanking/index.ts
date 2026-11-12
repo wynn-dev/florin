@@ -10,6 +10,7 @@ import { db, schema } from "../db"
 import {
   createAccount,
   getAccount,
+  inBatch,
   linkAccount,
   listAccounts,
   publicUrl,
@@ -140,6 +141,7 @@ export function listBankLinks(): BankLink[] {
       validUntil: link.validUntil,
       daysLeft,
       lastSyncAt: link.lastSyncAt,
+      lastAttemptAt: link.lastAttemptAt,
       lastError: link.lastError,
       syncing: isSyncing(link.id),
       accounts: rows
@@ -607,56 +609,65 @@ export async function mapAccounts(
     }
     return { row, target: m.accountId }
   })
-  // Unlink what changes first, so no two bank accounts hold one florin account at any point.
-  for (const { row, target } of plan) {
-    if (row.accountId !== null && row.accountId !== target) {
-      db()
-        .update(ebAccounts)
-        .set({ accountId: null })
-        .where(eq(ebAccounts.id, row.id))
-        .run()
-      const current = listAccounts().find((a) => a.id === row.accountId)
-      if (current?.provider === "enablebanking")
-        linkAccount(actor, current.id, { provider: null, externalId: null })
-    }
-  }
-  for (const { row, target } of plan) {
-    if (target === null || target === row.accountId) continue
-    let accountId: number
-    let fresh = false
-    if (target === "new") {
-      const last4 = row.identifier.replace(/\D/g, "").slice(-4)
-      accountId = createAccount(actor, {
-        name: last4 ? `${link.bank} ··${last4}` : `${link.bank} ${row.name}`,
-        type: kindToType(row.kind),
-        currency: row.currency,
-      }).id
-      fresh = true
-    } else accountId = Number(target)
-    // A florin account that carried this bank account under an earlier link lets it go.
-    const holder = listAccounts().find(
-      (a) =>
-        a.provider === "enablebanking" &&
-        a.externalId === row.identificationHash &&
-        a.id !== accountId
-    )
-    if (holder)
-      linkAccount(actor, holder.id, { provider: null, externalId: null })
-    linkAccount(actor, accountId, {
-      provider: "enablebanking",
-      externalId: row.identificationHash,
+  // All of the mapping or none of it: one transaction (the data-layer calls
+  // inside become savepoints) and one Activity entry; the sync after it is
+  // the bank's own entry.
+  inBatch(() => {
+    db().transaction(() => {
+      // Unlink what changes first, so no two bank accounts hold one florin account at any point.
+      for (const { row, target } of plan) {
+        if (row.accountId !== null && row.accountId !== target) {
+          db()
+            .update(ebAccounts)
+            .set({ accountId: null })
+            .where(eq(ebAccounts.id, row.id))
+            .run()
+          const current = listAccounts().find((a) => a.id === row.accountId)
+          if (current?.provider === "enablebanking")
+            linkAccount(actor, current.id, { provider: null, externalId: null })
+        }
+      }
+      for (const { row, target } of plan) {
+        if (target === null || target === row.accountId) continue
+        let accountId: number
+        let fresh = false
+        if (target === "new") {
+          const last4 = row.identifier.replace(/\D/g, "").slice(-4)
+          accountId = createAccount(actor, {
+            name: last4
+              ? `${link.bank} ··${last4}`
+              : `${link.bank} ${row.name}`,
+            type: kindToType(row.kind),
+            currency: row.currency,
+          }).id
+          fresh = true
+        } else accountId = Number(target)
+        // A florin account that carried this bank account under an earlier link lets it go.
+        const holder = listAccounts().find(
+          (a) =>
+            a.provider === "enablebanking" &&
+            a.externalId === row.identificationHash &&
+            a.id !== accountId
+        )
+        if (holder)
+          linkAccount(actor, holder.id, { provider: null, externalId: null })
+        linkAccount(actor, accountId, {
+          provider: "enablebanking",
+          externalId: row.identificationHash,
+        })
+        db()
+          .update(ebAccounts)
+          .set({
+            accountId,
+            setOpening: fresh,
+            lastSyncedAt: null,
+            lastBookedDate: null,
+          })
+          .where(eq(ebAccounts.id, row.id))
+          .run()
+      }
     })
-    db()
-      .update(ebAccounts)
-      .set({
-        accountId,
-        setOpening: fresh,
-        lastSyncedAt: null,
-        lastBookedDate: null,
-      })
-      .where(eq(ebAccounts.id, row.id))
-      .run()
-  }
+  })
   return syncLink(linkId, { psu })
 }
 

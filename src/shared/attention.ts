@@ -3,7 +3,8 @@
 /**
  * What the item's one button does: open a page in the dashboard (`to` with
  * optional router search and hash), or POST to an /api path (`post`) and, if
- * the answer carries a `url`, send the browser there (a bank's consent page).
+ * the answer carries a `url`, send the browser there (a bank's consent page);
+ * an answer with an `error` (a sync that failed again) shows it.
  */
 export type AttentionAction =
   | {
@@ -12,7 +13,7 @@ export type AttentionAction =
       search?: Record<string, unknown>
       hash?: string
     }
-  | { label: string; post: string }
+  | { label: string; post: string; body?: Record<string, unknown> }
 
 export type AttentionItem = {
   /** Stable across refetches, e.g. "overspent:12". */

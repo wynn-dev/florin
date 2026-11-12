@@ -81,18 +81,20 @@
   --positive: #15803d;
   --negative: #dc2626;
   --warning: #b45309;
-  /* Chart palette: assigned in this order, never cycled. ink is every
-     single-series chart, muted the comparison or context series. */
-  --chart-1: #2a78d6;
-  --chart-2: #eb6834;
-  --chart-3: #1baf7a;
-  --chart-4: #eda100;
-  --chart-5: #e87ba4;
-  --chart-6: #008300;
-  --chart-7: #6250d6;
-  --chart-8: #e34948;
-  --chart-ink: oklch(0.205 0 0);
-  --chart-muted: oklch(0.556 0 0);
+  /* Chart palette: calm hues, assigned in this order and never cycled;
+     validated for colour-blind separation in light and dark. ink is every
+     single-series chart (slot 1's blue), muted the comparison or context
+     series. The UI chrome around them stays neutral. */
+  --chart-1: #4a7fc1;
+  --chart-2: #d36f43;
+  --chart-3: #239a92;
+  --chart-4: #cf9a2e;
+  --chart-5: #c4719a;
+  --chart-6: #58964a;
+  --chart-7: #7b68c6;
+  --chart-8: #cc5c5c;
+  --chart-ink: var(--chart-1);
+  --chart-muted: oklch(0.82 0 0);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -126,16 +128,16 @@
   --positive: #4ade80;
   --negative: #f87171;
   --warning: #fbbf24;
-  --chart-1: #3987e5;
-  --chart-2: #d95926;
-  --chart-3: #199e70;
-  --chart-4: #c98500;
-  --chart-5: #d55181;
-  --chart-6: #008300;
-  --chart-7: #9085e9;
-  --chart-8: #e66767;
-  --chart-ink: oklch(0.922 0 0);
-  --chart-muted: oklch(0.556 0 0);
+  --chart-1: #5689d0;
+  --chart-2: #d0744a;
+  --chart-3: #1fa096;
+  --chart-4: #b98a2a;
+  --chart-5: #c4749a;
+  --chart-6: #5a9a4c;
+  --chart-7: #8574d0;
+  --chart-8: #cf6060;
+  --chart-ink: var(--chart-1);
+  --chart-muted: oklch(0.4 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.922 0 0);

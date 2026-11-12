@@ -19,6 +19,8 @@ export type ActivitySearch = {
   kind?: ActivityKind
   from?: string
   to?: string
+  /** One entry alone, opened (from the Budget inspector's Last change). */
+  entry?: number
 }
 
 /** Local days to the API's timestamps: from the start of `from` to the end of `to`. */
@@ -29,6 +31,7 @@ export function toActivityFilter(search: ActivitySearch): ActivityFilter {
     kind: search.kind,
     from: search.from ? midnight(search.from) : undefined,
     to: search.to ? midnight(addDays(search.to, 1)) : undefined,
+    entry: search.entry,
   }
 }
 

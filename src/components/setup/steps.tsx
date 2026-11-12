@@ -16,8 +16,8 @@ import {
   browserLocale,
   currencyName,
 } from "@/components/settings/choices"
-import { ConnectBankDialog } from "@/components/settings/enable-banking-slot"
-import { ConnectIbkrDialog } from "@/components/settings/ibkr-slot"
+import { ConnectBankDialog } from "@/components/connections/enable-banking/connect-bank-dialog"
+import { ConnectIbkrDialog } from "@/components/connections/ibkr/connect-ibkr-dialog"
 import {
   CopyField,
   CreatedToken,
@@ -287,45 +287,27 @@ export function AccountsStep({ onDone }: { onDone: () => void }) {
           />
         ) : (
           <div className="flex flex-col gap-2">
-            <Choice
-              title="Connect a bank"
-              onClick={ConnectBankDialog ? () => setBank(true) : undefined}
-            />
+            <Choice title="Connect a bank" onClick={() => setBank(true)} />
             <Choice
               title={accounts.length ? "Add another manually" : "Add manually"}
               onClick={() => setAdding(true)}
             />
             <div className="flex h-8 items-center justify-between px-3 text-sm">
-              {ConnectIbkrDialog ? (
-                <button
-                  type="button"
-                  className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                  onClick={() => setIbkr(true)}
-                >
-                  Interactive Brokers
-                </button>
-              ) : (
-                <>
-                  <span className="text-muted-foreground">
-                    Interactive Brokers
-                  </span>
-                  <span className="text-muted-foreground">
-                    In Settings after setup
-                  </span>
-                </>
-              )}
+              <button
+                type="button"
+                className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                onClick={() => setIbkr(true)}
+              >
+                Interactive Brokers
+              </button>
             </div>
           </div>
         )}
       </div>
       {/* Always rendered: the bank's redirect comes back here and the dialog
           reopens itself to link the accounts. */}
-      {ConnectBankDialog && (
-        <ConnectBankDialog open={bank} onOpenChange={setBank} />
-      )}
-      {ConnectIbkrDialog && (
-        <ConnectIbkrDialog open={ibkr} onOpenChange={setIbkr} />
-      )}
+      <ConnectBankDialog open={bank} onOpenChange={setBank} />
+      <ConnectIbkrDialog open={ibkr} onOpenChange={setIbkr} />
     </StepCard>
   )
 }

@@ -9,7 +9,8 @@ import {
 } from "./manage"
 import type { BudgetMonth } from "@/shared/types"
 import { cn } from "@/lib/utils"
-import { formatMoney } from "@/lib/format"
+import { toast } from "sonner"
+import { formatMoney, formatMonth } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 
 const COLUMNS =
@@ -304,7 +305,17 @@ function NewRow({
  * own (not inside the table) so Add group works on a phone, with no
  * categories yet, and before the first month.
  */
-export function NewGroupRow({ onDone }: { onDone: () => void }) {
+export function NewGroupRow({
+  onDone,
+  hiddenUntil,
+}: {
+  onDone: () => void
+  /**
+   * The month the table starts at when this one shows none (a month before
+   * the first transaction): the new group can't appear here, so say where.
+   */
+  hiddenUntil?: string | null
+}) {
   const { createGroup } = useCategoryActions()
   return (
     <div className="flex h-10 items-center border-b px-2">
@@ -314,7 +325,21 @@ export function NewGroupRow({ onDone }: { onDone: () => void }) {
         initial=""
         className="max-w-64"
         onSave={(name) => {
-          if (name.trim()) createGroup.mutate({ name: name.trim() })
+          const clean = name.trim()
+          if (clean)
+            createGroup.mutate(
+              { name: clean },
+              {
+                onSuccess: () => {
+                  if (hiddenUntil !== undefined)
+                    toast(`Added the group ${clean}`, {
+                      description: hiddenUntil
+                        ? `It shows in the budget from ${formatMonth(hiddenUntil)}.`
+                        : "It shows in the budget once the first transaction is in.",
+                    })
+                },
+              }
+            )
           onDone()
         }}
         onCancel={onDone}

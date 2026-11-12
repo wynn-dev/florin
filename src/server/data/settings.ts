@@ -4,15 +4,45 @@ import { listenPort, loadConfig } from "../config"
 import { runJobSoon } from "../jobs"
 import { logChange } from "./changes"
 import { checkCurrency } from "./fx"
-import { InvalidInput } from "./validate"
+import { InvalidInput, machineTimeZone } from "./validate"
 import type { Actor, Settings } from "@/shared/types"
 
-const DEFAULTS: Settings = { currency: "EUR", publicUrl: "", locale: "" }
+const DEFAULTS: Settings = {
+  currency: "EUR",
+  publicUrl: "",
+  locale: "",
+  timeZone: "",
+}
 
+/** The settings, without florin's own bookkeeping rows in the same table. */
 export function getSettings(): Settings {
   const rows = db().select().from(schema.settings).all()
-  const stored = Object.fromEntries(rows.map((r) => [r.key, r.value]))
-  return { ...DEFAULTS, ...stored }
+  const out = { ...DEFAULTS }
+  for (const r of rows)
+    if (r.key in DEFAULTS) out[r.key as keyof Settings] = r.value
+  return out
+}
+
+/** An IANA time zone ("Europe/Helsinki"), or "" for the machine's own. */
+function checkTimeZone(value: unknown): string {
+  if (typeof value !== "string")
+    throw new InvalidInput("timeZone must be a zone like Europe/Helsinki")
+  const zone = value.trim()
+  if (!zone) return ""
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: zone,
+    }).resolvedOptions().timeZone
+  } catch {
+    throw new InvalidInput(
+      `${zone} is not a time zone; use one like Europe/Helsinki`
+    )
+  }
+}
+
+/** The time zone in effect: the setting, else the machine's. */
+export function effectiveTimeZone(): string {
+  return getSettings().timeZone || machineTimeZone()
 }
 
 /**
@@ -107,17 +137,30 @@ export function updateSettings(
   }
   if (patch.publicUrl !== undefined) {
     const url = checkPublicUrl(patch.publicUrl)
-    save(
-      actor,
-      "publicUrl",
-      url,
-      url ? `Set the public address to ${url}` : "Cleared the public address"
-    )
+    if (url !== getSettings().publicUrl)
+      save(
+        actor,
+        "publicUrl",
+        url,
+        url ? `Set the public address to ${url}` : "Cleared the public address"
+      )
   }
   if (patch.locale !== undefined) {
     const locale = checkLocale(patch.locale)
     if (locale !== getSettings().locale)
       save(actor, "locale", locale, `Set the locale to ${locale}`)
+  }
+  if (patch.timeZone !== undefined) {
+    const zone = checkTimeZone(patch.timeZone)
+    if (zone !== getSettings().timeZone)
+      save(
+        actor,
+        "timeZone",
+        zone,
+        zone
+          ? `Set the time zone to ${zone}`
+          : "Set the time zone to the machine's"
+      )
   }
   return getSettings()
 }

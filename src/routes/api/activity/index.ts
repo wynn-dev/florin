@@ -8,7 +8,8 @@ import type { ActivityKind } from "@/shared/activity"
  * ?source=person|ibkr|mcp:<name>|bank-sync:<bank>|import:<file> (a prefix
  * ending in ":" matches all of a kind, "mcp:" every MCP client),
  * kind=transactions|budget|accounts|categories|settings, from, to (ISO
- * timestamps), before (the previous page's next), limit.
+ * timestamps), entry (one entry by id), before (the previous page's next),
+ * limit.
  * ?lines=1 answers the change lines instead, as before: actor, limit, offset.
  */
 export const Route = createFileRoute("/api/activity/")({
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/api/activity/")({
             from: q.from,
             to: q.to,
             before: optionalInt(q.before),
+            entry: optionalInt(q.entry),
             limit: optionalInt(q.limit),
           })
         }),

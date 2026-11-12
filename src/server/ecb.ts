@@ -147,9 +147,11 @@ export async function refreshRates(
   const published = new Set(daily.map((r) => r.currency))
   const wanted = currencies.filter((c) => published.has(c))
   const unknown = currencies.filter((c) => !published.has(c))
-  store(daily, wanted, lowest)
 
   // Missing working days before the latest published one: backfill them.
+  // Today's rates are stored only after that: stored first, a failed
+  // backfill would leave the gap behind them, and the next run would start
+  // after it.
   const from = wanted.map((c) => starts.get(c)!).sort()[0]
   if (from && weekdayBetween(from, daily[0].date)) {
     const file = chooseFile(from)
@@ -167,6 +169,7 @@ export async function refreshRates(
       }
     }
   }
+  store(daily, wanted, lowest)
 
   if (unknown.length)
     throw new Error(`the ECB publishes no rates for ${unknown.join(", ")}`)

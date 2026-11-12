@@ -73,8 +73,29 @@ export const categories = sqliteTable(
     name: text().notNull(),
     hidden: integer({ mode: "boolean" }).notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
+    /** A category florin itself relies on, found by this rather than its name: "starting-balances". */
+    key: text(),
   },
-  (t) => [index("categories_group").on(t.groupId)]
+  (t) => [
+    index("categories_group").on(t.groupId),
+    uniqueIndex("categories_key").on(t.key),
+  ]
+)
+
+/**
+ * Bank rows (by importedId) the person or an agent deleted from an account,
+ * so the next sync doesn't bring them back. Putting a row back (Undo)
+ * forgets its id here.
+ */
+export const deletedImports = sqliteTable(
+  "deleted_imports",
+  {
+    accountId: integer("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    importedId: text("imported_id").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.accountId, t.importedId] })]
 )
 
 export const transactions = sqliteTable(
@@ -202,6 +223,8 @@ export const changes = sqliteTable(
      * same sync or import run): one batch is one entry in Activity.
      */
     batch: integer(),
+    /** Another entity the change touched: the category money moved out of. */
+    relatedId: integer("related_id"),
     /** What changed on the entity alone, e.g. "Category set to Groceries", for its history. */
     detail: text(),
   },

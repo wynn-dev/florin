@@ -12,6 +12,7 @@ import {
   formatRelative,
   formatTime,
   today,
+  localiseAmounts,
 } from "@/lib/format"
 import { Money } from "@/components/money"
 import { SourceLabel } from "@/components/source-label"
@@ -41,7 +42,14 @@ import type { TransactionPage } from "@/shared/types"
  * focus so agents' changes appear. No heading or "View all": the host adds
  * those.
  */
-export function ActivityFeed({ limit = 8 }: { limit?: number }) {
+export function ActivityFeed({
+  limit = 8,
+  compact = false,
+}: {
+  limit?: number
+  /** For a narrow column: the time under the line rather than beside it. */
+  compact?: boolean
+}) {
   const feed = useQuery({ ...activityQueries.recent(limit), ...LIVE })
   if (!feed.data) {
     return feed.isError ? (
@@ -58,7 +66,7 @@ export function ActivityFeed({ limit = 8 }: { limit?: number }) {
   return (
     <div className="flex flex-col">
       {feed.data.items.map((entry) => (
-        <ActivityRow key={entry.id} entry={entry} />
+        <ActivityRow key={entry.id} entry={entry} compact={compact} />
       ))}
     </div>
   )
@@ -129,7 +137,12 @@ export function ActivityLog({
             {formatDayHeading(day)}
           </h2>
           {dayEntries.map((entry) => (
-            <ActivityRow key={entry.id} entry={entry} clock />
+            <ActivityRow
+              key={entry.id}
+              entry={entry}
+              clock
+              defaultOpen={entry.id === search.entry}
+            />
           ))}
         </section>
       ))}
@@ -158,10 +171,11 @@ function FeedSkeleton({ rows }: { rows: number }) {
 
 /**
  * Summaries come from the server with ISO dates and months ("on 2026-11-10",
- * "in 2026-11"); show them as the rest of the dashboard does.
+ * "in 2026-11") and amounts in English ("€1,234.50"); show them as the rest
+ * of the dashboard does, in the person's locale.
  */
 export function readable(summary: string): string {
-  return summary
+  return localiseAmounts(summary)
     .replace(/\b(\d{4}-\d{2}-\d{2})\b/g, (_, d: string) => formatDate(d))
     .replace(/\b(\d{4}-\d{2})\b/g, (_, m: string) => formatMonth(m))
 }
@@ -175,14 +189,41 @@ export function readable(summary: string): string {
 export function ActivityRow({
   entry,
   clock = false,
+  defaultOpen = false,
+  compact = false,
 }: {
   entry: ActivityEntry
   clock?: boolean
+  /** Time under the summary, for a narrow column. */
+  compact?: boolean
+  /** Opened from the start: the one entry a link pointed at. */
+  defaultOpen?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   // A lone line is the summary itself: nothing more to show.
   const expandable = entry.transactions > 0 || entry.lineCount > 1
   const time = clock ? formatTime(entry.at) : formatRelative(entry.at)
+
+  // In a narrow column: the summary, the time under it, and a link to the
+  // entry in Activity rather than expanding in place.
+  if (compact)
+    return (
+      <Link
+        to="/activity"
+        search={{ entry: entry.id }}
+        className="-mx-2 flex flex-col gap-0.5 rounded-md px-2 py-2 text-sm outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <span className="line-clamp-2">
+          <SourceLabel actor={entry.actor} /> {readable(entry.summary)}
+        </span>
+        <span
+          className="text-xs text-muted-foreground"
+          title={formatDateTime(entry.at)}
+        >
+          {time}
+        </span>
+      </Link>
+    )
 
   const line = (
     <>
