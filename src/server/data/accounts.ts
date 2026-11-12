@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm"
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm"
 import { db, schema } from "../db"
 import { runJobSoon } from "../jobs"
 import { startingBalanceCategoryId } from "./categories"
@@ -28,7 +28,7 @@ import type {
   NewHolding,
 } from "@/shared/types"
 
-const { accounts, transactions, accountValues, holdings } = schema
+const { accounts, transactions, accountValues, holdings, rules } = schema
 
 const TYPES: AccountType[] = [
   "checking",
@@ -205,6 +205,17 @@ export function deleteAccount(actor: Actor, id: number): void {
         .where(eq(transactions.id, transferId!))
         .run()
     }
+    // A rule that did nothing but make transfers to it goes with it; others
+    // lose their transfer account.
+    tx.delete(rules)
+      .where(
+        and(
+          eq(rules.transferAccountId, id),
+          isNull(rules.payee),
+          isNull(rules.categoryId)
+        )
+      )
+      .run()
     tx.delete(accounts).where(eq(accounts.id, id)).run()
     logChange(tx, actor, {
       action: "delete",

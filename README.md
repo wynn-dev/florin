@@ -70,7 +70,8 @@ transactions, one in each account, each in that account's currency. When both
 sides already came in on their own (from two banks, or from your bank and
 IBKR), link them rather than adding a transfer: select the two on the
 Transactions page and choose Link as transfer, or have an agent use
-`suggest_transfers` and `link_transfers`. Each keeps its bank details, so later
+`suggest_transfers` and `link_transfers`; for a move that recurs, a rule with
+a transfer account (see Rules) links it as it arrives. Each keeps its bank details, so later
 syncs add nothing; linking clears their payees (and categories, where a
 transfer has none), and Undo right after linking puts those back. A transfer
 is never spending or income in Overview and Reports, whichever accounts it is
@@ -210,10 +211,10 @@ forgets the token and keeps the account and its history.
 
 Rules name and categorise transactions from the bank's text. Each has a
 pattern (a JavaScript regular expression, always case-insensitive) and sets a
-payee, a category or both; the payee may use `$1`…`$9` for parts of the match,
+payee, a category, a transfer account, or several; the payee may use `$1`…`$9` for parts of the match,
 which are tidied like a bank's name ("CORNER SHOP 12" → "Corner Shop 12").
-They run top to bottom on every new row, from a bank sync, a CSV file or an
-agent's import: a rule matches when its pattern is found in the bank's text,
+They run top to bottom on every new row, from a bank or IBKR sync, a CSV file
+or an agent's import: a rule matches when its pattern is found in the bank's text,
 the notes, or the payee name as it stands, and a later match overrides an
 earlier one. So a generic rule first can pull the shop out of the notes, and
 rules after it name and categorise that shop:
@@ -229,7 +230,28 @@ rules or the payee. Only the final name becomes a payee. Applying the
 rules to existing transactions only fills what is untouched (no category, or
 the bank's own name, or a name the rules gave, as payee) unless told to
 overwrite, and removes payees it
-leaves empty. Manage them in Settings › Rules or with the MCP tools
+leaves empty.
+
+A rule with a transfer account makes a matching row a move to that account of
+your own. When the account is fed by a bank link or IBKR, florin links the row
+to the one unlinked row there that mirrors it: the other way round, the same
+amount (across currencies within 3% at the day's rate), within four days; the
+closest date wins, and two equally close link nothing. If that row hasn't
+arrived yet, the first stays a plain row (with the payee and category the
+rules gave it) and is linked when the other side comes in, so the other
+account needs no rule of its own. When the account is kept by hand, florin
+creates the other leg there. In an investment account only IBKR's deposits
+and withdrawals can be the other side, never trades, interest, dividends or
+fees. As with any transfer, the row loses its category between two on-budget
+accounts and keeps it when the other account is off budget. Nothing is linked
+without a rule naming the account, and applying the rules never unlinks.
+
+| Pattern               | Category    | Transfer to         |
+| --------------------- | ----------- | ------------------- |
+| `interactive brokers` | Investments | Interactive Brokers |
+| `to savings pocket`   |             | Savings pocket      |
+
+Manage them in Settings › Rules or with the MCP tools
 `list_rules`, `save_rules`, `delete_rules` and `apply_rules`.
 
 ## Connecting an MCP client
@@ -360,7 +382,7 @@ tarball with `install.sh` in a clean Debian container with no Node; CI runs it
 on every pull request.
 
 To release, set `version` in `package.json`, merge, then push a matching tag:
-`git tag v0.3.0 && git push origin v0.3.0`. The release workflow checks, builds,
+`git tag v0.4.0 && git push origin v0.4.0`. The release workflow checks, builds,
 packages, tests the installer and publishes the GitHub Release that
 `install.sh` downloads from.
 

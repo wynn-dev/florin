@@ -16,10 +16,13 @@ import { runJobSoon } from "../jobs"
 import { deleteSecret, getSecret, secretInfo, setSecret } from "../secrets"
 import {
   checkHoldings,
+  getAccount,
   getSettings,
+  loadRules,
   logChange,
   money,
-  payeeIdForName,
+  ruleRow,
+  transfersOnArrival,
 } from "../data"
 import { rateOn } from "../data/fx"
 import { InvalidInput, today } from "../data/validate"
@@ -337,6 +340,7 @@ export function applyReports(reports: FlexAccountReport[]): void {
   const budget = getSettings().currency
   let foreign = false
   db().transaction((tx) => {
+    const rules = loadRules(tx)
     const existing = tx
       .select({ id: accounts.id })
       .from(accounts)
@@ -433,23 +437,35 @@ export function applyReports(reports: FlexAccountReport[]): void {
           )
           .all()
           .forEach((r) => seen.add(r.id!))
-      let added = 0
+      // New rows go through the rules as imported ones do, and may complete
+      // transfers waiting for the broker's side.
+      const arrived: Parameters<typeof transfersOnArrival>[3] = []
+      const target = { id: accountId, onBudget: getAccount(accountId).onBudget }
       for (const t of report.transactions) {
         if (seen.has(t.importedId)) continue
         seen.add(t.importedId)
-        tx.insert(transactions)
+        const ruled = ruleRow(tx, rules, target, t)
+        const { id } = tx
+          .insert(transactions)
           .values({
             accountId,
             date: t.date,
             amount: t.amount,
-            payeeId: payeeIdForName(t.payee, tx),
+            payeeId: ruled.payeeId,
+            categoryId: ruled.categoryId,
             notes: t.notes ?? "",
             importedId: t.importedId,
             importedPayee: t.payee,
           })
-          .run()
-        added++
+          .returning({ id: transactions.id })
+          .get()
+        arrived.push({
+          id,
+          date: t.date,
+          transferAccountId: ruled.transferAccountId,
+        })
       }
+      const added = arrived.length
 
       const latest = report.values.at(-1)
       const parts = [
@@ -465,6 +481,7 @@ export function applyReports(reports: FlexAccountReport[]): void {
         entityId: accountId,
         summary: `${created ? "Added" : "Updated"} ${account.name} from IBKR: ${parts.join(", ")}`,
       })
+      transfersOnArrival(tx, "ibkr", accountId, arrived, rules)
     }
   })
   if (foreign) runJobSoon("ecb")

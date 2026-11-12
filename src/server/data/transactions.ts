@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/sqlite-core"
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core"
-import { db, schema } from "../db"
+import { STARTING_BALANCES, db, schema } from "../db"
 import { getAccount } from "./accounts"
 import { getCategory } from "./categories"
 import { logChange, money } from "./changes"
@@ -62,6 +62,16 @@ function keepsLeg(
   return sql`(${leg.importedId} is not null or (${ownRow(leg)} and ${ownRow(row)}))`
 }
 
+/**
+ * Whether a row is an account's opening balance: in the starting balances
+ * category, the bank sync's opening row, or the "Starting balance" florin
+ * books (with no category off budget) when an account is added. Needs the
+ * row's payee and category joined.
+ */
+export function startingBalanceRow(): SQL {
+  return sql`(coalesce(${categories.key}, '') = ${STARTING_BALANCES} or coalesce(${transactions.importedId}, '') = 'eb:opening' or (${payees.name} = 'Starting balance' and ${transactions.categoryId} is null and ${transactions.importedId} is null))`
+}
+
 function selectTransactions(
   tx: Pick<Database, "select"> = db(),
   withBalance = false
@@ -90,6 +100,7 @@ function selectTransactions(
         sql<boolean>`${transactions.transferId} is not null and ${keepsLeg(transactions, transferLeg)}`.mapWith(
           Boolean
         ),
+      startingBalance: startingBalanceRow().mapWith(Boolean),
       ...(withBalance
         ? {
             // The account's balance after this row, in the list's own order (date, then id).
@@ -317,8 +328,10 @@ function insertTransaction(tx: Tx, input: NewTransaction): number {
         )
       )
       .run()
-  if (isTransfer)
+  if (isTransfer) {
     addTransferLeg(tx, row.id, input.transferAccountId!, input.transferAmount)
+    transferCategories(tx, row.id)
+  }
   return row.id
 }
 
@@ -398,6 +411,56 @@ function addTransferLeg(
     .set({ transferId: leg.id, payeeId: null })
     .where(eq(transactions.id, id))
     .run()
+}
+
+/**
+ * A transfer's categories, however it was made: none on either leg between
+ * two on-budget accounts; when the other account is off budget the on-budget
+ * leg keeps its category and the off-budget one has none.
+ */
+export function transferCategories(tx: Tx, id: number) {
+  const legs = tx
+    .select({ id: transactions.id, onBudget: accounts.onBudget })
+    .from(transactions)
+    .innerJoin(accounts, eq(transactions.accountId, accounts.id))
+    .where(
+      or(
+        eq(transactions.id, id),
+        eq(
+          transactions.id,
+          sql`(select ${transactions.transferId} from ${transactions} where ${transactions.id} = ${id})`
+        )
+      )
+    )
+    .all()
+  if (legs.length !== 2) return
+  const both = legs.every((l) => l.onBudget)
+  for (const leg of legs)
+    if (both || !leg.onBudget)
+      tx.update(transactions)
+        .set({ categoryId: null })
+        .where(eq(transactions.id, leg.id))
+        .run()
+}
+
+/**
+ * Makes row `id` a transfer to `accountId` inside the caller's database
+ * transaction by creating the other leg there (`amount` what arrives, for
+ * another currency), logged as an edit of the row.
+ */
+export function makeTransfer(
+  tx: Tx,
+  actor: Actor,
+  id: number,
+  accountId: number,
+  amount?: number
+): void {
+  const before = getTransaction(id, tx)
+  applyPatch(tx, id, {
+    transferAccountId: accountId,
+    ...(amount === undefined ? {} : { transferAmount: amount }),
+  })
+  logUpdate(tx, actor, before, getTransaction(id, tx))
 }
 
 /**
@@ -499,6 +562,7 @@ function applyPatch(tx: Tx, id: number, patch: TransactionPatch): string[] {
         .where(eq(transactions.id, legId))
         .run()
   }
+  if (moved) transferCategories(tx, id)
   return Object.keys(patch)
 }
 

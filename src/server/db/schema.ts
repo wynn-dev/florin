@@ -150,6 +150,11 @@ export const rules = sqliteTable("rules", {
   categoryId: integer("category_id").references(() => categories.id, {
     onDelete: "set null",
   }),
+  /** The person's own account a matching row is a transfer to. */
+  transferAccountId: integer("transfer_account_id").references(
+    () => accounts.id,
+    { onDelete: "set null" }
+  ),
   sortOrder: integer("sort_order").notNull().default(0),
 })
 

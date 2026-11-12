@@ -87,6 +87,8 @@ export function reportQuery(search: ReportSearch): ReportQuery {
     case "custom":
       return { from: search.from, to: search.to, accountIds }
     default:
-      return back(12)
+      // The server's own default, the last twelve months; left to it so net
+      // worth can start where the data does when that is later.
+      return { accountIds }
   }
 }

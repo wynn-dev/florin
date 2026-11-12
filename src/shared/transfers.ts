@@ -7,13 +7,15 @@ export type LinkCandidate = {
   accountId: number
   amount: number
   transferId: number | null
+  startingBalance?: boolean
 }
 
 /**
  * Why two transactions can't be linked as a transfer, or null when they can:
- * both plain rows (neither already a transfer), in different accounts, one
- * money out and the other money in; within one currency the amounts must
- * mirror exactly, across currencies each keeps its own. `money` formats an
+ * both plain rows (neither already a transfer nor a starting balance), in
+ * different accounts, one money out and the other money in; within one
+ * currency the amounts must mirror exactly, across currencies each keeps its
+ * own. `money` formats an
  * amount in a currency, for the difference.
  */
 export function linkProblem(
@@ -29,6 +31,8 @@ export function linkProblem(
     return a.transferId !== null && b.transferId !== null
       ? "both are already transfers"
       : `${name(a.transferId !== null ? a : b)} is already a transfer`
+  if (a.startingBalance || b.startingBalance)
+    return `${name(a.startingBalance ? a : b)} is a starting balance`
   if (a.accountId === b.accountId) return "both are in the same account"
   if (Math.sign(a.amount) * Math.sign(b.amount) !== -1)
     return "one must be money out and the other money in"

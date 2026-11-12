@@ -500,6 +500,13 @@ const CASH_PAYEES: Record<string, string> = {
   "Commission Adjustments": "Commission adjustment",
 }
 
+/**
+ * The bank text (importedPayee) the broker's cash deposits and withdrawals
+ * arrive with: the only rows of an investment account that can be a leg of
+ * a transfer.
+ */
+export const CASH_MOVES = { in: "Deposit", out: "Withdrawal" } as const
+
 /** Dividends, withholding tax, interest, fees, deposits and withdrawals. */
 function readCashTransaction(
   row: XmlElement,
@@ -514,8 +521,8 @@ function readCashTransaction(
     type === "Deposits/Withdrawals" || type === "Deposits & Withdrawals"
   const payee = transfer
     ? positive
-      ? "Deposit"
-      : "Withdrawal"
+      ? CASH_MOVES.in
+      : CASH_MOVES.out
     : type === "Dividends" || type === "Payment In Lieu Of Dividends"
       ? `${a.symbol} dividend`.trim()
       : type === "Withholding Tax"

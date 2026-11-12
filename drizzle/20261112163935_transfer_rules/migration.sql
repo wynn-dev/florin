@@ -1,0 +1,1 @@
+ALTER TABLE `rules` ADD `transfer_account_id` integer REFERENCES accounts(id) ON DELETE SET NULL;
