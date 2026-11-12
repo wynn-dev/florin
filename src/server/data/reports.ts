@@ -1,8 +1,10 @@
 // Report summaries. Spending and income look at on-budget accounts only,
-// leave out opening balances, and leave out transfers between two on-budget
-// accounts (moving money is not spending it). Cash flow looks at the cash
-// accounts among them (see cashFlowReport).
-import { and, desc, eq, inArray, lte, sql } from "drizzle-orm"
+// leave out opening balances, and leave out every transfer between the
+// person's own accounts, whichever they are (moving money is not spending
+// it). The budget is different on purpose: there a categorised transfer to an
+// off-budget account counts in its category, as money leaving the budget.
+// Cash flow looks at the cash accounts among them (see cashFlowReport).
+import { and, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/sqlite-core"
 import type { SQLiteSelect } from "drizzle-orm/sqlite-core"
 import { STARTING_BALANCES, db, schema } from "../db"
@@ -51,7 +53,6 @@ const {
   fxRates,
 } = schema
 const leg = alias(transactions, "leg")
-const legAccount = alias(accounts, "leg_account")
 
 /** The last twelve months up to today, unless the range says otherwise. */
 export function resolveRange(range: Partial<DateRange> = {}): DateRange {
@@ -62,13 +63,13 @@ export function resolveRange(range: Partial<DateRange> = {}): DateRange {
   return { from, to }
 }
 
-/** On-budget, in range, not an opening balance, not a transfer between on-budget accounts. */
+/** On-budget, in range, not an opening balance, not a transfer. */
 function flowConditions(range: DateRange): SQL {
   return and(
     eq(accounts.onBudget, true),
     sql`${transactions.date} between ${range.from} and ${range.to}`,
     sql`coalesce(${categories.key}, '') <> ${STARTING_BALANCES}`,
-    sql`coalesce(${legAccount.onBudget}, 0) = 0`
+    isNull(transactions.transferId)
   )!
 }
 
@@ -78,12 +79,34 @@ function flows<T extends SQLiteSelect>(query: T, range: DateRange) {
     .innerJoin(accounts, eq(transactions.accountId, accounts.id))
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .leftJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
-    .leftJoin(leg, eq(transactions.transferId, leg.id))
-    .leftJoin(legAccount, eq(leg.accountId, legAccount.id))
     .where(flowConditions(range))
 }
 
 const month = sql<string>`substr(${transactions.date}, 1, 7)`
+
+/**
+ * Whether the data starts inside the default range (the last twelve months):
+ * net worth then starts where the data does rather than with a run of zeros.
+ */
+function startsInDefault(
+  range: Partial<DateRange>,
+  dataFrom: string | null
+): boolean {
+  if (range.from || dataFrom === null) return false
+  const fallback = resolveRange(range)
+  return dataFrom > fallback.from && dataFrom <= fallback.to
+}
+
+/**
+ * The range net worth covers: as asked, but by default from the first day
+ * with data when that is less than twelve months ago.
+ */
+export function netWorthRange(input: Partial<DateRange> = {}): DateRange {
+  const range = resolveRange(input)
+  const dataFrom = firstDate([], { values: true })
+  if (startsInDefault(input, dataFrom)) range.from = dataFrom!
+  return range
+}
 
 /**
  * Net worth at the end of each month in the budget's currency: accounts with
@@ -91,7 +114,7 @@ const month = sql<string>`substr(${transactions.date}, 1, 7)`
  * currency are converted at that month end's rate (left out while no rate is known).
  */
 export function netWorth(input?: Partial<DateRange>): NetWorthPoint[] {
-  const range = resolveRange(input)
+  const range = netWorthRange(input)
   const months = monthsBetween(range.from.slice(0, 7), range.to.slice(0, 7))
   const budgetCurrency = getSettings().currency
   const accountList = db()
@@ -203,10 +226,16 @@ export function incomeVsExpenses(
   return fillMonths(range, rows, (m) => ({ month: m, income: 0, expenses: 0 }))
 }
 
-/** Per month: money in, money out (positive) and the difference, across the cash accounts (see cashFlowReport). */
+/** Per month: money in, money out (positive), transfers and the net, across the cash accounts (see cashFlowReport). */
 export function cashFlow(input?: Partial<DateRange>): CashFlowPoint[] {
   return cashFlowReport(input).months.map(
-    ({ month: m, inflow, outflow, net }) => ({ month: m, inflow, outflow, net })
+    ({ month: m, inflow, outflow, transfers, net }) => ({
+      month: m,
+      inflow,
+      outflow,
+      transfers,
+      net,
+    })
   )
 }
 
@@ -352,7 +381,10 @@ export function netWorthReport(
 ): NetWorthReport {
   const ids = checkAccountIds(query.accountIds)
   const dataFrom = firstDate(ids, { values: true })
-  const { range } = resolveQuery(query, dataFrom)
+  const { range } = resolveQuery(
+    { ...query, all: query.all || startsInDefault(query, dataFrom) },
+    dataFrom
+  )
   const budgetCurrency = getSettings().currency
   const step =
     query.step ?? (daysBetween(range.from, range.to) <= 92 ? "day" : "month")
@@ -365,6 +397,8 @@ export function netWorthReport(
     const every = step === "week" ? 7 : 1
     for (let d = range.to; d >= range.from; d = addDays(d, -every))
       dates.unshift(d)
+    // Weeks count back from `to`; the first point is the range's first day.
+    if (dates[0] !== range.from) dates.unshift(range.from)
   }
   const before = addDays(range.from, -1)
 
@@ -527,8 +561,6 @@ function flowsIn<T extends SQLiteSelect>(
     .innerJoin(accounts, eq(transactions.accountId, accounts.id))
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .leftJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
-    .leftJoin(leg, eq(transactions.transferId, leg.id))
-    .leftJoin(legAccount, eq(leg.accountId, legAccount.id))
     .where(
       and(
         flowConditions(range),
@@ -542,8 +574,8 @@ function flowsIn<T extends SQLiteSelect>(
 /**
  * Spending per category group and category over the range, each against the
  * same stretch of time one range-length earlier (the range moved back by as
- * many months as it covers). On-budget accounts only; transfers between them
- * aren't spending.
+ * many months as it covers). On-budget accounts only; transfers between the
+ * person's accounts aren't spending.
  */
 export function spendingReport(query: ReportQuery = {}): SpendingReport {
   const ids = checkAccountIds(query.accountIds)
@@ -664,8 +696,10 @@ export function incomeExpenseReport(
 /**
  * Money in and out of the cash accounts (on-budget checking, savings and
  * cash) per month, with their balance at the start and end of each month.
- * Moving money between two cash accounts is no flow; paying a card or
- * investing is money out, and opening balances aren't flows.
+ * In and out leave out transfers: money moved to or from the person's other
+ * accounts (paying a card, investing, saving off budget) is its own line,
+ * transfers, so that (opening balances aside) starting + net = ending.
+ * Moving money between two cash accounts is no flow at all.
  */
 export function cashFlowReport(query: ReportQuery = {}): CashFlowReport {
   const ids = checkAccountIds(query.accountIds)
@@ -683,7 +717,12 @@ export function cashFlowReport(query: ReportQuery = {}): CashFlowReport {
     .map((a) => a.id)
   const dataFrom = cash.length ? firstDate(cash) : null
   const { range } = resolveQuery(query, dataFrom)
-  const empty = (m: string) => ({ month: m, inflow: 0, outflow: 0 })
+  const empty = (m: string) => ({
+    month: m,
+    inflow: 0,
+    outflow: 0,
+    transfers: 0,
+  })
   if (!cash.length) {
     return {
       ...range,
@@ -701,11 +740,13 @@ export function cashFlowReport(query: ReportQuery = {}): CashFlowReport {
     cash.map((id) => sql`${id}`),
     sql`, `
   )}), 0)`
+  const flow = sql`${transactions.transferId} is null`
   const rows = db()
     .select({
       month,
-      inflow: sql<number>`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} end), 0)`,
-      outflow: sql<number>`-coalesce(sum(case when ${transactions.amount} < 0 then ${transactions.amount} end), 0)`,
+      inflow: sql<number>`coalesce(sum(case when ${flow} and ${transactions.amount} > 0 then ${transactions.amount} end), 0)`,
+      outflow: sql<number>`-coalesce(sum(case when ${flow} and ${transactions.amount} < 0 then ${transactions.amount} end), 0)`,
+      transfers: sql<number>`coalesce(sum(case when not ${flow} then ${transactions.amount} end), 0)`,
     })
     .from(transactions)
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
@@ -744,7 +785,8 @@ export function cashFlowReport(query: ReportQuery = {}): CashFlowReport {
         starting: balanceBefore(start),
         inflow: r.inflow,
         outflow: r.outflow,
-        net: r.inflow - r.outflow,
+        transfers: r.transfers,
+        net: r.inflow - r.outflow + r.transfers,
         ending: balanceBefore(addDays(end, 1)),
       }
     }),

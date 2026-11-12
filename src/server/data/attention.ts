@@ -10,12 +10,19 @@ import { and, eq, isNull, sql } from "drizzle-orm"
 import { db, schema } from "../db"
 import { listBankLinks } from "../enablebanking"
 import { getIbkrStatus } from "../ibkr"
-import { getBudgetMonth } from "./budget"
+import { getBudgetMonth, overspendingByMonth } from "./budget"
 import { listCategoryGroups } from "./categories"
 import { minorDigits } from "./fx"
 import { getSettings } from "./settings"
 import { listMcpTokens } from "./tokens"
-import { dayIn, monthEnd, thisMonth, timeZone, today } from "./validate"
+import {
+  addMonths,
+  dayIn,
+  monthEnd,
+  thisMonth,
+  timeZone,
+  today,
+} from "./validate"
 import type { Attention, AttentionItem } from "@/shared/attention"
 
 const { transactions, accounts, budgets, changes, ibkr } = schema
@@ -215,7 +222,9 @@ function overspent(): AttentionItem[] {
   return getBudgetMonth(month).groups.flatMap((group) =>
     group.categories.flatMap((category) => {
       if (category.available >= 0) return []
-      const since = overspentSince(category.id, month)
+      const carried =
+        category.available - category.budgeted - category.activity
+      const since = overspentSince(category.id, month, carried)
       if (!since) return []
       return [
         {
@@ -231,19 +240,22 @@ function overspent(): AttentionItem[] {
 }
 
 /**
- * Replays a category's envelope (each month's assignment at the month's
- * start, then its transactions as they are dated and arrived) and returns
- * when it last went below zero.
+ * Replays a category's envelope this month (what carried in and the month's
+ * assignment at its start, then its transactions as they are dated and
+ * arrived) and returns when it last went below zero.
  */
-function overspentSince(categoryId: number, month: string): string | null {
+function overspentSince(
+  categoryId: number,
+  month: string,
+  carried: number
+): string | null {
   const assigned = db()
     .select({ month: budgets.month, amount: budgets.amount })
     .from(budgets)
-    .where(
-      and(eq(budgets.categoryId, categoryId), sql`${budgets.month} <= ${month}`)
-    )
+    .where(and(eq(budgets.categoryId, categoryId), eq(budgets.month, month)))
     .all()
     .map((b) => ({ date: `${b.month}-01`, at: "", amount: b.amount }))
+  assigned.push({ date: `${month}-01`, at: "", amount: carried })
   const spent = db()
     .select({
       date: transactions.date,
@@ -256,7 +268,7 @@ function overspentSince(categoryId: number, month: string): string | null {
       and(
         eq(accounts.onBudget, true),
         eq(transactions.categoryId, categoryId),
-        sql`${transactions.date} <= ${monthEnd(month)}`
+        sql`${transactions.date} between ${month + "-01"} and ${monthEnd(month)}`
       )
     )
     .all()
@@ -297,7 +309,16 @@ function unassigned(): AttentionItem[] {
     )
     .all()
     .filter((t) => income.has(t.categoryId!))
-  const since = lastCrossing([...assigned, ...received], (b) => b > 0)
+  // Each month's overspending comes out at the start of the next.
+  const overspent = [...overspendingByMonth(month)].map(([m, total]) => ({
+    date: `${addMonths(m, 1)}-01`,
+    at: "",
+    amount: -total,
+  }))
+  const since = lastCrossing(
+    [...assigned, ...received, ...overspent],
+    (b) => b > 0
+  )
   if (!since) return []
   return [
     {

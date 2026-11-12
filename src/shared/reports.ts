@@ -115,9 +115,13 @@ export type CashFlowMonth = {
   month: string
   /** Balance of the cash accounts at the start of the month. */
   starting: number
+  /** Money in, transfers left out. */
   inflow: number
-  /** Positive. */
+  /** Money out, positive, transfers left out. */
   outflow: number
+  /** Net of transfers to and from the person's other accounts (paying a card, investing). */
+  transfers: number
+  /** inflow − outflow + transfers. */
   net: number
   ending: number
 }

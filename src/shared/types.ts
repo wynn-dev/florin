@@ -424,6 +424,9 @@ export type CashFlowPoint = {
   month: string
   inflow: number
   outflow: number
+  /** Net of transfers to and from the person's other accounts. */
+  transfers: number
+  /** inflow − outflow + transfers. */
   net: number
 }
 

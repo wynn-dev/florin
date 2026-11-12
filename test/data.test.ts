@@ -290,6 +290,7 @@ describe("reports", () => {
       month: "2025-05",
       inflow: 300_000,
       outflow: 15_000,
+      transfers: 0,
       net: 285_000,
     })
     expect(data.spendingByCategory(range)).toEqual([
@@ -319,7 +320,7 @@ describe("reports", () => {
       transferAccountId: b.id,
     })
     expect(data.cashFlow({ from: "2024-01-01", to: "2024-01-31" })).toEqual([
-      { month: "2024-01", inflow: 0, outflow: 0, net: 0 },
+      { month: "2024-01", inflow: 0, outflow: 0, transfers: 0, net: 0 },
     ])
   })
 })

@@ -9,6 +9,7 @@ import {
   listFxRates,
   listHoldings,
   netWorth,
+  netWorthRange,
   resolveRange,
   spendingByCategory,
 } from "../../data"
@@ -27,7 +28,7 @@ export const getReport = defineTool({
   name: "get_report",
   title: "Read a report",
   description:
-    "A report over a date range (default the last twelve months), in the budget's currency as integer minor units. net_worth: assets, debts and net worth at each month end, accounts in other currencies converted at that date's rate. spending: money spent per expense category over the range, largest first, as positive numbers. income_expenses: income and expenses (positive) per month. cash_flow: money in, money out (positive) and net per month of the cash accounts (on-budget checking, savings and cash): paying a card or investing is money out, moving money between two cash accounts is none. spending and income_expenses count on-budget accounts only. All leave out opening balances, and spending and income_expenses leave out transfers between on-budget accounts.",
+    "A report over a date range (default the last twelve months), in the budget's currency as integer minor units. net_worth: assets, debts and net worth at each month end, accounts in other currencies converted at that date's rate; by default it starts at the first date with data when that is less than twelve months ago (from says where). spending: money spent per expense category over the range, largest first, as positive numbers. income_expenses: income and expenses (positive) per month. cash_flow: per month of the cash accounts (on-budget checking, savings and cash), money in and money out (positive) without transfers, transfers (net of money moved to or from the other accounts: paying a card, investing) and net = in − out + transfers; moving money between two cash accounts is none. spending and income_expenses count on-budget accounts only. None counts a transfer between the person's own accounts as spending or income, whichever accounts (the budget does count a categorised transfer to an off-budget account in its category), and all leave out opening balances. Example: { report: \"spending\", from: \"2026-10-01\", to: \"2026-10-31\" }.",
   input: {
     report: z.enum(["net_worth", "spending", "income_expenses", "cash_flow"]),
     from: zDate.optional(),
@@ -35,7 +36,10 @@ export const getReport = defineTool({
   },
   kind: "read",
   run: ({ report, from, to }) => {
-    const range = resolveRange({ from, to })
+    const range =
+      report === "net_worth"
+        ? netWorthRange({ from, to })
+        : resolveRange({ from, to })
     return {
       currency: getSettings().currency,
       report,

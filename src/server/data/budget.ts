@@ -97,7 +97,9 @@ function activityByMonth(month: string): ByMonth {
 function envelope(
   month: string,
   assigned: Map<string, number> | undefined,
-  activity: Map<string, number> | undefined
+  activity: Map<string, number> | undefined,
+  /** Adds each earlier month's overspending here, by month. */
+  byMonth?: Map<string, number>
 ): { carried: number; lastMonth: number; overspentBefore: number } {
   const months = [...(assigned?.keys() ?? []), ...(activity?.keys() ?? [])]
   const previous = addMonths(month, -1)
@@ -110,7 +112,10 @@ function envelope(
         Math.max(0, available) +
         (assigned?.get(m) ?? 0) +
         (activity?.get(m) ?? 0)
-      overspentBefore += Math.max(0, -available)
+      const overspent = Math.max(0, -available)
+      overspentBefore += overspent
+      if (byMonth && overspent)
+        byMonth.set(m, (byMonth.get(m) ?? 0) + overspent)
     }
     lastMonth = Math.max(0, -available)
   }
@@ -176,6 +181,22 @@ export function getBudgetMonth(month: string): BudgetMonth {
     firstMonth: firstBudgetMonth(),
     groups,
   }
+}
+
+/**
+ * Every month before `month` with overspending, and how much (positive): what
+ * the next month's Ready to assign covers.
+ */
+export function overspendingByMonth(month: string): Map<string, number> {
+  const assigned = assignedByMonth(month)
+  const activity = activityByMonth(month)
+  const out = new Map<string, number>()
+  for (const group of listCategoryGroups()) {
+    if (group.isIncome) continue
+    for (const c of group.categories)
+      envelope(month, assigned.get(c.id), activity.get(c.id), out)
+  }
+  return out
 }
 
 /** Sets the amount assigned to an expense category in a month (0 clears it). */

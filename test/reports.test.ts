@@ -147,7 +147,7 @@ describe("cash flow report", () => {
     const report = data.cashFlowReport()
     expect(report.months).toHaveLength(12)
     report.months.forEach((m, i) => {
-      expect(m.net).toBe(m.inflow - m.outflow)
+      expect(m.net).toBe(m.inflow - m.outflow + m.transfers)
       expect(m.ending).toBe(m.starting + m.net)
       if (i) expect(m.starting).toBe(report.months[i - 1].ending)
     })
@@ -157,7 +157,7 @@ describe("cash flow report", () => {
     expect(report.months.at(-1)!.ending).toBe(sum(cash.map((a) => a.balance)))
   })
 
-  test("paying the card is money out; moving to savings is not", () => {
+  test("paying the card is a transfer, not money out; moving to savings is neither", () => {
     const month = addMonths(today().slice(0, 7), -1)
     const range = { from: month + "-01", to: monthEnd(month) }
     const current = data.cashFlowReport({
@@ -169,7 +169,8 @@ describe("cash flow report", () => {
       accountIds: [accountId("Current account"), accountId("Savings")],
     }).months[0]
     // The 300.00 to savings leaves the current account but stays in cash.
-    expect(current.outflow - both.outflow).toBe(30_000)
+    expect(current.outflow).toBe(both.outflow)
+    expect(both.transfers - current.transfers).toBe(30_000)
     const card = data.listTransactions({
       accountId: accountId("Credit card"),
       ...range,
@@ -178,16 +179,17 @@ describe("cash flow report", () => {
       (t) => t.transferAccountId === accountId("Current account")
     )!
     expect(payment.amount).toBeGreaterThan(0)
-    expect(both.outflow).toBeGreaterThanOrEqual(payment.amount)
+    expect(both.transfers).toBeLessThanOrEqual(-payment.amount)
   })
 
   test("the old summary agrees with the report", () => {
     const report = data.cashFlowReport()
     expect(data.cashFlow()).toEqual(
-      report.months.map(({ month, inflow, outflow, net }) => ({
+      report.months.map(({ month, inflow, outflow, transfers, net }) => ({
         month,
         inflow,
         outflow,
+        transfers,
         net,
       }))
     )
