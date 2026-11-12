@@ -37,7 +37,7 @@ const commands: Record<string, (args: string[]) => Promise<void> | void> = {
   password,
   "setup-code": setupCode,
   service: async (args) => (await import("./cli/service")).service(args),
-  mcp: () => notYet("mcp"),
+  mcp: async () => (await import("./server/mcp/stdio")).serveStdio(),
   help: () => console.log(HELP),
 }
 
@@ -150,11 +150,6 @@ function seed() {
   console.log(
     `Added ${result.accounts} accounts and ${result.transactions} transactions over ${result.months} months.`
   )
-}
-
-function notYet(command: string) {
-  console.error(`florin ${command}: not implemented yet`)
-  process.exitCode = 2
 }
 
 const [name = "help", ...args] = process.argv.slice(2)

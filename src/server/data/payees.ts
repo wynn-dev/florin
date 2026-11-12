@@ -39,7 +39,7 @@ export function getPayee(id: number): Payee {
       .from(payees)
       .where(eq(payees.id, id))
       .get(),
-    "payee"
+    `payee ${id}`
   )
 }
 

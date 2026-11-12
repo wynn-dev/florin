@@ -73,6 +73,42 @@ rm -rf ~/.local/share/florin ~/.local/bin/florin
 
 That leaves your data in `~/.florin`; remove that folder too to delete it.
 
+## Connecting an MCP client
+
+florin's MCP server lets agents read and work the whole budget: accounts,
+transactions (including bulk categorising, transfers and imports), budgets,
+categories, payees, reports and the change log. Every change an agent makes is
+recorded under its name. Start an agent with the `overview` tool.
+
+**Over HTTP**, on the running florin at `/mcp`: create an access token in
+Settings (it is shown once), then give your client the address and the token as
+a bearer header. Changes are recorded as `mcp:<token name>`; deleting the token
+cuts the client off.
+
+```json
+{
+  "mcpServers": {
+    "florin": {
+      "type": "http",
+      "url": "http://127.0.0.1:4680/mcp",
+      "headers": { "Authorization": "Bearer florin_…" }
+    }
+  }
+}
+```
+
+**Over stdio**, for a client on the same machine: `florin mcp` opens florin's
+database directly (whether or not the service is running) and needs no token.
+Changes are recorded as `mcp:<the client's name>`.
+
+```json
+{
+  "mcpServers": {
+    "florin": { "command": "florin", "args": ["mcp"] }
+  }
+}
+```
+
 ## Development
 
 You need Node 24 and pnpm. florin runs on Node; pnpm is its only package manager.
@@ -113,6 +149,8 @@ in a temporary folder) and `pnpm build`. CI runs all four on every pull request.
 - `src/server/secrets.ts` – connector credentials, kept in `config.json` (0600),
   never in the database or any API answer.
 - `src/routes/api/` – the REST API; `src/routes/mcp.ts` – the MCP endpoint.
+- `src/server/mcp/` – the MCP server. Each tool is a `defineTool` in
+  `tools/`, listed in `tools/index.ts`; HTTP and stdio serve the same list.
 - `src/routes/_app/` – dashboard pages; `src/components/ui/` – shadcn/ui components.
 - `src/lib/format.ts` – every amount and date the dashboard shows; pages
   never call Intl themselves. `src/components/` – the shared parts pages build

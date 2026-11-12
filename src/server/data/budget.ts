@@ -172,6 +172,90 @@ export function setBudgetAmounts(
   return getBudgetMonth(month)
 }
 
+/** Money moved from one category's envelope to another's in a month. */
+export type BudgetMove = {
+  fromCategoryId: number
+  toCategoryId: number
+  amount: number
+}
+
+/**
+ * Moves money between categories in a month: lowers what is assigned to each
+ * `from` category and raises its `to` category by the same amount, so "to
+ * budget" is unchanged. All moves happen together or not at all.
+ */
+export function moveBudgetAmounts(
+  actor: Actor,
+  month: string,
+  moves: BudgetMove[]
+): BudgetMonth {
+  checkMonth(month)
+  const groups = listCategoryGroups()
+  const currency = getSettings().currency
+  const expense = (id: unknown, field: string) => {
+    if (!Number.isSafeInteger(id))
+      throw new InvalidInput(`${field} must be a category id`)
+    const category = getCategory(id as number)
+    if (groups.find((g) => g.id === category.groupId)!.isIncome)
+      throw new InvalidInput(
+        `${category.name} is an income category; money moves between expense categories`
+      )
+    return category
+  }
+  const checked = checkList(moves, "moves").map((move) => {
+    checkObject(move, "each move")
+    const from = expense(move.fromCategoryId, "fromCategoryId")
+    const to = expense(move.toCategoryId, "toCategoryId")
+    if (from.id === to.id)
+      throw new InvalidInput("a move needs two different categories")
+    const amount = checkAmount(move.amount)
+    if (amount <= 0)
+      throw new InvalidInput(
+        "amount must be positive; swap from and to instead"
+      )
+    return { from, to, amount }
+  })
+  db().transaction((tx) => {
+    const add = (categoryId: number, delta: number) => {
+      const current =
+        tx
+          .select({ amount: budgets.amount })
+          .from(budgets)
+          .where(
+            and(eq(budgets.month, month), eq(budgets.categoryId, categoryId))
+          )
+          .get()?.amount ?? 0
+      const amount = current + delta
+      if (amount === 0) {
+        tx.delete(budgets)
+          .where(
+            and(eq(budgets.month, month), eq(budgets.categoryId, categoryId))
+          )
+          .run()
+      } else {
+        tx.insert(budgets)
+          .values({ month, categoryId, amount })
+          .onConflictDoUpdate({
+            target: [budgets.month, budgets.categoryId],
+            set: { amount },
+          })
+          .run()
+      }
+    }
+    for (const { from, to, amount } of checked) {
+      add(from.id, -amount)
+      add(to.id, amount)
+      logChange(tx, actor, {
+        action: "update",
+        entity: "budget",
+        entityId: to.id,
+        summary: `Moved ${money(amount, currency)} from ${from.name} to ${to.name} in ${month}`,
+      })
+    }
+  })
+  return getBudgetMonth(month)
+}
+
 function sum(values: number[]): number {
   return values.reduce((a, b) => a + b, 0)
 }

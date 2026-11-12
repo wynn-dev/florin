@@ -1,6 +1,6 @@
 // Currency conversion for accounts outside the budget's currency. Rates are
 // stored the way the ECB publishes them: units of a currency per 1 EUR.
-import { and, desc, eq, lte } from "drizzle-orm"
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm"
 import { db, schema } from "../db"
 import { logChange } from "./changes"
 import { checkDate, InvalidInput } from "./validate"
@@ -84,4 +84,41 @@ export function saveFxRates(actor: Actor | null, rates: FxRate[]): void {
       })
     }
   })
+}
+
+/**
+ * Stored rates, newest first: for one currency over a date range, or without
+ * a currency the latest rate of each.
+ */
+export function listFxRates(
+  options: {
+    currency?: string
+    from?: string
+    to?: string
+    limit?: number
+  } = {}
+): FxRate[] {
+  const limit = Math.min(Math.max(options.limit ?? 100, 1), 1000)
+  const where = and(
+    options.currency === undefined
+      ? sql`${fxRates.date} = (select max(r.date) from ${fxRates} r where r.currency = ${fxRates.currency})`
+      : eq(fxRates.currency, checkCurrency(options.currency)),
+    options.from === undefined
+      ? undefined
+      : gte(fxRates.date, checkDate(options.from, "from")),
+    options.to === undefined
+      ? undefined
+      : lte(fxRates.date, checkDate(options.to, "to"))
+  )
+  return db()
+    .select({
+      date: fxRates.date,
+      currency: fxRates.currency,
+      rate: fxRates.rate,
+    })
+    .from(fxRates)
+    .where(where)
+    .orderBy(desc(fxRates.date), fxRates.currency)
+    .limit(limit)
+    .all()
 }
