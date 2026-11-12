@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { spendingByCategory } from "@/server/data"
+import { spendingReport, reportQuery } from "@/server/data"
 import { query, respond } from "@/server/http"
 
-/** ?from=YYYY-MM-DD&to=YYYY-MM-DD, by default the last twelve months. */
+/** Spending by group and category, against the period before. ?from, to, all, accounts as for net-worth. */
 export const Route = createFileRoute("/api/reports/spending")({
   server: {
     handlers: {
-      GET: ({ request }) => respond(() => spendingByCategory(query(request))),
+      GET: ({ request }) =>
+        respond(() => spendingReport(reportQuery(query(request)))),
     },
   },
 })

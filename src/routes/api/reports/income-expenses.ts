@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { incomeVsExpenses } from "@/server/data"
+import { incomeExpenseReport, reportQuery } from "@/server/data"
 import { query, respond } from "@/server/http"
 
-/** ?from=YYYY-MM-DD&to=YYYY-MM-DD, by default the last twelve months. */
+/** Income and expenses per month. ?from, to, all, accounts as for net-worth. */
 export const Route = createFileRoute("/api/reports/income-expenses")({
   server: {
     handlers: {
-      GET: ({ request }) => respond(() => incomeVsExpenses(query(request))),
+      GET: ({ request }) =>
+        respond(() => incomeExpenseReport(reportQuery(query(request)))),
     },
   },
 })

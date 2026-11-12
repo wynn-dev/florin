@@ -1,214 +1,91 @@
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
-import type { ChartConfig } from "@/components/ui/chart"
+import { Link, createFileRoute } from "@tanstack/react-router"
+import { AccountsList } from "@/components/overview/accounts-list"
+import { live } from "@/components/overview/live"
+import { NeedsAttention } from "@/components/overview/needs-attention"
+import { NetWorth } from "@/components/overview/net-worth"
+import { RecentActivity } from "@/components/overview/recent-activity"
+import { SpendingThisMonth } from "@/components/overview/spending-this-month"
+import { ThisMonth } from "@/components/overview/this-month"
 import { Page } from "@/components/page"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart"
-import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/states"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { queries } from "@/lib/api"
-import { formatMoney, formatMonth, formatMonthTick } from "@/lib/format"
 
-export const Route = createFileRoute("/_app/")({ component: Overview })
+export const Route = createFileRoute("/_app/")({
+  loader: ({ context: { queryClient } }) => {
+    void queryClient.prefetchQuery(queries.settings())
+    void queryClient.prefetchQuery(queries.accounts())
+  },
+  component: Overview,
+})
 
-const chartConfig = {
-  netWorth: { label: "Net worth", color: "var(--foreground)" },
-} satisfies ChartConfig
-
+/**
+ * Where the person stands and what changed. Desktop: net worth beside this
+ * month and Needs attention, then spending beside accounts, then recent
+ * activity. Phone: one column, net worth, Needs attention, activity,
+ * spending, accounts. Everything refetches on focus and every 30 s.
+ */
 function Overview() {
-  const currency = useQuery(queries.settings()).data?.currency ?? "EUR"
-  const netWorth = useQuery(queries.netWorth())
-  const accounts = useQuery(queries.accounts())
-  const month = new Date().toISOString().slice(0, 7)
-  const budget = useQuery(queries.budget(month))
-  const latest = netWorth.data?.at(-1)
-  const yearAgo = netWorth.data?.[0]
+  const currency = useQuery(queries.settings()).data?.currency
+  const accounts = useQuery({ ...queries.accounts(), ...live })
+
+  if (accounts.data && !accounts.data.length)
+    return (
+      <Page title="Overview">
+        <EmptyState title="Add an account to get started" className="py-24">
+          <Button asChild>
+            <Link to="/accounts" search={{ add: "choose" } as never}>
+              Add account
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/accounts" search={{ add: "bank" } as never}>
+              Connect a bank
+            </Link>
+          </Button>
+        </EmptyState>
+      </Page>
+    )
 
   return (
     <Page title="Overview">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Stat
-          label="Net worth"
-          value={latest && formatMoney(latest.netWorth, currency)}
-        >
-          {latest && yearAgo && (
-            <Change
-              from={yearAgo.netWorth}
-              to={latest.netWorth}
-              currency={currency}
-            />
-          )}
-        </Stat>
-        <Stat
-          label={`To budget in ${formatMonthTick(month)}`}
-          value={budget.data && formatMoney(budget.data.toBudget, currency)}
-        />
-        <Stat
-          label={`Spent in ${formatMonthTick(month)}`}
-          value={budget.data && formatMoney(-budget.data.activity, currency)}
-        />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Net worth</CardTitle>
-          <CardDescription>
-            End of each month, last twelve months
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {netWorth.data ? (
-            <ChartContainer
-              config={chartConfig}
-              className="aspect-auto h-64 w-full"
-            >
-              <AreaChart data={netWorth.data} margin={{ left: 4, right: 4 }}>
-                <defs>
-                  <linearGradient id="fillNetWorth" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="0%"
-                      stopColor="var(--color-netWorth)"
-                      stopOpacity={0.12}
-                    />
-                    <stop
-                      offset="100%"
-                      stopColor="var(--color-netWorth)"
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tickFormatter={(m: string) => formatMonthTick(m)}
-                />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  width={64}
-                  tickFormatter={(v: number) =>
-                    formatMoney(v, currency, { compact: true })
-                  }
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={(_, payload) =>
-                        formatMonth(String(payload[0]?.payload.month))
-                      }
-                      formatter={(value) => (
-                        <span className="font-medium tabular-nums">
-                          {formatMoney(Number(value), currency)}
-                        </span>
-                      )}
-                    />
-                  }
-                />
-                <Area
-                  dataKey="netWorth"
-                  type="monotone"
-                  stroke="var(--color-netWorth)"
-                  strokeWidth={2}
-                  fill="url(#fillNetWorth)"
-                />
-              </AreaChart>
-            </ChartContainer>
-          ) : (
-            <Skeleton className="h-64 w-full" />
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Accounts</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col">
-          {accounts.data?.map((a) => (
-            <div
-              key={a.id}
-              className="flex items-center justify-between border-b py-2.5 text-sm last:border-0"
-            >
-              <div className="flex flex-col">
-                <span className="font-medium">{a.name}</span>
-                <span className="text-xs text-muted-foreground capitalize">
-                  {a.type}
-                  {!a.onBudget && " · tracking"}
-                </span>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="tabular-nums">
-                  {formatMoney(a.balance, a.currency)}
-                </span>
-                {a.currency !== currency && a.budgetBalance !== null && (
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    ≈ {formatMoney(a.budgetBalance, currency)}
-                  </span>
-                )}
-              </div>
-            </div>
-          )) ?? <Skeleton className="h-40 w-full" />}
-        </CardContent>
-      </Card>
-    </Page>
-  )
-}
-
-function Stat({
-  label,
-  value,
-  children,
-}: {
-  label: string
-  value?: string
-  children?: React.ReactNode
-}) {
-  return (
-    <Card className="gap-1 py-5">
-      <CardHeader className="px-5">
-        <CardDescription>{label}</CardDescription>
-      </CardHeader>
-      <CardContent className="px-5">
-        {value ? (
-          <div className="text-2xl font-semibold tracking-tight tabular-nums">
-            {value}
+      {currency && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-8">
+            <NetWorth currency={currency} />
           </div>
-        ) : (
-          <Skeleton className="h-8 w-32" />
-        )}
-        {children}
-      </CardContent>
-    </Card>
-  )
-}
-
-function Change({
-  from,
-  to,
-  currency,
-}: {
-  from: number
-  to: number
-  currency: string
-}) {
-  const diff = to - from
-  return (
-    <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-      {diff >= 0 ? "+" : "−"}
-      {formatMoney(Math.abs(diff), currency)} over twelve months
-    </p>
+          <Card className="gap-0 py-5 shadow-none lg:col-span-4">
+            <CardContent className="flex flex-col gap-5 px-5">
+              <ThisMonth currency={currency} />
+              <Separator />
+              <NeedsAttention />
+            </CardContent>
+          </Card>
+          <div className="order-last lg:order-none lg:col-span-8">
+            <SpendingThisMonth currency={currency} />
+          </div>
+          <div className="order-last lg:order-none lg:col-span-4">
+            <AccountsList currency={currency} />
+          </div>
+          <section className="flex flex-col gap-2 lg:col-span-12">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium">Recent activity</h2>
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto px-0 text-muted-foreground hover:text-foreground"
+                asChild
+              >
+                <Link to={"/activity" as never}>View all</Link>
+              </Button>
+            </div>
+            <RecentActivity limit={8} />
+          </section>
+        </div>
+      )}
+    </Page>
   )
 }

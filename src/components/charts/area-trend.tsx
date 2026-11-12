@@ -36,6 +36,7 @@ export function AreaTrend<T extends Row>({
   currency,
   height = 240,
   xFormat = "month",
+  xTicks,
   baseline = "zero",
   fill = series.length === 1,
   endLabel = false,
@@ -53,6 +54,8 @@ export function AreaTrend<T extends Row>({
   /** Pixels, axis band included. */
   height?: number
   xFormat?: XFormat
+  /** The x values to tick, e.g. days 1, 8, 15, 22, 29; by default "month" ticks once a month and others space themselves. */
+  xTicks?: (string | number)[]
   /** "zero" starts the y axis at 0; "auto" fits it to the data (an investment's value). */
   baseline?: "zero" | "auto"
   /** The flat 10% fill under the first series; on by default for one series. */
@@ -71,9 +74,10 @@ export function AreaTrend<T extends Row>({
   while (lastIndex >= 0 && typeof data[lastIndex][first] !== "number")
     lastIndex--
   const ticks =
-    xFormat === "month"
+    xTicks ??
+    (xFormat === "month"
       ? monthTicks(data.map((row) => row[x] as string))
-      : undefined
+      : undefined)
 
   const xKey: string = x
   return (

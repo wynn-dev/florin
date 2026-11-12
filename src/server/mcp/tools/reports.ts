@@ -27,7 +27,7 @@ export const getReport = defineTool({
   name: "get_report",
   title: "Read a report",
   description:
-    "A report over a date range (default the last twelve months), in the budget's currency as integer minor units. net_worth: assets, debts and net worth at each month end, accounts in other currencies converted at that date's rate. spending: money spent per expense category over the range, largest first, as positive numbers. income_expenses: income and expenses (positive) per month. cash_flow: money in, money out (positive) and net per month. All but net_worth count on-budget accounts only, and leave out opening balances and transfers between on-budget accounts.",
+    "A report over a date range (default the last twelve months), in the budget's currency as integer minor units. net_worth: assets, debts and net worth at each month end, accounts in other currencies converted at that date's rate. spending: money spent per expense category over the range, largest first, as positive numbers. income_expenses: income and expenses (positive) per month. cash_flow: money in, money out (positive) and net per month of the cash accounts (on-budget checking, savings and cash): paying a card or investing is money out, moving money between two cash accounts is none. spending and income_expenses count on-budget accounts only. All leave out opening balances, and spending and income_expenses leave out transfers between on-budget accounts.",
   input: {
     report: z.enum(["net_worth", "spending", "income_expenses", "cash_flow"]),
     from: zDate.optional(),

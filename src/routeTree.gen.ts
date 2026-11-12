@@ -15,11 +15,13 @@ import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountsRouteImport } from './routes/_app/accounts'
 import { Route as AppBudgetRouteImport } from './routes/_app/budget'
-import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppTransactionsRouteImport } from './routes/_app/transactions'
 import { Route as ApiActivityRouteImport } from './routes/api/activity'
+import { Route as ApiAttentionRouteImport } from './routes/api/attention'
 import { Route as ApiSessionRouteImport } from './routes/api/session'
 import { Route as ApiSettingsRouteImport } from './routes/api/settings'
+import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
+import { Route as AppReportsReportRouteImport } from './routes/_app/reports/$report'
 import { Route as ApiAccountsIndexRouteImport } from './routes/api/accounts/index'
 import { Route as ApiCategoriesIndexRouteImport } from './routes/api/categories/index'
 import { Route as ApiCategoriesIdRouteImport } from './routes/api/categories/$id'
@@ -35,6 +37,7 @@ import { Route as ApiReportsCashFlowRouteImport } from './routes/api/reports/cas
 import { Route as ApiReportsIncomeExpensesRouteImport } from './routes/api/reports/income-expenses'
 import { Route as ApiReportsNetWorthRouteImport } from './routes/api/reports/net-worth'
 import { Route as ApiReportsSpendingRouteImport } from './routes/api/reports/spending'
+import { Route as ApiReportsSpendingByDayRouteImport } from './routes/api/reports/spending-by-day'
 import { Route as ApiTransactionsIndexRouteImport } from './routes/api/transactions/index'
 import { Route as ApiTransactionsIdRouteImport } from './routes/api/transactions/$id'
 import { Route as ApiAccountsIdIndexRouteImport } from './routes/api/accounts/$id/index'
@@ -78,11 +81,6 @@ const AppBudgetRoute = AppBudgetRouteImport.update({
   path: '/budget',
   getParentRoute: () => AppRoute,
 } as any)
-const AppReportsRoute = AppReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppTransactionsRoute = AppTransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
@@ -91,6 +89,11 @@ const AppTransactionsRoute = AppTransactionsRouteImport.update({
 const ApiActivityRoute = ApiActivityRouteImport.update({
   id: '/api/activity',
   path: '/api/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAttentionRoute = ApiAttentionRouteImport.update({
+  id: '/api/attention',
+  path: '/api/attention',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSessionRoute = ApiSessionRouteImport.update({
@@ -102,6 +105,16 @@ const ApiSettingsRoute = ApiSettingsRouteImport.update({
   id: '/api/settings',
   path: '/api/settings',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
+  id: '/reports/',
+  path: '/reports/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsReportRoute = AppReportsReportRouteImport.update({
+  id: '/reports/$report',
+  path: '/reports/$report',
+  getParentRoute: () => AppRoute,
 } as any)
 const ApiAccountsIndexRoute = ApiAccountsIndexRouteImport.update({
   id: '/api/accounts/',
@@ -179,6 +192,11 @@ const ApiReportsSpendingRoute = ApiReportsSpendingRouteImport.update({
   path: '/api/reports/spending',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiReportsSpendingByDayRoute = ApiReportsSpendingByDayRouteImport.update({
+  id: '/api/reports/spending-by-day',
+  path: '/api/reports/spending-by-day',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTransactionsIndexRoute = ApiTransactionsIndexRouteImport.update({
   id: '/api/transactions/',
   path: '/api/transactions/',
@@ -252,11 +270,12 @@ export interface FileRoutesByFullPath {
   '/mcp': typeof McpRoute
   '/accounts': typeof AppAccountsRoute
   '/budget': typeof AppBudgetRoute
-  '/reports': typeof AppReportsRoute
   '/transactions': typeof AppTransactionsRoute
   '/api/activity': typeof ApiActivityRoute
+  '/api/attention': typeof ApiAttentionRoute
   '/api/session': typeof ApiSessionRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/reports/$report': typeof AppReportsReportRoute
   '/api/categories/$id': typeof ApiCategoriesIdRoute
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
   '/api/fx/refresh': typeof ApiFxRefreshRoute
@@ -266,7 +285,9 @@ export interface FileRoutesByFullPath {
   '/api/reports/income-expenses': typeof ApiReportsIncomeExpensesRoute
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
   '/api/reports/spending': typeof ApiReportsSpendingRoute
+  '/api/reports/spending-by-day': typeof ApiReportsSpendingByDayRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
+  '/reports/': typeof AppReportsIndexRoute
   '/api/accounts/': typeof ApiAccountsIndexRoute
   '/api/categories/': typeof ApiCategoriesIndexRoute
   '/api/category-groups/': typeof ApiCategoryGroupsIndexRoute
@@ -291,12 +312,13 @@ export interface FileRoutesByTo {
   '/mcp': typeof McpRoute
   '/accounts': typeof AppAccountsRoute
   '/budget': typeof AppBudgetRoute
-  '/reports': typeof AppReportsRoute
   '/transactions': typeof AppTransactionsRoute
   '/api/activity': typeof ApiActivityRoute
+  '/api/attention': typeof ApiAttentionRoute
   '/api/session': typeof ApiSessionRoute
   '/api/settings': typeof ApiSettingsRoute
   '/': typeof AppIndexRoute
+  '/reports/$report': typeof AppReportsReportRoute
   '/api/categories/$id': typeof ApiCategoriesIdRoute
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
   '/api/fx/refresh': typeof ApiFxRefreshRoute
@@ -306,7 +328,9 @@ export interface FileRoutesByTo {
   '/api/reports/income-expenses': typeof ApiReportsIncomeExpensesRoute
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
   '/api/reports/spending': typeof ApiReportsSpendingRoute
+  '/api/reports/spending-by-day': typeof ApiReportsSpendingByDayRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
+  '/reports': typeof AppReportsIndexRoute
   '/api/accounts': typeof ApiAccountsIndexRoute
   '/api/categories': typeof ApiCategoriesIndexRoute
   '/api/category-groups': typeof ApiCategoryGroupsIndexRoute
@@ -333,12 +357,13 @@ export interface FileRoutesById {
   '/mcp': typeof McpRoute
   '/_app/accounts': typeof AppAccountsRoute
   '/_app/budget': typeof AppBudgetRoute
-  '/_app/reports': typeof AppReportsRoute
   '/_app/transactions': typeof AppTransactionsRoute
   '/api/activity': typeof ApiActivityRoute
+  '/api/attention': typeof ApiAttentionRoute
   '/api/session': typeof ApiSessionRoute
   '/api/settings': typeof ApiSettingsRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/reports/$report': typeof AppReportsReportRoute
   '/api/categories/$id': typeof ApiCategoriesIdRoute
   '/api/category-groups/$id': typeof ApiCategoryGroupsIdRoute
   '/api/fx/refresh': typeof ApiFxRefreshRoute
@@ -348,7 +373,9 @@ export interface FileRoutesById {
   '/api/reports/income-expenses': typeof ApiReportsIncomeExpensesRoute
   '/api/reports/net-worth': typeof ApiReportsNetWorthRoute
   '/api/reports/spending': typeof ApiReportsSpendingRoute
+  '/api/reports/spending-by-day': typeof ApiReportsSpendingByDayRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
+  '/_app/reports/': typeof AppReportsIndexRoute
   '/api/accounts/': typeof ApiAccountsIndexRoute
   '/api/categories/': typeof ApiCategoriesIndexRoute
   '/api/category-groups/': typeof ApiCategoryGroupsIndexRoute
@@ -376,11 +403,12 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/accounts'
     | '/budget'
-    | '/reports'
     | '/transactions'
     | '/api/activity'
+    | '/api/attention'
     | '/api/session'
     | '/api/settings'
+    | '/reports/$report'
     | '/api/categories/$id'
     | '/api/category-groups/$id'
     | '/api/fx/refresh'
@@ -390,7 +418,9 @@ export interface FileRouteTypes {
     | '/api/reports/income-expenses'
     | '/api/reports/net-worth'
     | '/api/reports/spending'
+    | '/api/reports/spending-by-day'
     | '/api/transactions/$id'
+    | '/reports/'
     | '/api/accounts/'
     | '/api/categories/'
     | '/api/category-groups/'
@@ -415,12 +445,13 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/accounts'
     | '/budget'
-    | '/reports'
     | '/transactions'
     | '/api/activity'
+    | '/api/attention'
     | '/api/session'
     | '/api/settings'
     | '/'
+    | '/reports/$report'
     | '/api/categories/$id'
     | '/api/category-groups/$id'
     | '/api/fx/refresh'
@@ -430,7 +461,9 @@ export interface FileRouteTypes {
     | '/api/reports/income-expenses'
     | '/api/reports/net-worth'
     | '/api/reports/spending'
+    | '/api/reports/spending-by-day'
     | '/api/transactions/$id'
+    | '/reports'
     | '/api/accounts'
     | '/api/categories'
     | '/api/category-groups'
@@ -456,12 +489,13 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/_app/accounts'
     | '/_app/budget'
-    | '/_app/reports'
     | '/_app/transactions'
     | '/api/activity'
+    | '/api/attention'
     | '/api/session'
     | '/api/settings'
     | '/_app/'
+    | '/_app/reports/$report'
     | '/api/categories/$id'
     | '/api/category-groups/$id'
     | '/api/fx/refresh'
@@ -471,7 +505,9 @@ export interface FileRouteTypes {
     | '/api/reports/income-expenses'
     | '/api/reports/net-worth'
     | '/api/reports/spending'
+    | '/api/reports/spending-by-day'
     | '/api/transactions/$id'
+    | '/_app/reports/'
     | '/api/accounts/'
     | '/api/categories/'
     | '/api/category-groups/'
@@ -497,6 +533,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
   ApiActivityRoute: typeof ApiActivityRoute
+  ApiAttentionRoute: typeof ApiAttentionRoute
   ApiSessionRoute: typeof ApiSessionRoute
   ApiSettingsRoute: typeof ApiSettingsRoute
   ApiCategoriesIdRoute: typeof ApiCategoriesIdRoute
@@ -508,6 +545,7 @@ export interface RootRouteChildren {
   ApiReportsIncomeExpensesRoute: typeof ApiReportsIncomeExpensesRoute
   ApiReportsNetWorthRoute: typeof ApiReportsNetWorthRoute
   ApiReportsSpendingRoute: typeof ApiReportsSpendingRoute
+  ApiReportsSpendingByDayRoute: typeof ApiReportsSpendingByDayRoute
   ApiTransactionsIdRoute: typeof ApiTransactionsIdRoute
   ApiAccountsIndexRoute: typeof ApiAccountsIndexRoute
   ApiCategoriesIndexRoute: typeof ApiCategoriesIndexRoute
@@ -573,13 +611,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBudgetRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/reports': {
-      id: '/_app/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof AppReportsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/transactions': {
       id: '/_app/transactions'
       path: '/transactions'
@@ -592,6 +623,13 @@ declare module '@tanstack/react-router' {
       path: '/api/activity'
       fullPath: '/api/activity'
       preLoaderRoute: typeof ApiActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/attention': {
+      id: '/api/attention'
+      path: '/api/attention'
+      fullPath: '/api/attention'
+      preLoaderRoute: typeof ApiAttentionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/session': {
@@ -607,6 +645,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/settings'
       preLoaderRoute: typeof ApiSettingsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/reports/': {
+      id: '/_app/reports/'
+      path: '/reports'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof AppReportsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reports/$report': {
+      id: '/_app/reports/$report'
+      path: '/reports/$report'
+      fullPath: '/reports/$report'
+      preLoaderRoute: typeof AppReportsReportRouteImport
+      parentRoute: typeof AppRoute
     }
     '/api/accounts/': {
       id: '/api/accounts/'
@@ -713,6 +765,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiReportsSpendingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/reports/spending-by-day': {
+      id: '/api/reports/spending-by-day'
+      path: '/api/reports/spending-by-day'
+      fullPath: '/api/reports/spending-by-day'
+      preLoaderRoute: typeof ApiReportsSpendingByDayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/transactions/': {
       id: '/api/transactions/'
       path: '/api/transactions'
@@ -810,17 +869,19 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAccountsRoute: typeof AppAccountsRoute
   AppBudgetRoute: typeof AppBudgetRoute
-  AppReportsRoute: typeof AppReportsRoute
   AppTransactionsRoute: typeof AppTransactionsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppReportsReportRoute: typeof AppReportsReportRoute
+  AppReportsIndexRoute: typeof AppReportsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountsRoute: AppAccountsRoute,
   AppBudgetRoute: AppBudgetRoute,
-  AppReportsRoute: AppReportsRoute,
   AppTransactionsRoute: AppTransactionsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppReportsReportRoute: AppReportsReportRoute,
+  AppReportsIndexRoute: AppReportsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -830,6 +891,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
   ApiActivityRoute: ApiActivityRoute,
+  ApiAttentionRoute: ApiAttentionRoute,
   ApiSessionRoute: ApiSessionRoute,
   ApiSettingsRoute: ApiSettingsRoute,
   ApiCategoriesIdRoute: ApiCategoriesIdRoute,
@@ -841,6 +903,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiReportsIncomeExpensesRoute: ApiReportsIncomeExpensesRoute,
   ApiReportsNetWorthRoute: ApiReportsNetWorthRoute,
   ApiReportsSpendingRoute: ApiReportsSpendingRoute,
+  ApiReportsSpendingByDayRoute: ApiReportsSpendingByDayRoute,
   ApiTransactionsIdRoute: ApiTransactionsIdRoute,
   ApiAccountsIndexRoute: ApiAccountsIndexRoute,
   ApiCategoriesIndexRoute: ApiCategoriesIndexRoute,
@@ -864,3 +927,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

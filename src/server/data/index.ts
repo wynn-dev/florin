@@ -3,6 +3,7 @@
 // synchronous (node:sqlite), so a write can't interleave with another
 // request, and multi-row writes run in one SQLite transaction.
 export * from "./accounts"
+export * from "./attention"
 export * from "./budget"
 export * from "./categories"
 export * from "./changes"
