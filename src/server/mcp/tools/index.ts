@@ -8,6 +8,7 @@ import {
   saveCategory,
   saveCategoryGroup,
 } from "./categories"
+import { listBankLinksTool, syncBanks } from "./banks"
 import { ibkrPull, ibkrStatus } from "./ibkr"
 import { overview } from "./overview"
 import { listPayeesTool, mergePayeesTool, renamePayeeTool } from "./payees"
@@ -47,6 +48,9 @@ export const tools: FlorinTool[] = [
   listAccountsTool,
   saveAccount,
   deleteAccountTool,
+  // Bank sync
+  listBankLinksTool,
+  syncBanks,
   // Payees
   listPayeesTool,
   renamePayeeTool,

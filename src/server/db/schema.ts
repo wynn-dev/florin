@@ -209,3 +209,4 @@ export const changes = sqliteTable(
 export * from "./schema-jobs"
 export * from "./schema-tokens"
 export * from "./schema-ibkr"
+export * from "./schema-enablebanking"
