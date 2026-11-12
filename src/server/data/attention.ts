@@ -310,13 +310,13 @@ function unassigned(): AttentionItem[] {
     .all()
     .filter((t) => income.has(t.categoryId!))
   // Each month's overspending comes out at the start of the next.
-  const overspent = [...overspendingByMonth(month)].map(([m, total]) => ({
+  const overspending = [...overspendingByMonth(month)].map(([m, total]) => ({
     date: `${addMonths(m, 1)}-01`,
     at: "",
     amount: -total,
   }))
   const since = lastCrossing(
-    [...assigned, ...received, ...overspent],
+    [...assigned, ...received, ...overspending],
     (b) => b > 0
   )
   if (!since) return []

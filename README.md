@@ -52,6 +52,31 @@ a bank, connect Interactive Brokers, or add one by hand); starter categories
 you can rename or untick; and an access token for an MCP client. Every step
 after the first can be skipped and done later in Settings.
 
+## The budget
+
+Each month you assign money to expense categories. A category's available
+amount is what it had left at the end of last month, plus what you assign this
+month, minus what you spend. Leftover carries into the next month; overspending
+doesn't: a category that ends a month below zero shows red in that month,
+starts the next one at zero, and the overspending comes out of the next
+month's Ready to assign instead. Cover it within the month (Move money, or
+Cover overspending on the category) and nothing comes out. Ready to assign is
+all income so far, minus everything assigned so far, minus the overspending of
+the months before; so a budget started after months of unbudgeted history
+starts clean rather than deep in the red.
+
+Moving money between your own accounts is a transfer: two linked
+transactions, one in each account, each in that account's currency. When both
+sides already came in on their own (from two banks, or from your bank and
+IBKR), link them rather than adding a transfer: select the two on the
+Transactions page and choose Link as transfer, or have an agent use
+`suggest_transfers` and `link_transfers`. Each keeps its bank details, so later
+syncs add nothing, and unlinking gives back the two rows. A transfer is never
+spending or income in Overview and Reports, whichever accounts it is between;
+the budget is different on purpose: a transfer to an off-budget account (an
+investment, say) given a category counts in that category, as money leaving
+the budget.
+
 ## The service
 
 ```sh
@@ -209,11 +234,11 @@ leaves empty. Manage them in Settings › Rules or with the MCP tools
 ## Connecting an MCP client
 
 florin's MCP server lets agents read and work the whole budget: accounts,
-transactions (including bulk categorising, transfers and imports), budgets,
-categories, payees, rules, reports, investments, the change log, and syncing banks
-and IBKR. Every change an agent makes is recorded under its name. Start an
-agent with the `overview` tool. It is HTTP only: there is no stdio mode and no
-`florin mcp` command.
+transactions (including bulk categorising, transfers, linking the two sides of
+a transfer and imports), budgets, categories, payees, rules, reports,
+investments, the change log, and syncing banks and IBKR. Every change an agent
+makes is recorded under its name. Start an agent with the `overview` tool. It
+is HTTP only: there is no stdio mode and no `florin mcp` command.
 
 The MCP is served over streamable HTTP by the running florin, at its public
 address (set in Settings) plus `/mcp`: `http://127.0.0.1:4680/mcp` locally, or
@@ -334,7 +359,7 @@ tarball with `install.sh` in a clean Debian container with no Node; CI runs it
 on every pull request.
 
 To release, set `version` in `package.json`, merge, then push a matching tag:
-`git tag v0.2.0 && git push origin v0.2.0`. The release workflow checks, builds,
+`git tag v0.3.0 && git push origin v0.3.0`. The release workflow checks, builds,
 packages, tests the installer and publishes the GitHub Release that
 `install.sh` downloads from.
 

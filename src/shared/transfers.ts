@@ -20,13 +20,15 @@ export function linkProblem(
   a: LinkCandidate,
   b: LinkCandidate,
   currency: (accountId: number) => string,
-  money: (amount: number, currency: string) => string
+  money: (amount: number, currency: string) => string,
+  /** How to name one of the two: "transaction 812" by default. */
+  name: (t: LinkCandidate) => string = (t) => `transaction ${t.id}`
 ): string | null {
   if (a.id === b.id) return "pick two different transactions"
   if (a.transferId !== null || b.transferId !== null)
     return a.transferId !== null && b.transferId !== null
       ? "both are already transfers"
-      : `transaction ${a.transferId !== null ? a.id : b.id} is already a transfer`
+      : `${name(a.transferId !== null ? a : b)} is already a transfer`
   if (a.accountId === b.accountId) return "both are in the same account"
   if (Math.sign(a.amount) * Math.sign(b.amount) !== -1)
     return "one must be money out and the other money in"

@@ -34,7 +34,7 @@ const { budgets, transactions, accounts, changes: changeLog } = schema
 /** Per category, per month ("YYYY-MM"): an amount. */
 type ByMonth = Map<number, Map<string, number>>
 
-function byMonth(
+function perMonth(
   rows: { categoryId: number | null; month: string; amount: number }[]
 ): ByMonth {
   const out: ByMonth = new Map()
@@ -49,7 +49,7 @@ function byMonth(
 
 /** What was assigned to each category in each month up to `month`. */
 function assignedByMonth(month: string): ByMonth {
-  return byMonth(
+  return perMonth(
     db()
       .select({
         categoryId: budgets.categoryId,
@@ -65,7 +65,7 @@ function assignedByMonth(month: string): ByMonth {
 /** Each category's activity (on-budget accounts) in each month up to `month`. */
 function activityByMonth(month: string): ByMonth {
   const m = sql<string>`substr(${transactions.date}, 1, 7)`
-  return byMonth(
+  return perMonth(
     db()
       .select({
         categoryId: transactions.categoryId,
@@ -99,7 +99,7 @@ function envelope(
   assigned: Map<string, number> | undefined,
   activity: Map<string, number> | undefined,
   /** Adds each earlier month's overspending here, by month. */
-  byMonth?: Map<string, number>
+  overspentIn?: Map<string, number>
 ): { carried: number; lastMonth: number; overspentBefore: number } {
   const months = [...(assigned?.keys() ?? []), ...(activity?.keys() ?? [])]
   const previous = addMonths(month, -1)
@@ -114,8 +114,8 @@ function envelope(
         (activity?.get(m) ?? 0)
       const overspent = Math.max(0, -available)
       overspentBefore += overspent
-      if (byMonth && overspent)
-        byMonth.set(m, (byMonth.get(m) ?? 0) + overspent)
+      if (overspentIn && overspent)
+        overspentIn.set(m, (overspentIn.get(m) ?? 0) + overspent)
     }
     lastMonth = Math.max(0, -available)
   }
@@ -379,7 +379,7 @@ export function getBudgetCategoryDetail(
     )
     .groupBy(sql`1`)
     .all()
-  const byMonth = new Map(rows.map((r) => [r.month, r.amount]))
+  const spentIn = new Map(rows.map((r) => [r.month, r.amount]))
   const last = db()
     .select()
     .from(changeLog)
@@ -401,7 +401,7 @@ export function getBudgetCategoryDetail(
     categoryId: category.id,
     history: monthsBetween(from, month).map((m) => ({
       month: m,
-      spent: 0 - (byMonth.get(m) ?? 0),
+      spent: 0 - (spentIn.get(m) ?? 0),
     })),
     lastChange: last
       ? {

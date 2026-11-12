@@ -30,16 +30,23 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { TransactionFilters } from "./filters"
 import { ImportCsvDialog } from "./import-csv-dialog"
 import { CategoryCell, TruncatedText, payeeText, transferText } from "./parts"
 import {
   transactionQueries,
   useDeleteTransactions,
+  useLinkTransfer,
   useUpdateTransactions,
 } from "./queries"
 import { hasFilters, toFilter } from "./search"
 import { TransactionSheet } from "./transaction-sheet"
+import { linkProblem } from "@/shared/transfers"
 import type { Account, Transaction, TransactionPage } from "@/shared/types"
 import type { TransactionSearch } from "./search"
 
@@ -132,6 +139,7 @@ export function TransactionsTable({
       )
     )
   const remove = useDeleteTransactions()
+  const link = useLinkTransfer()
 
   // One currency in the column: its code goes in the header and cells drop the symbol.
   const currencies = new Set(
@@ -234,6 +242,14 @@ export function TransactionsTable({
       {selected.size > 0 && !isMobile && (
         <BulkBar
           count={selected.size}
+          link={linkable(
+            rows.filter((t) => selected.has(t.id)),
+            accounts
+          )}
+          onLink={(pair) => {
+            link.mutate(pair)
+            setSelected(new Set())
+          }}
           onCategorise={(id) => {
             categorise([...selected], id)
             setSelected(new Set())
@@ -584,14 +600,40 @@ function RowMenu({
   )
 }
 
-/** "12 selected · Categorise · Delete · ✕", floating at the bottom centre. */
+/**
+ * With exactly two rows selected, whether they can be linked as one transfer:
+ * the pair, or why not. Undefined for any other number of rows.
+ */
+function linkable(
+  picked: Transaction[],
+  accounts: Map<number, Account>
+): { pair: [number, number] } | { why: string } | undefined {
+  if (picked.length !== 2) return undefined
+  const [a, b] = picked
+  const problem = linkProblem(
+    a,
+    b,
+    (id) => accounts.get(id)?.currency ?? "",
+    (amount, currency) => formatMoney(amount, currency),
+    () => "one of them"
+  )
+  return problem
+    ? { why: problem.charAt(0).toUpperCase() + problem.slice(1) }
+    : { pair: [a.id, b.id] }
+}
+
+/** "12 selected · Categorise · Delete · ✕", floating at the bottom centre; with two rows, Link as transfer too. */
 function BulkBar({
   count,
+  link,
+  onLink,
   onCategorise,
   onDelete,
   onClear,
 }: {
   count: number
+  link: ReturnType<typeof linkable>
+  onLink: (pair: [number, number]) => void
   onCategorise: (categoryId: number) => void
   onDelete: () => void
   onClear: () => void
@@ -620,6 +662,27 @@ function BulkBar({
           />
         </PopoverContent>
       </Popover>
+      {link &&
+        ("pair" in link ? (
+          <Button variant="ghost" onClick={() => onLink(link.pair)}>
+            Link as transfer
+          </Button>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {/* A disabled button gets no hover; its wrapper does. */}
+              <span
+                tabIndex={0}
+                className="rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <Button variant="ghost" disabled>
+                  Link as transfer
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top">{link.why}</TooltipContent>
+          </Tooltip>
+        ))}
       <Button variant="ghost" onClick={onDelete}>
         Delete
       </Button>
