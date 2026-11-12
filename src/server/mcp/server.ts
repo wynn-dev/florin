@@ -1,5 +1,5 @@
-// florin's MCP server: the same tools over streamable HTTP (/mcp, with an
-// access token) and stdio (`florin mcp`). Tools call the data layer directly.
+// florin's MCP server, served over streamable HTTP at /mcp (see http.ts).
+// Tools call the data layer directly.
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { annotations, callTool } from "./tool"
 import { tools } from "./tools"

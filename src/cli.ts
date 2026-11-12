@@ -25,7 +25,6 @@ Usage: florin <command>
   password              Set or reset the dashboard password
   setup-code            Print the code the first-run page asks for
   service <action>      Manage the background service: install, uninstall, start, stop, status
-  mcp                   Serve the MCP over stdio
 
 Data lives in ${homeDir()} (set FLORIN_HOME to move it). FLORIN_PORT overrides the port.`
 
@@ -37,7 +36,6 @@ const commands: Record<string, (args: string[]) => Promise<void> | void> = {
   password,
   "setup-code": setupCode,
   service: async (args) => (await import("./cli/service")).service(args),
-  mcp: async () => (await import("./server/mcp/stdio")).serveStdio(),
   help: () => console.log(HELP),
 }
 

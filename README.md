@@ -80,9 +80,11 @@ transactions (including bulk categorising, transfers and imports), budgets,
 categories, payees, reports and the change log. Every change an agent makes is
 recorded under its name. Start an agent with the `overview` tool.
 
-**Over HTTP**, on the running florin at `/mcp`: create an access token in
-Settings (it is shown once), then give your client the address and the token as
-a bearer header. Changes are recorded as `mcp:<token name>`; deleting the token
+The MCP is served over streamable HTTP by the running florin, at its public
+address (set in Settings) plus `/mcp`: `http://127.0.0.1:4680/mcp` locally, or
+e.g. `https://florin.example.com/mcp` behind your own domain. Create an access token
+in Settings (it is shown once), then give your client the URL and the token as a
+bearer header. Changes are recorded as `mcp:<token name>`; deleting the token
 cuts the client off.
 
 ```json
@@ -93,18 +95,6 @@ cuts the client off.
       "url": "http://127.0.0.1:4680/mcp",
       "headers": { "Authorization": "Bearer florin_…" }
     }
-  }
-}
-```
-
-**Over stdio**, for a client on the same machine: `florin mcp` opens florin's
-database directly (whether or not the service is running) and needs no token.
-Changes are recorded as `mcp:<the client's name>`.
-
-```json
-{
-  "mcpServers": {
-    "florin": { "command": "florin", "args": ["mcp"] }
   }
 }
 ```
@@ -150,7 +140,7 @@ in a temporary folder) and `pnpm build`. CI runs all four on every pull request.
   never in the database or any API answer.
 - `src/routes/api/` – the REST API; `src/routes/mcp.ts` – the MCP endpoint.
 - `src/server/mcp/` – the MCP server. Each tool is a `defineTool` in
-  `tools/`, listed in `tools/index.ts`; HTTP and stdio serve the same list.
+  `tools/`, listed in `tools/index.ts`; `http.ts` serves them at `/mcp`.
 - `src/routes/_app/` – dashboard pages; `src/components/ui/` – shadcn/ui components.
 - `src/lib/format.ts` – every amount and date the dashboard shows; pages
   never call Intl themselves. `src/components/` – the shared parts pages build

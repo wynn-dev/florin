@@ -1,21 +1,13 @@
-// The MCP driven by the SDK's own client: over streamable HTTP (the /mcp
-// handler, with and without a token) and over stdio (`florin mcp`'s server on
-// in-process streams), against a real database in a temporary folder.
-import { PassThrough } from "node:stream"
+// The MCP driven by the SDK's own client over streamable HTTP (the /mcp
+// handler, with and without a token), against a real database in a temporary
+// folder.
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
-import {
-  ReadBuffer,
-  serializeMessage,
-} from "@modelcontextprotocol/sdk/shared/stdio.js"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
 import { useTempHome } from "./setup"
 import * as data from "@/server/data"
 import { handleMcpRequest } from "@/server/mcp/http"
-import { serveStdio } from "@/server/mcp/stdio"
 import { tools } from "@/server/mcp/tools"
-import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
-import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js"
 
 useTempHome()
 
@@ -58,34 +50,6 @@ function httpClient(token?: string) {
     }
   )
   return { client: new Client({ name: "test", version: "1.0.0" }), transport }
-}
-
-/** A client transport over in-process pipes to `florin mcp`'s server. */
-function stdioPair(): Transport {
-  const toServer = new PassThrough()
-  const fromServer = new PassThrough()
-  void serveStdio(toServer, fromServer)
-  const buffer = new ReadBuffer()
-  const transport: Transport = {
-    start: () => {
-      fromServer.on("data", (chunk: Buffer) => {
-        buffer.append(chunk)
-        for (let m = buffer.readMessage(); m; m = buffer.readMessage())
-          transport.onmessage?.(m)
-      })
-      return Promise.resolve()
-    },
-    send: (message: JSONRPCMessage) => {
-      toServer.write(serializeMessage(message))
-      return Promise.resolve()
-    },
-    close: () => {
-      toServer.end()
-      transport.onclose?.()
-      return Promise.resolve()
-    },
-  }
-  return transport
 }
 
 type Result = { isError?: boolean; content: { type: string; text: string }[] }
@@ -281,25 +245,6 @@ describe("over HTTP", () => {
     )
     expect(response.status).toBe(401)
     expect((await response.json()).error).toMatch(/revoked/)
-  })
-})
-
-describe("over stdio", () => {
-  test("names the client in the change log", async () => {
-    const client = new Client({ name: "Claude Desktop", version: "1.0.0" })
-    await client.connect(stdioPair())
-    expect((await client.listTools()).tools).toHaveLength(tools.length)
-    const created = await call(client, "save_category", {
-      name: "Pets",
-      groupId: data.listCategoryGroups().find((g) => g.name === "Everyday")!.id,
-    })
-    expect(created.name).toBe("Pets")
-    const log = await call(client, "get_activity", { limit: 1 })
-    expect(log.items[0]).toMatchObject({
-      actor: "mcp:Claude Desktop",
-      summary: "Added category Pets to Everyday",
-    })
-    await client.close()
   })
 })
 

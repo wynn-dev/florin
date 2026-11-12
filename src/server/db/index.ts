@@ -44,8 +44,8 @@ function migrations(): MigrationMeta[] {
 export function openDatabase(path: string) {
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
   const database = drizzle({ connection: { path } })
-  // WAL and a busy timeout let `florin mcp` (stdio) write while the service
-  // runs. Write transactions start immediate, so one that waits for the other
+  // WAL and a busy timeout let another florin process (e.g. `florin
+  // seed-demo`) write while the service runs. Write transactions start immediate, so one that waits for the other
   // process waits out the busy timeout instead of failing on a stale read.
   database.$client.exec(
     "PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;"
