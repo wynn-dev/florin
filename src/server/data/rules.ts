@@ -468,10 +468,12 @@ export function applyRules(
     if (!run.matched) continue
     result.matched++
     // Untouched: no payee, the bank's own name, or a name the rules give on
-    // the way (one an earlier run or the import set), not a hand edit.
+    // the way (one an earlier run or the import set), not a hand edit. A
+    // row without bank text was entered by hand: its payee is the person's.
     const untouchedPayee =
       t.payeeName === null ||
-      run.names.some((n) => n.toLowerCase() === t.payeeName!.toLowerCase())
+      (bankName !== null &&
+        run.names.some((n) => n.toLowerCase() === t.payeeName!.toLowerCase()))
     const payee =
       run.payee &&
       (options.overwrite || untouchedPayee) &&

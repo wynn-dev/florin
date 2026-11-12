@@ -335,6 +335,23 @@ describe("applying to existing transactions", () => {
     expect(data.applyRules("person", { accountId: a }).changed).toBe(0)
   })
 
+  test("a payee typed on a transaction entered by hand stays", () => {
+    const a = account()
+    const t = data.createTransaction("person", {
+      accountId: a,
+      date: "2026-04-05",
+      amount: -800,
+      payeeName: "Jumbo Centrum",
+    })
+    data.saveRules("person", [{ pattern: "jumbo", payee: "Jumbo" }])
+    expect(
+      data.applyRules("person", { accountId: a, dryRun: true })
+    ).toMatchObject({ matched: 1, changed: 0, payeesRemoved: 0 })
+    data.applyRules("person", { accountId: a })
+    expect(data.getTransaction(t.id).payeeName).toBe("Jumbo Centrum")
+    expect(data.listPayees({ search: "Jumbo Centrum" }).total).toBe(1)
+  })
+
   test("overwrite sets payee and category wherever a rule matches", () => {
     const a = existing()
     const done = data.applyRules("person", { accountId: a, overwrite: true })
