@@ -18,6 +18,7 @@ import { and, eq, inArray, isNotNull, sql } from "drizzle-orm"
 import { db, schema } from "../db"
 import {
   getAccount,
+  getTransaction,
   importTransactions,
   inBatch,
   logChange,
@@ -413,8 +414,9 @@ export function applyRows(
           .run()
         unmatched++
       } else {
+        const { transferKept } = getTransaction(p.id, tx)
         tx.delete(transactions).where(eq(transactions.id, p.id)).run()
-        if (p.transferId) releaseLeg(tx, p.transferId)
+        if (p.transferId) releaseLeg(tx, p.transferId, transferKept)
         removed++
       }
     }

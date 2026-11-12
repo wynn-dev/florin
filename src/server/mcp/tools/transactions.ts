@@ -108,7 +108,7 @@ const update = z.object({
     .nullable()
     .optional()
     .describe(
-      "Turns it into a transfer to this account by creating the other leg there, or null to make it a plain transaction: a leg florin created is deleted, a leg from a bank or an import stays as a plain row"
+      "Turns it into a transfer to this account by creating the other leg there, or null to make it a plain transaction: the other leg stays as a plain transaction when it came from a bank or an import or the two were linked with link_transfers, and is deleted when florin created it"
     ),
   transferAmount: zAmount.optional(),
 })
@@ -117,7 +117,7 @@ export const updateTransactions = defineTool({
   name: "update_transactions",
   title: "Update transactions",
   description:
-    "Changes up to 500 transactions in one call, each with its own fields (e.g. a different categoryId per transaction when categorising), all or none; an error names the item to fix. Only the fields given change. Changing one leg of a transfer keeps the other leg mirrored, except that a leg from a bank or an import keeps its own date, notes and status. transferAccountId creates the other leg; when that row already exists (the other bank sent it), use link_transfers instead.",
+    "Changes up to 500 transactions in one call, each with its own fields (e.g. a different categoryId per transaction when categorising), all or none; an error names the item to fix. Only the fields given change. Changing one leg of a transfer keeps the other leg mirrored, except that a leg from a bank or an import, or one linked with link_transfers, keeps its own date, notes and status. transferAccountId creates the other leg; when that row already exists (the other bank sent it), use link_transfers instead.",
   input: { updates: z.array(update).min(1).max(500) },
   kind: "write",
   run: ({ updates }, { actor }) => {
@@ -136,7 +136,7 @@ export const deleteTransactionsTool = defineTool({
   name: "delete_transactions",
   title: "Delete transactions",
   description:
-    "Deletes transactions by id, all or none. Deleting a leg of a transfer deletes the other leg too when florin created it; a leg from a bank or an import stays, as a plain transaction.",
+    "Deletes transactions by id, all or none. Deleting a leg of a transfer deletes the other leg too when florin created it; a leg from a bank or an import, or one linked with link_transfers, stays as a plain transaction.",
   input: { ids: z.array(zId).min(1).max(500) },
   kind: "destructive",
   run: ({ ids }, { actor }) => {

@@ -260,11 +260,13 @@ export type Transaction = {
   /** For a transfer: the other leg's amount, in its account's currency. */
   transferAmount: number | null
   /**
-   * For a transfer: the other leg came from a bank or an import (it has an
-   * importedId), so it stays, as a plain row, when this one is deleted or
-   * stops being a transfer. False for a leg florin made, and for non-transfers.
+   * For a transfer: the other leg stays, as a plain row, when this one is
+   * deleted or stops being a transfer, and keeps its own date, notes and
+   * status when this one is edited: it came from a bank or an import, or the
+   * two were linked, each a transaction of its own. False when florin made
+   * the transfer and the other leg goes with this one, and for non-transfers.
    */
-  transferImported: boolean
+  transferKept: boolean
   /** The account's balance after this transaction; only when listing one account. */
   balance?: number
 }

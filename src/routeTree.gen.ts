@@ -57,6 +57,7 @@ import { Route as ApiSetupIndexRouteImport } from './routes/api/setup/index'
 import { Route as ApiSetupCategoriesRouteImport } from './routes/api/setup/categories'
 import { Route as ApiTransactionsIndexRouteImport } from './routes/api/transactions/index'
 import { Route as ApiTransactionsIdRouteImport } from './routes/api/transactions/$id'
+import { Route as ApiTransactionsLinkRouteImport } from './routes/api/transactions/link'
 import { Route as ConnectEnableBankingCallbackRouteImport } from './routes/connect/enable-banking/callback'
 import { Route as ApiAccountsIdIndexRouteImport } from './routes/api/accounts/$id/index'
 import { Route as ApiAccountsIdBalancesRouteImport } from './routes/api/accounts/$id/balances'
@@ -324,6 +325,11 @@ const ApiTransactionsIdRoute = ApiTransactionsIdRouteImport.update({
   path: '/api/transactions/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTransactionsLinkRoute = ApiTransactionsLinkRouteImport.update({
+  id: '/api/transactions/link',
+  path: '/api/transactions/link',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConnectEnableBankingCallbackRoute =
   ConnectEnableBankingCallbackRouteImport.update({
     id: '/connect/enable-banking/callback',
@@ -504,6 +510,7 @@ export interface FileRoutesByFullPath {
   '/api/rules/test': typeof ApiRulesTestRoute
   '/api/setup/categories': typeof ApiSetupCategoriesRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
+  '/api/transactions/link': typeof ApiTransactionsLinkRoute
   '/connect/enable-banking/callback': typeof ConnectEnableBankingCallbackRoute
   '/accounts/': typeof AppAccountsIndexRoute
   '/budget/': typeof AppBudgetIndexRoute
@@ -579,6 +586,7 @@ export interface FileRoutesByTo {
   '/api/rules/test': typeof ApiRulesTestRoute
   '/api/setup/categories': typeof ApiSetupCategoriesRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
+  '/api/transactions/link': typeof ApiTransactionsLinkRoute
   '/connect/enable-banking/callback': typeof ConnectEnableBankingCallbackRoute
   '/accounts': typeof AppAccountsIndexRoute
   '/budget': typeof AppBudgetIndexRoute
@@ -656,6 +664,7 @@ export interface FileRoutesById {
   '/api/rules/test': typeof ApiRulesTestRoute
   '/api/setup/categories': typeof ApiSetupCategoriesRoute
   '/api/transactions/$id': typeof ApiTransactionsIdRoute
+  '/api/transactions/link': typeof ApiTransactionsLinkRoute
   '/connect/enable-banking/callback': typeof ConnectEnableBankingCallbackRoute
   '/_app/accounts/': typeof AppAccountsIndexRoute
   '/_app/budget/': typeof AppBudgetIndexRoute
@@ -733,6 +742,7 @@ export interface FileRouteTypes {
     | '/api/rules/test'
     | '/api/setup/categories'
     | '/api/transactions/$id'
+    | '/api/transactions/link'
     | '/connect/enable-banking/callback'
     | '/accounts/'
     | '/budget/'
@@ -808,6 +818,7 @@ export interface FileRouteTypes {
     | '/api/rules/test'
     | '/api/setup/categories'
     | '/api/transactions/$id'
+    | '/api/transactions/link'
     | '/connect/enable-banking/callback'
     | '/accounts'
     | '/budget'
@@ -884,6 +895,7 @@ export interface FileRouteTypes {
     | '/api/rules/test'
     | '/api/setup/categories'
     | '/api/transactions/$id'
+    | '/api/transactions/link'
     | '/connect/enable-banking/callback'
     | '/_app/accounts/'
     | '/_app/budget/'
@@ -954,6 +966,7 @@ export interface RootRouteChildren {
   ApiRulesTestRoute: typeof ApiRulesTestRoute
   ApiSetupCategoriesRoute: typeof ApiSetupCategoriesRoute
   ApiTransactionsIdRoute: typeof ApiTransactionsIdRoute
+  ApiTransactionsLinkRoute: typeof ApiTransactionsLinkRoute
   ConnectEnableBankingCallbackRoute: typeof ConnectEnableBankingCallbackRoute
   ApiAccountsIndexRoute: typeof ApiAccountsIndexRoute
   ApiActivityIndexRoute: typeof ApiActivityIndexRoute
@@ -1330,6 +1343,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTransactionsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/transactions/link': {
+      id: '/api/transactions/link'
+      path: '/api/transactions/link'
+      fullPath: '/api/transactions/link'
+      preLoaderRoute: typeof ApiTransactionsLinkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/connect/enable-banking/callback': {
       id: '/connect/enable-banking/callback'
       path: '/connect/enable-banking/callback'
@@ -1572,6 +1592,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRulesTestRoute: ApiRulesTestRoute,
   ApiSetupCategoriesRoute: ApiSetupCategoriesRoute,
   ApiTransactionsIdRoute: ApiTransactionsIdRoute,
+  ApiTransactionsLinkRoute: ApiTransactionsLinkRoute,
   ConnectEnableBankingCallbackRoute: ConnectEnableBankingCallbackRoute,
   ApiAccountsIndexRoute: ApiAccountsIndexRoute,
   ApiActivityIndexRoute: ApiActivityIndexRoute,
@@ -1619,13 +1640,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

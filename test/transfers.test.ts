@@ -175,7 +175,7 @@ describe("linking", () => {
       categoryId: null,
       transferId: into.id,
       transferAccountName: "Savings",
-      transferImported: true,
+      transferKept: true,
     })
     expect(into).toMatchObject({
       accountId: savings,
@@ -346,10 +346,42 @@ describe("unlinking", () => {
       amount: -5_000,
       transferAccountId: savings,
     })
-    expect(made.transferImported).toBe(false)
+    expect(made.transferKept).toBe(false)
     data.updateTransaction("person", made.id, { transferAccountId: null })
     expect(() => data.getTransaction(made.transferId!)).toThrow(data.NotFound)
     expect(data.getTransaction(made.id).transferId).toBeNull()
+  })
+
+  test("two rows typed in and linked both stay when unlinked", () => {
+    const [a, b] = data.createTransactions("mcp:agent", [
+      { accountId: current, date: "2026-10-11", amount: -900 },
+      { accountId: savings, date: "2026-10-11", amount: 900 },
+    ])
+    data.linkTransfers("person", [[a.id, b.id]])
+    expect(data.getTransaction(a.id).transferKept).toBe(true)
+    data.updateTransaction("person", b.id, { transferAccountId: null })
+    expect(data.getTransaction(a.id).transferId).toBeNull()
+    expect(data.getTransaction(b.id).transferId).toBeNull()
+  })
+
+  test("unlinking the leg florin made never deletes the bank row it came from", () => {
+    data.importTransactions("bank-sync:Test Bank", current, [
+      {
+        date: "2026-10-11",
+        amount: -800,
+        payee: "OUT",
+        importedId: "er:cur-8",
+      },
+    ])
+    const bank = row(current, "er:cur-8")
+    const made = data.updateTransaction("person", bank.id, {
+      transferAccountId: savings,
+    })
+    expect(made.transferKept).toBe(false)
+    data.updateTransaction("person", made.transferId!, {
+      transferAccountId: null,
+    })
+    expect(row(current, "er:cur-8").transferId).toBeNull()
   })
 
   test("editing a florin leg doesn't rewrite the bank leg's date, notes or status", () => {
